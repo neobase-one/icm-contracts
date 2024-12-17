@@ -5,7 +5,7 @@
 
 pragma solidity 0.8.25;
 
-import {ValidatorMessages} from "./ValidatorMessages.sol";
+import {ValidatorMessages} from "../ValidatorMessages.sol";
 import {
     InitialValidator,
     IValidatorManager,
@@ -17,7 +17,7 @@ import {
     ValidatorManagerSettings,
     ValidatorRegistrationInput,
     ValidatorStatus
-} from "./interfaces/IValidatorManager.sol";
+} from "../interfaces/IValidatorManager.sol";
 import {
     IWarpMessenger,
     WarpMessage

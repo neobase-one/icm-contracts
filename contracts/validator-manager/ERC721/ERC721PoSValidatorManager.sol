@@ -6,7 +6,7 @@
 pragma solidity 0.8.25;
 
 import {ERC721ValidatorManager} from "./ERC721ValidatorManager.sol";
-import {ValidatorMessages} from "./ValidatorMessages.sol";
+import {ValidatorMessages} from "../ValidatorMessages.sol";
 import {
     Delegator,
     DelegatorNFT,
@@ -14,13 +14,13 @@ import {
     IPoSValidatorManager,
     PoSValidatorInfo,
     PoSValidatorManagerSettings
-} from "./interfaces/IPoSValidatorManager.sol";
+} from "../interfaces/IPoSValidatorManager.sol";
 import {
     Validator,
     ValidatorRegistrationInput,
     ValidatorStatus
-} from "./interfaces/IValidatorManager.sol";
-import {IRewardCalculator} from "./interfaces/IRewardCalculator.sol";
+} from "../interfaces/IValidatorManager.sol";
+import {IRewardCalculator} from "../interfaces/IRewardCalculator.sol";
 import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from

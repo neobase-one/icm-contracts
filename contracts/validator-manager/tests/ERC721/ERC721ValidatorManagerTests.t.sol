@@ -6,14 +6,14 @@
 pragma solidity 0.8.25;
 
 import {Test} from "@forge-std/Test.sol";
-import {ERC721ValidatorManager, ConversionData, InitialValidator} from "../ERC721ValidatorManager.sol";
-import {ValidatorMessages} from "../ValidatorMessages.sol";
+import {ERC721ValidatorManager, ConversionData, InitialValidator} from "../../ERC721/ERC721ValidatorManager.sol";
+import {ValidatorMessages} from "../../ValidatorMessages.sol";
 import {
     ValidatorStatus,
     ValidatorRegistrationInput,
     PChainOwner,
     IValidatorManager
-} from "../interfaces/IValidatorManager.sol";
+} from "../../interfaces/IValidatorManager.sol";
 import {
     WarpMessage,
     IWarpMessenger

@@ -6,11 +6,11 @@
 pragma solidity 0.8.25;
 
 import {ERC721PoSValidatorManagerTest} from "./ERC721PoSValidatorManagerTests.t.sol";
-import {ERC721TokenStakingManager} from "../ERC721TokenStakingManager.sol";
-import {ERC721PoSValidatorManager, PoSValidatorManagerSettings} from "../ERC721PoSValidatorManager.sol";
-import {ExampleRewardCalculator} from "../ExampleRewardCalculator.sol";
-import {ValidatorRegistrationInput, IValidatorManager} from "../interfaces/IValidatorManager.sol";
-import {ICMInitializable} from "../../utilities/ICMInitializable.sol";
+import {ERC721TokenStakingManager} from "../../ERC721/ERC721TokenStakingManager.sol";
+import {ERC721PoSValidatorManager, PoSValidatorManagerSettings} from "../../ERC721/ERC721PoSValidatorManager.sol";
+import {ExampleRewardCalculator} from "../../ExampleRewardCalculator.sol";
+import {ValidatorRegistrationInput, IValidatorManager} from "../../interfaces/IValidatorManager.sol";
+import {ICMInitializable} from "../../../utilities/ICMInitializable.sol";
 import {ExampleERC721} from "@mocks/ExampleERC721.sol";
 import {ExampleERC20} from "@mocks/ExampleERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";

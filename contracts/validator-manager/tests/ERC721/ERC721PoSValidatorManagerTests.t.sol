@@ -5,19 +5,19 @@
 
 pragma solidity 0.8.25;
 
-import {IRewardCalculator} from "../interfaces/IRewardCalculator.sol";
+import {IRewardCalculator} from "../../interfaces/IRewardCalculator.sol";
 import {ERC721ValidatorManagerTest} from "./ERC721ValidatorManagerTests.t.sol";
-import {ERC721PoSValidatorManager} from "../ERC721PoSValidatorManager.sol";
+import {ERC721PoSValidatorManager} from "../../ERC721/ERC721PoSValidatorManager.sol";
 import {
     DelegatorStatus, PoSValidatorManagerSettings
-} from "../interfaces/IPoSValidatorManager.sol";
-import {ValidatorManager} from "../ValidatorManager.sol";
+} from "../../interfaces/IPoSValidatorManager.sol";
+import {ERC721ValidatorManager} from "../../ERC721/ERC721ValidatorManager.sol";
 import {
     ValidatorManagerSettings,
     ValidatorRegistrationInput,
     ValidatorStatus
-} from "../interfaces/IValidatorManager.sol";
-import {ValidatorMessages} from "../ValidatorMessages.sol";
+} from "../../interfaces/IValidatorManager.sol";
+import {ValidatorMessages} from "../../ValidatorMessages.sol";
 import {
     WarpMessage,
     IWarpMessenger
@@ -181,7 +181,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         _mockGetUptimeWarpMessage(new bytes(0), false);
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-        vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
+        vm.expectRevert(ERC721ValidatorManager.InvalidWarpMessage.selector);
         posValidatorManager.initializeEndValidation(validationID, true, 0);
     }
 
@@ -207,7 +207,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
+                ERC721ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
             )
         );
         posValidatorManager.initializeEndValidation(validationID, true, 0);
@@ -234,7 +234,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
         vm.expectRevert(
-            abi.encodeWithSelector(ValidatorManager.InvalidValidationID.selector, validationID)
+            abi.encodeWithSelector(ERC721ValidatorManager.InvalidValidationID.selector, validationID)
         );
         posValidatorManager.initializeEndValidation(validationID, true, 0);
     }
@@ -586,7 +586,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _completeDefaultDelegator(validationID, delegationID);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Active
+                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Active
             )
         );
         posValidatorManager.claimDelegationFees(validationID);
@@ -856,7 +856,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
+                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
         _initializeDelegatorRegistration(
@@ -922,7 +922,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
+                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
         _initializeDelegatorRegistration(
@@ -1000,7 +1000,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP + 1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed
+                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed
             )
         );
         _initializeDelegatorRegistration(
@@ -1615,7 +1615,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
+                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
         posValidatorManager.submitUptimeProof(validationID, 0);
@@ -1703,7 +1703,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _mockGetPChainWarpMessage(setValidatorWeightPayload, true);
 
         vm.expectRevert(
-            abi.encodeWithSelector(ValidatorManager.InvalidValidationID.selector, validationID)
+            abi.encodeWithSelector(ERC721ValidatorManager.InvalidValidationID.selector, validationID)
         );
 
         vm.warp(DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP);
@@ -1732,7 +1732,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _mockGetPChainWarpMessage(setValidatorWeightPayload, true);
 
         vm.expectRevert(
-            abi.encodeWithSelector(ValidatorManager.InvalidValidationID.selector, delegationID)
+            abi.encodeWithSelector(ERC721ValidatorManager.InvalidValidationID.selector, delegationID)
         );
 
         posValidatorManager.completeEndDelegation(delegationID, 0);
@@ -1847,7 +1847,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
+                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
 
