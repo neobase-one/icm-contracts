@@ -57,6 +57,10 @@ struct Delegator {
     uint64 endingNonce;
 }
 
+struct DelegatorNFT {
+    uint256[] nftIds;
+}
+
 /**
  * @dev Describes the active state of a PoS Validator in addition the information in {IValidatorManager-Validator}
  */

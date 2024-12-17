@@ -39,6 +39,10 @@ struct Validator {
     uint64 endedAt;
 }
 
+struct ValidatorNFT {
+    uint256[] nftIds;
+}
+
 /**
  * @dev Describes the current churn period
  */

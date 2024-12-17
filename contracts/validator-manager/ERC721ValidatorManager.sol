@@ -32,7 +32,7 @@ import {Initializable} from
  *
  * @custom:security-contact https://github.com/ava-labs/icm-contracts/blob/main/SECURITY.md
  */
-abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValidatorManager {
+abstract contract ERC721ValidatorManager is Initializable, ContextUpgradeable, IValidatorManager {
     // solhint-disable private-vars-leading-underscore
     /// @custom:storage-location erc7201:avalanche-icm.storage.ValidatorManager
 
@@ -49,6 +49,8 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         mapping(bytes32 => bytes) _pendingRegisterValidationMessages;
         /// @notice Maps the validationID to the validator information.
         mapping(bytes32 => Validator) _validationPeriods;
+
+        mapping(bytes32 => ValidatorNFT) _validatorNFTs;
         /// @notice Maps the nodeID to the validationID for validation periods that have not ended.
         mapping(bytes => bytes32) _registeredValidators;
         /// @notice Boolean that indicates if the initial validator set has been set.
@@ -238,14 +240,14 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
      * This is the only method related to validator registration and removal that needs the initializedValidatorSet
      * modifier. All others are guarded by checking the validator status changes initialized in this function.
      * @param input The inputs for a validator registration.
-     * @param weight The weight of the validator being registered.
+     * @param tokenId The weight of the validator being registered.
      */
     function _initializeValidatorRegistration(
         ValidatorRegistrationInput calldata input,
-        uint64 weight
+        uint256 tokenId
     ) internal virtual initializedValidatorSet returns (bytes32) {
         ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
-
+        uint64 weight = 1;
         if (
             input.registrationExpiry <= block.timestamp
                 || input.registrationExpiry >= block.timestamp + MAXIMUM_REGISTRATION_EXPIRY_LENGTH
@@ -255,7 +257,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
 
         // Ensure the new validator doesn't overflow the total weight
         if (uint256(weight) + uint256($._churnTracker.totalWeight) > type(uint64).max) {
-            revert InvalidTotalWeight(weight);
+            revert InvalidTotalWeight(1);
         }
 
         _validatePChainOwner(input.remainingBalanceOwner);
@@ -300,7 +302,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         $._validationPeriods[validationID].weight = weight;
         $._validationPeriods[validationID].startedAt = 0; // The validation period only starts once the registration is acknowledged.
         $._validationPeriods[validationID].endedAt = 0;
-        
+        $._validatorNFTs[validationID].nftIds.push(uint256(tokenId));
 
         emit ValidationPeriodCreated(
             validationID, input.nodeID, messageID, weight, input.registrationExpiry
@@ -437,7 +439,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
      */
     function _completeEndValidation(uint32 messageIndex)
         internal
-        returns (bytes32, Validator memory)
+        returns (bytes32, Validator memory, uint256[] memory)
     {
         ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
 
@@ -449,6 +451,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         }
 
         Validator memory validator = $._validationPeriods[validationID];
+        uint256[] memory nftIds = $._validatorNFTs[validationID].nftIds;
 
         // The validation status is PendingRemoved if validator removal was initiated with a call to {initiateEndValidation}.
         // The validation status is PendingAdded if the validator was never registered on the P-Chain.
@@ -467,14 +470,16 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         }
         // Remove the validator from the registered validators mapping.
         delete $._registeredValidators[validator.nodeID];
+        delete $._validatorNFTs[validationID];
 
         // Update the validator.
         $._validationPeriods[validationID] = validator;
 
+
         // Emit event.
         emit ValidationPeriodEnded(validationID, validator.status);
 
-        return (validationID, validator);
+        return (validationID, validator, nftIds);
     }
 
     function _incrementAndGetNonce(bytes32 validationID) internal returns (uint64) {
@@ -516,6 +521,8 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         uint64 nonce = _incrementAndGetNonce(validationID);
 
         $._validationPeriods[validationID].weight = newWeight;
+        
+        
 
         // Submit the message to the Warp precompile.
         bytes32 messageID = WARP_MESSENGER.sendWarpMessage(
@@ -579,7 +586,6 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         // Two separate calculations because we're using uints and (newValidatorWeight - oldValidatorWeight) could underflow.
         churnTracker.totalWeight += newValidatorWeight;
         churnTracker.totalWeight -= oldValidatorWeight;
-
         // Rearranged equation for totalWeight < (100 / $._maximumChurnPercentage)
         // Total weight must be above this value in order to not trigger churn limits with an added/removed weight of 1.
         if (churnTracker.totalWeight * $._maximumChurnPercentage < 100) {

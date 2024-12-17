@@ -5,3 +5,4 @@
 @teleporter=contracts/teleporter
 @mocks=contracts/mocks
 @utilities=contracts/utilities
+forge-std/=lib/forge-std/src/

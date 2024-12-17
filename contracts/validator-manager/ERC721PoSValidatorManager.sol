@@ -5,10 +5,11 @@
 
 pragma solidity 0.8.25;
 
-import {ValidatorManager} from "./ValidatorManager.sol";
+import {ERC721ValidatorManager} from "./ERC721ValidatorManager.sol";
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {
     Delegator,
+    DelegatorNFT,
     DelegatorStatus,
     IPoSValidatorManager,
     PoSValidatorInfo,
@@ -29,9 +30,9 @@ import {ReentrancyGuardUpgradeable} from
  *
  * @custom:security-contact https://github.com/ava-labs/icm-contracts/blob/main/SECURITY.md
  */
-abstract contract PoSValidatorManager is
+abstract contract ERC721PoSValidatorManager is
     IPoSValidatorManager,
-    ValidatorManager,
+    ERC721ValidatorManager,
     ReentrancyGuardUpgradeable
 {
     // solhint-disable private-vars-leading-underscore
@@ -62,6 +63,8 @@ abstract contract PoSValidatorManager is
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
+
+        mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTs;
         /// @notice Maps the delegation ID to its pending staking rewards.
         mapping(bytes32 delegationID => uint256) _redeemableDelegatorRewards;
         mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
@@ -378,7 +381,7 @@ abstract contract PoSValidatorManager is
     function completeEndValidation(uint32 messageIndex) external nonReentrant {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
-        (bytes32 validationID, Validator memory validator) = _completeEndValidation(messageIndex);
+        (bytes32 validationID, Validator memory validator, uint256[] memory nftIds) = _completeEndValidation(messageIndex);
 
         // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
         // or the validator was part of the initial validator set.
@@ -399,9 +402,9 @@ abstract contract PoSValidatorManager is
         if (validator.status == ValidatorStatus.Completed) {
             _withdrawValidationRewards(rewardRecipient, validationID);
         }
-
-        // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock(owner, weightToValue(validator.startingWeight));
+        for (uint256 i = 0; i < nftIds.length; i++) {
+            _unlock(owner, nftIds[i]);
+        }
     }
 
     /**
@@ -450,7 +453,7 @@ abstract contract PoSValidatorManager is
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 stakeAmount
+        uint256 tokenId
     ) internal virtual returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         // Validate and save the validator requirements
@@ -464,14 +467,13 @@ abstract contract PoSValidatorManager is
         if (minStakeDuration < $._minimumStakeDuration) {
             revert InvalidMinStakeDuration(minStakeDuration);
         }
+
         // Ensure the weight is within the valid range.
-        if (stakeAmount < $._minimumStakeAmount || stakeAmount > $._maximumStakeAmount) {
-            revert InvalidStakeAmount(stakeAmount);
-        }
+       
         // Lock the stake in the contract.
-        uint256 lockedValue = _lock(stakeAmount);
+        uint256 lockedValue = _lock(tokenId);
         uint64 weight = valueToWeight(lockedValue);
-        bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
+        bytes32 validationID = _initializeValidatorRegistration(registrationInput, tokenId);
 
         address owner = _msgSender();
 
@@ -520,10 +522,11 @@ abstract contract PoSValidatorManager is
     function _initializeDelegatorRegistration(
         bytes32 validationID,
         address delegatorAddress,
-        uint256 delegationAmount
+        uint256 tokenId
     ) internal returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        uint64 weight = valueToWeight(_lock(delegationAmount));
+        uint64 weight = valueToWeight(_lock(tokenId));
+
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
         // Check that the validation ID is a PoS validator
@@ -552,7 +555,7 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].startedAt = 0;
         $._delegatorStakes[delegationID].startingNonce = nonce;
         $._delegatorStakes[delegationID].endingNonce = 0;
-       
+        $._delegatorNFTs[delegationID].nftIds.push(uint256(tokenId));
         emit DelegatorAdded({
             delegationID: delegationID,
             validationID: validationID,
@@ -897,9 +900,13 @@ abstract contract PoSValidatorManager is
 
         (uint256 delegationRewards, uint256 validatorFees) =
             _withdrawDelegationRewards(rewardRecipient, delegationID, validationID);
-
+        uint256[] memory nftIds = $._delegatorNFTs[delegationID].nftIds;
         // Unlock the delegator's stake.
-        _unlock(delegator.owner, weightToValue(delegator.weight));
+        for (uint256 i = nftIds.length; i > 0; i--) {
+            uint256 nftId = nftIds[i - 1];
+            _unlock(delegator.owner, nftId);
+        }
+        delete $._delegatorNFTs[delegationID].nftIds;
 
         emit DelegationEnded(delegationID, validationID, delegationRewards, validatorFees);
     }
