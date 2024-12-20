@@ -27,6 +27,11 @@ function solLinter() {
     # lint solidity contracts
     echo "Linting Solidity contracts..."
     cd $ICM_CONTRACTS_PATH
+    if ! command -v solhint &> /dev/null
+    then
+        echo "solhint not found, installing globally..."
+        npm install -g solhint
+    fi
     # "solhint **/*.sol" runs differently than "solhint '**/*.sol'", where the latter checks sol files
     # in subdirectories. The former only checks sol files in the current directory and directories one level down.
     solhint '**/*.sol' --config ./.solhint.json --ignore-path ./.solhintignore --max-warnings 0

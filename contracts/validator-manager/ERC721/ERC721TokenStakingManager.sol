@@ -13,8 +13,10 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable@5.0.2/access/AccessControlUpgradeable.sol";
+import {Initializable} from
+    "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
+import {AccessControlUpgradeable} from
+    "@openzeppelin/contracts-upgradeable@5.0.2/access/AccessControlUpgradeable.sol";
 
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
@@ -44,7 +46,6 @@ contract ERC721TokenStakingManager is
     error InvalidTokenAddress(address tokenAddress);
     error InvalidRewardTokenAddress(address tokenAddress);
 
-
     // solhint-disable ordering
     function _getERC721StakingManagerStorage()
         private
@@ -59,11 +60,16 @@ contract ERC721TokenStakingManager is
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     modifier onlyOperator() {
-        require(hasRole(OPERATOR_ROLE, msg.sender), "ERC721TokenStakingManager: caller is not an operator");
+        require(
+            hasRole(OPERATOR_ROLE, msg.sender),
+            "ERC721TokenStakingManager: caller is not an operator"
+        );
         _;
     }
 
-    constructor(ICMInitializable init) {
+    constructor(
+        ICMInitializable init
+    ) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
             _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -101,14 +107,14 @@ contract ERC721TokenStakingManager is
         IERC20 rewardToken
     ) internal onlyInitializing {
         ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
-        
+
         if (address(stakingToken) == address(0)) {
             revert InvalidTokenAddress(address(stakingToken));
         }
         if (address(rewardToken) == address(0)) {
             revert InvalidRewardTokenAddress(address(rewardToken));
         }
-        
+
         $._token = stakingToken;
         $._rewardToken = rewardToken;
     }
@@ -155,7 +161,9 @@ contract ERC721TokenStakingManager is
      * @notice See {PoSValidatorManager-_lock}
      * Note: Must be guarded with reentrancy guard for safe transfer from.
      */
-    function _lock(uint256 tokenId) internal virtual override returns (uint256) {
+    function _lock(
+        uint256 tokenId
+    ) internal virtual override returns (uint256) {
         _getERC721StakingManagerStorage()._token.transferFrom(_msgSender(), address(this), tokenId);
         return 1;
     }
@@ -182,7 +190,9 @@ contract ERC721TokenStakingManager is
      * @dev Called by owner to fund rewards
      * @param amount Amount of reward tokens to transfer to the contract
      */
-    function fundRewards(uint256 amount) external onlyOperator {
+    function fundRewards(
+        uint256 amount
+    ) external onlyOperator {
         ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
         $._rewardToken.safeTransferFrom(_msgSender(), address(this), amount);
     }
@@ -191,7 +201,9 @@ contract ERC721TokenStakingManager is
      * @notice Allows owner to recover excess reward tokens
      * @param amount Amount of reward tokens to recover
      */
-    function recoverRewardTokens(uint256 amount) external onlyOperator {
+    function recoverRewardTokens(
+        uint256 amount
+    ) external onlyOperator {
         ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
         $._rewardToken.safeTransfer(_msgSender(), amount);
     }

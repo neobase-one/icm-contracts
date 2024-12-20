@@ -39,6 +39,14 @@ interface IERC721TokenStakingManager is IPoSValidatorManager {
     ) external returns (bytes32);
 
     /**
+     * @notice Funds the contract with reward tokens
+     * @param amount Amount of reward tokens to transfer to the contract
+     */
+    function fundRewards(
+        uint256 amount
+    ) external;
+
+    /**
      * @notice Returns the ERC721 token contract used for staking
      */
     function erc721() external view returns (IERC721);
@@ -47,10 +55,4 @@ interface IERC721TokenStakingManager is IPoSValidatorManager {
      * @notice Returns the ERC20 token contract used for rewards
      */
     function rewardToken() external view returns (IERC20);
-
-    /**
-     * @notice Funds the contract with reward tokens
-     * @param amount Amount of reward tokens to transfer to the contract
-     */
-    function fundRewards(uint256 amount) external;
 }

@@ -7,9 +7,14 @@ pragma solidity 0.8.25;
 
 import {ERC721PoSValidatorManagerTest} from "./ERC721PoSValidatorManagerTests.t.sol";
 import {ERC721TokenStakingManager} from "../../ERC721/ERC721TokenStakingManager.sol";
-import {ERC721PoSValidatorManager, PoSValidatorManagerSettings} from "../../ERC721/ERC721PoSValidatorManager.sol";
+import {
+    ERC721PoSValidatorManager,
+    PoSValidatorManagerSettings
+} from "../../ERC721/ERC721PoSValidatorManager.sol";
 import {ExampleRewardCalculator} from "../../ExampleRewardCalculator.sol";
-import {ValidatorRegistrationInput, IValidatorManager} from "../../interfaces/IValidatorManager.sol";
+import {
+    ValidatorRegistrationInput, IValidatorManager
+} from "../../interfaces/IValidatorManager.sol";
 import {ICMInitializable} from "../../../utilities/ICMInitializable.sol";
 import {ExampleERC721} from "@mocks/ExampleERC721.sol";
 import {ExampleERC20} from "@mocks/ExampleERC20.sol";
@@ -36,7 +41,8 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
 
         app.initializeValidatorSet(_defaultConversionData(), 0);
     }
-     function onERC721Received(
+
+    function onERC721Received(
         address,
         address,
         uint256,
@@ -201,12 +207,8 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         ValidatorRegistrationInput memory input,
         uint64 weight
     ) internal virtual override returns (bytes32) {
-      
         return app.initializeValidatorRegistration(
-            input,
-            DEFAULT_DELEGATION_FEE_BIPS,
-            DEFAULT_MINIMUM_STAKE_DURATION,
-            weight
+            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION, weight
         );
     }
 
@@ -215,23 +217,20 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         address delegatorAddress,
         uint64 weight
     ) internal virtual override returns (bytes32) {
-         uint256 value = _weightToValue(weight);
-            
-        
+        uint256 value = _weightToValue(weight);
+
         vm.startPrank(delegatorAddress);
         //stakingToken.approve(address(app), TEST_TOKEN_ID);
         bytes32 delegationID = app.initializeDelegatorRegistration(validationID, value);
         vm.stopPrank();
-        
+
         return delegationID;
     }
 
     function _beforeSend(uint256 tokenId, address spender) internal override {
-        
         stakingToken.approve(spender, tokenId);
         ExampleERC721(address(stakingToken)).transferFrom(address(this), spender, tokenId);
-        
-        
+
         vm.startPrank(spender);
 
         stakingToken.approve(address(app), tokenId);
@@ -242,19 +241,16 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         vm.expectCall(
             address(stakingToken),
             abi.encodeWithSelector(
-            0x42842e0e, //safeTransferFrom(address,address,uint256)
-            address(app),
-            account,
-            tokenId
-        )
+                0x42842e0e, //safeTransferFrom(address,address,uint256)
+                address(app),
+                account,
+                tokenId
+            )
         );
     }
 
     function _expectRewardIssuance(address account, uint256 amount) internal override {
-        vm.expectCall(
-            address(rewardToken),
-            abi.encodeCall(IERC20.transfer, (account, amount))
-        );
+        vm.expectCall(address(rewardToken), abi.encodeCall(IERC20.transfer, (account, amount)));
     }
 
     function _setUp() internal override returns (IValidatorManager) {
@@ -276,12 +272,15 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         return app;
     }
 
-    function _getStakeAssetBalance(address account) internal view override returns (uint256) {
+    function _getStakeAssetBalance(
+        address account
+    ) internal view override returns (uint256) {
         return stakingToken.balanceOf(account);
     }
 
-     function _getRewardAssetBalance(address account) internal view override returns (uint256) {
+    function _getRewardAssetBalance(
+        address account
+    ) internal view override returns (uint256) {
         return rewardToken.balanceOf(account);
     }
-    
 }

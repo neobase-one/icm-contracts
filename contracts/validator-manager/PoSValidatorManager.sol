@@ -29,6 +29,7 @@ import {ReentrancyGuardUpgradeable} from
  *
  * @custom:security-contact https://github.com/ava-labs/icm-contracts/blob/main/SECURITY.md
  */
+
 abstract contract PoSValidatorManager is
     IPoSValidatorManager,
     ValidatorManager,
@@ -116,10 +117,9 @@ abstract contract PoSValidatorManager is
     }
 
     // solhint-disable-next-line func-name-mixedcase
-    function __POS_Validator_Manager_init(PoSValidatorManagerSettings calldata settings)
-        internal
-        onlyInitializing
-    {
+    function __POS_Validator_Manager_init(
+        PoSValidatorManagerSettings calldata settings
+    ) internal onlyInitializing {
         __ValidatorManager_init(settings.baseSettings);
         __ReentrancyGuard_init();
         __POS_Validator_Manager_init_unchained({
@@ -197,7 +197,9 @@ abstract contract PoSValidatorManager is
     /**
      * @notice See {IPoSValidatorManager-claimDelegationFees}.
      */
-    function claimDelegationFees(bytes32 validationID) external {
+    function claimDelegationFees(
+        bytes32 validationID
+    ) external {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         ValidatorStatus status = getValidator(validationID).status;
@@ -375,7 +377,9 @@ abstract contract PoSValidatorManager is
     /**
      * @notice See {IValidatorManager-completeEndValidation}.
      */
-    function completeEndValidation(uint32 messageIndex) external nonReentrant {
+    function completeEndValidation(
+        uint32 messageIndex
+    ) external nonReentrant {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         (bytes32 validationID, Validator memory validator) = _completeEndValidation(messageIndex);
@@ -488,7 +492,9 @@ abstract contract PoSValidatorManager is
      * @notice Converts a token value to a weight.
      * @param value Token value to convert.
      */
-    function valueToWeight(uint256 value) public view returns (uint64) {
+    function valueToWeight(
+        uint256 value
+    ) public view returns (uint64) {
         uint256 weight = value / _getPoSValidatorManagerStorage()._weightToValueFactor;
         if (weight == 0 || weight > type(uint64).max) {
             revert InvalidStakeAmount(value);
@@ -500,7 +506,9 @@ abstract contract PoSValidatorManager is
      * @notice Converts a weight to a token value.
      * @param weight weight to convert.
      */
-    function weightToValue(uint64 weight) public view returns (uint256) {
+    function weightToValue(
+        uint64 weight
+    ) public view returns (uint256) {
         return uint256(weight) * _getPoSValidatorManagerStorage()._weightToValueFactor;
     }
 
@@ -508,7 +516,9 @@ abstract contract PoSValidatorManager is
      * @notice Locks tokens in this contract.
      * @param value Number of tokens to lock.
      */
-    function _lock(uint256 value) internal virtual returns (uint256);
+    function _lock(
+        uint256 value
+    ) internal virtual returns (uint256);
 
     /**
      * @notice Unlocks token to a specific address.
@@ -552,7 +562,7 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].startedAt = 0;
         $._delegatorStakes[delegationID].startingNonce = nonce;
         $._delegatorStakes[delegationID].endingNonce = 0;
-       
+
         emit DelegatorAdded({
             delegationID: delegationID,
             validationID: validationID,
@@ -637,7 +647,6 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) external {
-
         _initializeEndDelegationWithCheck(
             delegationID, includeUptimeProof, messageIndex, rewardRecipient
         );
@@ -679,7 +688,6 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) external {
-
         // Ignore the return value here to force end delegation, regardless of possible missed rewards
         _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
     }
@@ -810,7 +818,9 @@ abstract contract PoSValidatorManager is
      * @dev Resending the latest validator weight with the latest nonce is safe because all weight changes are
      * cumulative, so the latest weight change will always include the weight change for any added delegators.
      */
-    function resendUpdateDelegation(bytes32 delegationID) external {
+    function resendUpdateDelegation(
+        bytes32 delegationID
+    ) external {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         Delegator memory delegator = $._delegatorStakes[delegationID];
         if (
@@ -873,7 +883,9 @@ abstract contract PoSValidatorManager is
         _completeEndDelegation(delegationID);
     }
 
-    function _completeEndDelegation(bytes32 delegationID) internal {
+    function _completeEndDelegation(
+        bytes32 delegationID
+    ) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         Delegator memory delegator = $._delegatorStakes[delegationID];
@@ -913,7 +925,9 @@ abstract contract PoSValidatorManager is
      * @dev Return true if this is a PoS validator with locked stake. Returns false if this was originally a PoA
      * validator that was later migrated to this PoS manager, or the validator was part of the initial validator set.
      */
-    function _isPoSValidator(bytes32 validationID) internal view returns (bool) {
+    function _isPoSValidator(
+        bytes32 validationID
+    ) internal view returns (bool) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         return $._posValidatorInfo[validationID].owner != address(0);
     }

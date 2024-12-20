@@ -17,6 +17,7 @@ import {IERC20Mintable} from "../interfaces/IERC20Mintable.sol";
 import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializable.sol";
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
+
 contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
     using SafeERC20 for IERC20Mintable;
 
@@ -221,7 +222,7 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         // Construct the object under test
         app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
         token = new ExampleERC20();
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE,0);
+        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE, 0);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
@@ -233,7 +234,9 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         return app;
     }
 
-    function _getStakeAssetBalance(address account) internal view override returns (uint256) {
+    function _getStakeAssetBalance(
+        address account
+    ) internal view override returns (uint256) {
         return token.balanceOf(account);
     }
 }
