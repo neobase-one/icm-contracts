@@ -6,11 +6,8 @@
 pragma solidity 0.8.25;
 
 import {ERC721PoSValidatorManagerTest} from "./ERC721PoSValidatorManagerTests.t.sol";
-import {ERC721TokenStakingManager} from "../../ERC721/ERC721TokenStakingManager.sol";
-import {
-    ERC721PoSValidatorManager,
-    PoSValidatorManagerSettings
-} from "../../ERC721/ERC721PoSValidatorManager.sol";
+import {ERC721TokenStakingManager} from "../../ERC721TokenStakingManager.sol";
+import {PoSValidatorManager, PoSValidatorManagerSettings} from "../../PoSValidatorManager.sol";
 import {ExampleRewardCalculator} from "../../ExampleRewardCalculator.sol";
 import {
     ValidatorRegistrationInput, IValidatorManager
@@ -80,7 +77,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
     function testZeroMinimumDelegationFee() public {
         app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.InvalidDelegationFee.selector, 0)
+            abi.encodeWithSelector(PoSValidatorManager.InvalidDelegationFee.selector, 0)
         );
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
@@ -93,7 +90,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         uint16 minimumDelegationFeeBips = app.MAXIMUM_DELEGATION_FEE_BIPS() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidDelegationFee.selector, minimumDelegationFeeBips
+                PoSValidatorManager.InvalidDelegationFee.selector, minimumDelegationFeeBips
             )
         );
 
@@ -106,7 +103,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidStakeAmount.selector, DEFAULT_MAXIMUM_STAKE_AMOUNT
+                PoSValidatorManager.InvalidStakeAmount.selector, DEFAULT_MAXIMUM_STAKE_AMOUNT
             )
         );
 
@@ -119,7 +116,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
     function testZeroMaxStakeMultiplier() public {
         app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.InvalidStakeMultiplier.selector, 0)
+            abi.encodeWithSelector(PoSValidatorManager.InvalidStakeMultiplier.selector, 0)
         );
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
@@ -132,7 +129,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         uint64 minimumStakeDuration = DEFAULT_CHURN_PERIOD - 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidMinStakeDuration.selector, minimumStakeDuration
+                PoSValidatorManager.InvalidMinStakeDuration.selector, minimumStakeDuration
             )
         );
 
@@ -146,7 +143,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
+                PoSValidatorManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
             )
         );
 
@@ -158,7 +155,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
     function testZeroWeightToValueFactor() public {
         app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.ZeroWeightToValueFactor.selector)
+            abi.encodeWithSelector(PoSValidatorManager.ZeroWeightToValueFactor.selector)
         );
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
@@ -176,7 +173,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         });
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidMinStakeDuration.selector,
+                PoSValidatorManager.InvalidMinStakeDuration.selector,
                 DEFAULT_MINIMUM_STAKE_DURATION - 1
             )
         );

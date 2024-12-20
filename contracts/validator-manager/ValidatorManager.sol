@@ -12,11 +12,11 @@ import {
     PChainOwner,
     ConversionData,
     Validator,
-    ValidatorNFT,
     ValidatorChurnPeriod,
     ValidatorManagerSettings,
     ValidatorRegistrationInput,
-    ValidatorStatus
+    ValidatorStatus,
+    ValidatorManagerStorage
 } from "./interfaces/IValidatorManager.sol";
 import {
     IWarpMessenger,
@@ -33,26 +33,21 @@ import {Initializable} from
  * @custom:security-contact https://github.com/ava-labs/icm-contracts/blob/main/SECURITY.md
  */
 abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValidatorManager {
-    // solhint-disable private-vars-leading-underscore
-    /// @custom:storage-location erc7201:avalanche-icm.storage.ValidatorManager
-
-    struct ValidatorManagerStorage {
-        /// @notice The l1ID associated with this validator manager.
-        bytes32 _l1ID;
-        /// @notice The number of seconds after which to reset the churn tracker.
-        uint64 _churnPeriodSeconds;
-        /// @notice The maximum churn rate allowed per churn period.
-        uint8 _maximumChurnPercentage;
-        /// @notice The churn tracker used to track the amount of stake added or removed in the churn period.
-        ValidatorChurnPeriod _churnTracker;
-        /// @notice Maps the validationID to the registration message such that the message can be re-sent if needed.
-        mapping(bytes32 => bytes) _pendingRegisterValidationMessages;
-        /// @notice Maps the validationID to the validator information.
-        mapping(bytes32 => Validator) _validationPeriods;
-        /// @notice Maps the nodeID to the validationID for validation periods that have not ended.
-        mapping(bytes => bytes32) _registeredValidators;
-        /// @notice Boolean that indicates if the initial validator set has been set.
-        bool _initializedValidatorSet;
+    // solhint-disable ordering
+    /**
+     * @dev This storage is visible to child contracts for convenience.
+     *      External getters would be better practice, but code size limitations are preventing this.
+     *      Child contracts should probably never write to this storage.
+     */
+    function _getValidatorManagerStorage()
+        internal
+        pure
+        returns (ValidatorManagerStorage storage $)
+    {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            $.slot := VALIDATOR_MANAGER_STORAGE_LOCATION
+        }
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -85,23 +80,6 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
     error UnexpectedRegistrationStatus(bool validRegistration);
     error InvalidPChainOwnerThreshold(uint256 threshold, uint256 addressesLength);
     error PChainOwnerAddressesNotSorted();
-
-    // solhint-disable ordering
-    /**
-     * @dev This storage is visible to child contracts for convenience.
-     *      External getters would be better practice, but code size limitations are preventing this.
-     *      Child contracts should probably never write to this storage.
-     */
-    function _getValidatorManagerStorage()
-        internal
-        pure
-        returns (ValidatorManagerStorage storage $)
-    {
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            $.slot := VALIDATOR_MANAGER_STORAGE_LOCATION
-        }
-    }
 
     /**
      * @notice Warp precompile used for sending and receiving Warp messages.
@@ -472,7 +450,6 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         }
         // Remove the validator from the registered validators mapping.
         delete $._registeredValidators[validator.nodeID];
-
         // Update the validator.
         $._validationPeriods[validationID] = validator;
 
@@ -591,5 +568,11 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         }
 
         $._churnTracker = churnTracker;
+    }
+
+    function getValidatorNfts(
+        bytes32 validationID
+    ) public view returns (uint256[] memory) {
+        return _getValidatorManagerStorage()._validatorNFTs[validationID].nftIds;
     }
 }

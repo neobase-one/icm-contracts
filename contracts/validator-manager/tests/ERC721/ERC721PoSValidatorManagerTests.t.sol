@@ -7,11 +7,11 @@ pragma solidity 0.8.25;
 
 import {IRewardCalculator} from "../../interfaces/IRewardCalculator.sol";
 import {ERC721ValidatorManagerTest} from "./ERC721ValidatorManagerTests.t.sol";
-import {ERC721PoSValidatorManager} from "../../ERC721/ERC721PoSValidatorManager.sol";
+import {PoSValidatorManager} from "../../PoSValidatorManager.sol";
 import {
     DelegatorStatus, PoSValidatorManagerSettings
 } from "../../interfaces/IPoSValidatorManager.sol";
-import {ERC721ValidatorManager} from "../../ERC721/ERC721ValidatorManager.sol";
+import {ValidatorManager} from "../../ValidatorManager.sol";
 import {
     ValidatorManagerSettings,
     ValidatorRegistrationInput,
@@ -47,7 +47,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     uint256 public constant DEFAULT_WEIGHT_TO_VALUE_FACTOR = 1;
     uint256 public constant SECONDS_IN_YEAR = 31536000;
 
-    ERC721PoSValidatorManager public posValidatorManager;
+    PoSValidatorManager public posValidatorManager;
     IRewardCalculator public rewardCalculator;
 
     ValidatorRegistrationInput public defaultRegistrationInput = ValidatorRegistrationInput({
@@ -92,7 +92,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testDelegationFeeBipsTooLow() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidDelegationFee.selector,
+                PoSValidatorManager.InvalidDelegationFee.selector,
                 DEFAULT_MINIMUM_DELEGATION_FEE_BIPS - 1
             )
         );
@@ -108,7 +108,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint16 delegationFeeBips = posValidatorManager.MAXIMUM_DELEGATION_FEE_BIPS() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidDelegationFee.selector, delegationFeeBips
+                PoSValidatorManager.InvalidDelegationFee.selector, delegationFeeBips
             )
         );
 
@@ -123,7 +123,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testInvalidMinStakeDuration() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidMinStakeDuration.selector,
+                PoSValidatorManager.InvalidMinStakeDuration.selector,
                 DEFAULT_MINIMUM_STAKE_DURATION - 1
             )
         );
@@ -138,7 +138,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testStakeAmountTooLow() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidStakeAmount.selector, DEFAULT_MINIMUM_STAKE_AMOUNT - 1
+                PoSValidatorManager.InvalidStakeAmount.selector, DEFAULT_MINIMUM_STAKE_AMOUNT - 1
             )
         );
         _initializeValidatorRegistration(
@@ -152,7 +152,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testStakeAmountTooHigh() public {
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidStakeAmount.selector,   + 1
+                PoSValidatorManager.InvalidStakeAmount.selector,   + 1
             )
         );
         _initializeValidatorRegistration(
@@ -169,7 +169,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.MinStakeDurationNotPassed.selector, block.timestamp
+                PoSValidatorManager.MinStakeDurationNotPassed.selector, block.timestamp
             )
         );
         posValidatorManager.initializeEndValidation(validationID, false, 0);
@@ -180,7 +180,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         _mockGetUptimeWarpMessage(new bytes(0), false);
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-        vm.expectRevert(ERC721ValidatorManager.InvalidWarpMessage.selector);
+        vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
         posValidatorManager.initializeEndValidation(validationID, true, 0);
     }
 
@@ -206,7 +206,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
+                ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
             )
         );
         posValidatorManager.initializeEndValidation(validationID, true, 0);
@@ -233,9 +233,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidationID.selector, validationID
-            )
+            abi.encodeWithSelector(ValidatorManager.InvalidValidationID.selector, validationID)
         );
         posValidatorManager.initializeEndValidation(validationID, true, 0);
     }
@@ -310,9 +308,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _mockGetPChainWarpMessage(setValidatorWeightPayload, true);
 
         vm.warp(DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP);
-        vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.InvalidNonce.selector, nonce)
-        );
+        vm.expectRevert(abi.encodeWithSelector(PoSValidatorManager.InvalidNonce.selector, nonce));
         posValidatorManager.completeDelegatorRegistration(delegationID2, 0);
     }
 
@@ -356,7 +352,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.prank(address(1));
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.UnauthorizedOwner.selector, address(1))
+            abi.encodeWithSelector(PoSValidatorManager.UnauthorizedOwner.selector, address(1))
         );
         posValidatorManager.initializeEndValidation(validationID, false, 0);
     }
@@ -404,7 +400,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint64 invalidEndTime = DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP + 1 hours;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.MinStakeDurationNotPassed.selector, invalidEndTime
+                PoSValidatorManager.MinStakeDurationNotPassed.selector, invalidEndTime
             )
         );
         _initializeEndDelegation({
@@ -425,7 +421,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP + DEFAULT_MINIMUM_STAKE_DURATION - 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.MinStakeDurationNotPassed.selector, invalidEndTime
+                PoSValidatorManager.MinStakeDurationNotPassed.selector, invalidEndTime
             )
         );
         _initializeEndDelegation({
@@ -468,7 +464,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.MinStakeDurationNotPassed.selector, invalidEndTime
+                PoSValidatorManager.MinStakeDurationNotPassed.selector, invalidEndTime
             )
         );
 
@@ -489,7 +485,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.DelegatorIneligibleForRewards.selector, delegationID
+                PoSValidatorManager.DelegatorIneligibleForRewards.selector, delegationID
             )
         );
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP);
@@ -589,7 +585,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _completeDefaultDelegator(validationID, delegationID);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Active
+                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Active
             )
         );
         posValidatorManager.claimDelegationFees(validationID);
@@ -602,9 +598,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _endDefaultValidatorWithChecks(validationID, 2);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC721PoSValidatorManager.UnauthorizedOwner.selector, address(123)
-            )
+            abi.encodeWithSelector(PoSValidatorManager.UnauthorizedOwner.selector, address(123))
         );
 
         vm.prank(address(123));
@@ -706,7 +700,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidRewardRecipient.selector, newRewardRecipient
+                PoSValidatorManager.InvalidRewardRecipient.selector, newRewardRecipient
             )
         );
         posValidatorManager.changeDelegatorRewardRecipient(delegationID, newRewardRecipient);
@@ -734,7 +728,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         vm.prank(badActor);
 
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.UnauthorizedOwner.selector, badActor)
+            abi.encodeWithSelector(PoSValidatorManager.UnauthorizedOwner.selector, badActor)
         );
 
         posValidatorManager.changeDelegatorRewardRecipient(delegationID, badActor);
@@ -858,8 +852,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidatorStatus.selector,
-                ValidatorStatus.PendingRemoved
+                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
         _initializeDelegatorRegistration(
@@ -925,8 +918,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidatorStatus.selector,
-                ValidatorStatus.PendingRemoved
+                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
         _initializeDelegatorRegistration(
@@ -1004,7 +996,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP + 1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed
+                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed
             )
         );
         _initializeDelegatorRegistration(
@@ -1186,9 +1178,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         );
         _mockGetPChainWarpMessage(setValidatorWeightPayload, true);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.InvalidNonce.selector, nonce)
-        );
+        vm.expectRevert(abi.encodeWithSelector(PoSValidatorManager.InvalidNonce.selector, nonce));
         posValidatorManager.completeEndDelegation(delegationID2, 0);
     }
 
@@ -1580,7 +1570,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.ValidatorIneligibleForRewards.selector, validationID
+                PoSValidatorManager.ValidatorIneligibleForRewards.selector, validationID
             )
         );
 
@@ -1592,7 +1582,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.ValidatorNotPoS.selector, defaultInitialValidationID
+                PoSValidatorManager.ValidatorNotPoS.selector, defaultInitialValidationID
             )
         );
         posValidatorManager.submitUptimeProof(defaultInitialValidationID, 0);
@@ -1620,8 +1610,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidatorStatus.selector,
-                ValidatorStatus.PendingRemoved
+                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
         posValidatorManager.submitUptimeProof(validationID, 0);
@@ -1660,7 +1649,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.ValidatorNotPoS.selector, defaultInitialValidationID
+                PoSValidatorManager.ValidatorNotPoS.selector, defaultInitialValidationID
             )
         );
 
@@ -1678,7 +1667,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.MaxWeightExceeded.selector, delegatorWeight + DEFAULT_WEIGHT
+                PoSValidatorManager.MaxWeightExceeded.selector, delegatorWeight + DEFAULT_WEIGHT
             )
         );
 
@@ -1692,7 +1681,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.Active
+                PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.Active
             )
         );
 
@@ -1709,9 +1698,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _mockGetPChainWarpMessage(setValidatorWeightPayload, true);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidationID.selector, validationID
-            )
+            abi.encodeWithSelector(ValidatorManager.InvalidValidationID.selector, validationID)
         );
 
         vm.warp(DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP);
@@ -1740,9 +1727,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _mockGetPChainWarpMessage(setValidatorWeightPayload, true);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidationID.selector, delegationID
-            )
+            abi.encodeWithSelector(ValidatorManager.InvalidValidationID.selector, delegationID)
         );
 
         posValidatorManager.completeEndDelegation(delegationID, 0);
@@ -1754,8 +1739,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidDelegatorStatus.selector,
-                DelegatorStatus.PendingAdded
+                PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.PendingAdded
             )
         );
 
@@ -1767,9 +1751,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID = _registerDefaultDelegator(validationID);
 
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC721PoSValidatorManager.UnauthorizedOwner.selector, address(123)
-            )
+            abi.encodeWithSelector(PoSValidatorManager.UnauthorizedOwner.selector, address(123))
         );
 
         vm.prank(address(123));
@@ -1828,7 +1810,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.Active
+                PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.Active
             )
         );
 
@@ -1860,8 +1842,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidValidatorStatus.selector,
-                ValidatorStatus.PendingRemoved
+                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
 
@@ -1874,7 +1855,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.Active
+                PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.Active
             )
         );
 
@@ -1924,7 +1905,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testValueToWeightTruncated() public {
         // default weightToValueFactor is 1e12
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.InvalidStakeAmount.selector, 0.1)
+            abi.encodeWithSelector(PoSValidatorManager.InvalidStakeAmount.selector, 0.1)
         );
         posValidatorManager.valueToWeight(0.1);
     }
@@ -1933,7 +1914,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testValueToWeightExceedsUInt64Max() public {
         // default weightToValueFactor is 1e12
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721PoSValidatorManager.InvalidStakeAmount.selector, 1e40)
+            abi.encodeWithSelector(PoSValidatorManager.InvalidStakeAmount.selector, 1e40)
         );
         posValidatorManager.valueToWeight(1e40);
     }

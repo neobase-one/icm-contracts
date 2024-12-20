@@ -11,8 +11,8 @@ import {
     Delegator,
     DelegatorStatus,
     IPoSValidatorManager,
-    PoSValidatorInfo,
-    PoSValidatorManagerSettings
+    PoSValidatorManagerSettings,
+    PoSValidatorManagerStorage
 } from "./interfaces/IPoSValidatorManager.sol";
 import {
     Validator,
@@ -35,41 +35,6 @@ abstract contract PoSValidatorManager is
     ValidatorManager,
     ReentrancyGuardUpgradeable
 {
-    // solhint-disable private-vars-leading-underscore
-    /// @custom:storage-location erc7201:avalanche-icm.storage.PoSValidatorManager
-    struct PoSValidatorManagerStorage {
-        /// @notice The minimum amount of stake required to be a validator.
-        uint256 _minimumStakeAmount;
-        /// @notice The maximum amount of stake allowed to be a validator.
-        uint256 _maximumStakeAmount;
-        /// @notice The minimum amount of time in seconds a validator must be staked for. Must be at least {_churnPeriodSeconds}.
-        uint64 _minimumStakeDuration;
-        /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
-        uint16 _minimumDelegationFeeBips;
-        /**
-         * @notice A multiplier applied to validator's initial stake amount to determine
-         * the maximum amount of stake a validator can have with delegations.
-         * Note: Setting this value to 1 would disable delegations to validators, since
-         * the maximum stake would be equal to the initial stake.
-         */
-        uint64 _maximumStakeMultiplier;
-        /// @notice The factor used to convert between weight and value.
-        uint256 _weightToValueFactor;
-        /// @notice The reward calculator for this validator manager.
-        IRewardCalculator _rewardCalculator;
-        /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the l1ID that this contract manages.
-        bytes32 _uptimeBlockchainID;
-        /// @notice Maps the validation ID to its requirements.
-        mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
-        /// @notice Maps the delegation ID to the delegator information.
-        mapping(bytes32 delegationID => Delegator) _delegatorStakes;
-        /// @notice Maps the delegation ID to its pending staking rewards.
-        mapping(bytes32 delegationID => uint256) _redeemableDelegatorRewards;
-        mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
-        /// @notice Maps the validation ID to its pending staking rewards.
-        mapping(bytes32 validationID => uint256) _redeemableValidatorRewards;
-        mapping(bytes32 validationID => address) _rewardRecipients;
-    }
     // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.PoSValidatorManager")) - 1)) & ~bytes32(uint256(0xff));
@@ -405,7 +370,8 @@ abstract contract PoSValidatorManager is
         }
 
         // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock(owner, weightToValue(validator.startingWeight));
+        _unlock(owner, validationID, true);
+        _deleteValidatorNft(validationID);
     }
 
     /**
@@ -476,6 +442,7 @@ abstract contract PoSValidatorManager is
         uint256 lockedValue = _lock(stakeAmount);
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
+        _addValidatorNft(validationID, stakeAmount);
 
         address owner = _msgSender();
 
@@ -523,9 +490,22 @@ abstract contract PoSValidatorManager is
     /**
      * @notice Unlocks token to a specific address.
      * @param to Address to send token to.
-     * @param value Number of tokens to lock.
+     * @param validationID ID of validator
+     * @param isValidator Whether the unlock is for a validator or a delegator
      */
-    function _unlock(address to, uint256 value) internal virtual;
+    function _unlock(address to, bytes32 validationID, bool isValidator) internal virtual;
+
+    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal virtual;
+
+    function _deleteValidatorNft(
+        bytes32 validationID
+    ) internal virtual;
+
+    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal virtual;
+
+    function _deleteDelegatorNft(
+        bytes32 delegationID
+    ) internal virtual;
 
     function _initializeDelegatorRegistration(
         bytes32 validationID,
@@ -562,6 +542,7 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].startedAt = 0;
         $._delegatorStakes[delegationID].startingNonce = nonce;
         $._delegatorStakes[delegationID].endingNonce = 0;
+        _addDelegatorNft(delegationID, delegationAmount);
 
         emit DelegatorAdded({
             delegationID: delegationID,
@@ -897,9 +878,6 @@ abstract contract PoSValidatorManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
-        // Once this function completes, the delegation is completed so we can clear it from state now.
-        delete $._delegatorStakes[delegationID];
-
         address rewardRecipient = $._delegatorRewardRecipients[delegationID];
         delete $._delegatorRewardRecipients[delegationID];
 
@@ -911,7 +889,10 @@ abstract contract PoSValidatorManager is
             _withdrawDelegationRewards(rewardRecipient, delegationID, validationID);
 
         // Unlock the delegator's stake.
-        _unlock(delegator.owner, weightToValue(delegator.weight));
+        _unlock(delegator.owner, delegationID, false);
+        // Once this function completes, the delegation is completed so we can clear it from state now.
+        delete $._delegatorStakes[delegationID];
+        _deleteDelegatorNft(delegationID);
 
         emit DelegationEnded(delegationID, validationID, delegationRewards, validatorFees);
     }
@@ -967,5 +948,18 @@ abstract contract PoSValidatorManager is
         }
 
         return (delegationRewards, validatorFees);
+    }
+
+    function getDelegator(
+        bytes32 delegationID
+    ) public view returns (Delegator memory) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        return $._delegatorStakes[delegationID];
+    }
+
+    function getDelegatorNfts(
+        bytes32 delegationID
+    ) public view returns (uint256[] memory) {
+        return _getPoSValidatorManagerStorage()._delegatorNFTs[delegationID].nftIds;
     }
 }

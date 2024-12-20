@@ -6,11 +6,7 @@
 pragma solidity 0.8.25;
 
 import {Test} from "@forge-std/Test.sol";
-import {
-    ERC721ValidatorManager,
-    ConversionData,
-    InitialValidator
-} from "../../ERC721/ERC721ValidatorManager.sol";
+import {ValidatorManager, ConversionData, InitialValidator} from "../../ValidatorManager.sol";
 import {ValidatorMessages} from "../../ValidatorMessages.sol";
 import {
     ValidatorStatus,
@@ -61,7 +57,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
     // solhint-disable-next-line var-name-mixedcase
     PChainOwner public DEFAULT_P_CHAIN_OWNER;
 
-    ERC721ValidatorManager public validatorManager;
+    ValidatorManager public validatorManager;
 
     // Used to create unique validator IDs in {_newNodeID}
     uint64 public nodeIDCounter = 0;
@@ -129,9 +125,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         PChainOwner memory invalidPChainOwner1 = PChainOwner({threshold: 2, addresses: addresses});
         _beforeSend(_weightToValue(DEFAULT_WEIGHT), address(this));
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidPChainOwnerThreshold.selector, 2, 1
-            )
+            abi.encodeWithSelector(ValidatorManager.InvalidPChainOwnerThreshold.selector, 2, 1)
         );
         _initializeValidatorRegistration(
             ValidatorRegistrationInput({
@@ -152,9 +146,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         PChainOwner memory invalidPChainOwner1 = PChainOwner({threshold: 0, addresses: addresses});
         _beforeSend(_weightToValue(DEFAULT_WEIGHT), address(this));
         vm.expectRevert(
-            abi.encodeWithSelector(
-                ERC721ValidatorManager.InvalidPChainOwnerThreshold.selector, 0, 1
-            )
+            abi.encodeWithSelector(ValidatorManager.InvalidPChainOwnerThreshold.selector, 0, 1)
         );
         _initializeValidatorRegistration(
             ValidatorRegistrationInput({
@@ -177,7 +169,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
 
         _beforeSend(_weightToValue(DEFAULT_WEIGHT), address(this));
         vm.expectRevert(
-            abi.encodeWithSelector(ERC721ValidatorManager.PChainOwnerAddressesNotSorted.selector)
+            abi.encodeWithSelector(ValidatorManager.PChainOwnerAddressesNotSorted.selector)
         );
         _initializeValidatorRegistration(
             ValidatorRegistrationInput({
@@ -298,7 +290,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         IValidatorManager manager = _setUp();
 
         _mockGetBlockchainID();
-        vm.expectRevert(abi.encodeWithSelector(ERC721ValidatorManager.InvalidTotalWeight.selector, 4));
+        vm.expectRevert(abi.encodeWithSelector(ValidatorManager.InvalidTotalWeight.selector, 4));
         manager.initializeValidatorSet(_defaultConversionDataWeightsTooLow(), 0);
     }
 
@@ -317,7 +309,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         manager.initializeValidatorSet(_defaultConversionDataTotalWeight5(), 0);
 
         bytes32 validationID = sha256(abi.encodePacked(DEFAULT_L1_ID, uint32(0)));
-        vm.expectRevert(abi.encodeWithSelector(ERC721ValidatorManager.InvalidTotalWeight.selector, 4));
+        vm.expectRevert(abi.encodeWithSelector(ValidatorManager.InvalidTotalWeight.selector, 4));
         _forceInitializeEndValidation(validationID, false, address(0));
     }
     */
@@ -342,7 +334,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         // Second call should fail
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.MaxChurnRateExceeded.selector,
+                ValidatorManager.MaxChurnRateExceeded.selector,
                 churnThreshold + _valueToWeight(DEFAULT_MINIMUM_STAKE_AMOUNT)
             )
         );
@@ -388,7 +380,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         // a new churn period has started.
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC721ValidatorManager.MaxChurnRateExceeded.selector,
+                ValidatorManager.MaxChurnRateExceeded.selector,
                 _valueToWeight(DEFAULT_MINIMUM_STAKE_AMOUNT) + churnThreshold
             )
         );
