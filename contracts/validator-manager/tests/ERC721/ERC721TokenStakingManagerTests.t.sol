@@ -5,62 +5,85 @@
 
 pragma solidity 0.8.25;
 
-import {PoSValidatorManagerTest} from "./PoSValidatorManagerTests.t.sol";
-import {ERC20TokenStakingManager} from "../ERC20TokenStakingManager.sol";
-import {PoSValidatorManager, PoSValidatorManagerSettings} from "../PoSValidatorManager.sol";
-import {ExampleRewardCalculator} from "../ExampleRewardCalculator.sol";
-import {ValidatorRegistrationInput, IValidatorManager} from "../interfaces/IValidatorManager.sol";
-import {ICMInitializable} from "../../utilities/ICMInitializable.sol";
+import {ERC721PoSValidatorManagerTest} from "./ERC721PoSValidatorManagerTests.t.sol";
+import {ERC721TokenStakingManager} from "../../ERC721TokenStakingManager.sol";
+import {PoSValidatorManager, PoSValidatorManagerSettings} from "../../PoSValidatorManager.sol";
+import {ExampleRewardCalculator} from "../../ExampleRewardCalculator.sol";
+import {ValidatorRegistrationInput, IValidatorManager} from "../../interfaces/IValidatorManager.sol";
+import {ICMInitializable} from "../../../utilities/ICMInitializable.sol";
+import {ExampleERC721} from "@mocks/ExampleERC721.sol";
 import {ExampleERC20} from "@mocks/ExampleERC20.sol";
+import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
-import {IERC20Mintable} from "../interfaces/IERC20Mintable.sol";
 import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializable.sol";
-import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
-contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
-    using SafeERC20 for IERC20Mintable;
+import {ERC721ValidatorManagerTest} from "./ERC721ValidatorManagerTests.t.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
-    ERC20TokenStakingManager public app;
-    IERC20Mintable public token;
+contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721Receiver {
+    using SafeERC20 for IERC20;
+
+    ERC721TokenStakingManager public app;
+    IERC721 public stakingToken;
+    IERC20 public rewardToken;
+    uint256 public constant TEST_TOKEN_ID = 1;
 
     function setUp() public override {
-        ValidatorManagerTest.setUp();
-
+        ERC721ValidatorManagerTest.setUp();
         _setUp();
         _mockGetBlockchainID();
         _mockInitializeValidatorSet();
+
         app.initializeValidatorSet(_defaultConversionData(), 0);
+    }
+     function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     function testDisableInitialization() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Disallowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Disallowed);
         vm.expectRevert(abi.encodeWithSelector(Initializable.InvalidInitialization.selector));
-        app.initialize(_defaultPoSSettings(), token);
+        app.initialize(_defaultPoSSettings(), stakingToken, rewardToken);
     }
 
-    function testZeroTokenAddress() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+    function testZeroStakingTokenAddress() public {
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
             abi.encodeWithSelector(
-                ERC20TokenStakingManager.InvalidTokenAddress.selector, address(0)
+                ERC721TokenStakingManager.InvalidTokenAddress.selector, address(0)
             )
         );
-        app.initialize(_defaultPoSSettings(), IERC20Mintable(address(0)));
+        app.initialize(_defaultPoSSettings(), IERC721(address(0)), rewardToken);
+    }
+
+    function testZeroRewardTokenAddress() public {
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ERC721TokenStakingManager.InvalidRewardTokenAddress.selector, address(0)
+            )
+        );
+        app.initialize(_defaultPoSSettings(), stakingToken, IERC20(address(0)));
     }
 
     function testZeroMinimumDelegationFee() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
             abi.encodeWithSelector(PoSValidatorManager.InvalidDelegationFee.selector, 0)
         );
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.minimumDelegationFeeBips = 0;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
     }
 
     function testMaxMinimumDelegationFee() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         uint16 minimumDelegationFeeBips = app.MAXIMUM_DELEGATION_FEE_BIPS() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -70,11 +93,11 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.minimumDelegationFeeBips = minimumDelegationFeeBips;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
     }
 
     function testInvalidStakeAmountRange() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
             abi.encodeWithSelector(
                 PoSValidatorManager.InvalidStakeAmount.selector, DEFAULT_MAXIMUM_STAKE_AMOUNT
@@ -84,22 +107,22 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.minimumStakeAmount = DEFAULT_MAXIMUM_STAKE_AMOUNT;
         defaultPoSSettings.maximumStakeAmount = DEFAULT_MINIMUM_STAKE_AMOUNT;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
     }
 
     function testZeroMaxStakeMultiplier() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
             abi.encodeWithSelector(PoSValidatorManager.InvalidStakeMultiplier.selector, 0)
         );
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.maximumStakeMultiplier = 0;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
     }
 
     function testMinStakeDurationTooLow() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         uint64 minimumStakeDuration = DEFAULT_CHURN_PERIOD - 1;
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -109,11 +132,11 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.minimumStakeDuration = minimumStakeDuration;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
     }
 
     function testMaxStakeMultiplierOverLimit() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -123,18 +146,18 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
     }
 
     function testZeroWeightToValueFactor() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(
             abi.encodeWithSelector(PoSValidatorManager.ZeroWeightToValueFactor.selector)
         );
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.weightToValueFactor = 0;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
     }
 
     function testInvalidValidatorMinStakeDuration() public {
@@ -145,7 +168,6 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
             remainingBalanceOwner: DEFAULT_P_CHAIN_OWNER,
             disableOwner: DEFAULT_P_CHAIN_OWNER
         });
-        uint256 stakeAmount = _weightToValue(DEFAULT_WEIGHT);
         vm.expectRevert(
             abi.encodeWithSelector(
                 PoSValidatorManager.InvalidMinStakeDuration.selector,
@@ -153,14 +175,14 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
             )
         );
         app.initializeValidatorRegistration(
-            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, stakeAmount
+            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, TEST_TOKEN_ID
         );
     }
 
-    function testERC20TokenStakingManagerStorageSlot() public view {
+    function testERC721TokenStakingManagerStorageSlot() public view {
         assertEq(
-            _erc7201StorageSlot("ERC20TokenStakingManager"),
-            app.ERC20_STAKING_MANAGER_STORAGE_LOCATION()
+            _erc7201StorageSlot("ERC721TokenStakingManager"),
+            app.ERC721_STAKING_MANAGER_STORAGE_LOCATION()
         );
     }
 
@@ -168,10 +190,10 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         ValidatorRegistrationInput memory registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 stakeAmount
+        uint256 tokenId
     ) internal virtual override returns (bytes32) {
         return app.initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, stakeAmount
+            registrationInput, delegationFeeBips, minStakeDuration, tokenId
         );
     }
 
@@ -179,11 +201,12 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         ValidatorRegistrationInput memory input,
         uint64 weight
     ) internal virtual override returns (bytes32) {
+      
         return app.initializeValidatorRegistration(
             input,
             DEFAULT_DELEGATION_FEE_BIPS,
             DEFAULT_MINIMUM_STAKE_DURATION,
-            _weightToValue(weight)
+            weight
         );
     }
 
@@ -192,40 +215,60 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         address delegatorAddress,
         uint64 weight
     ) internal virtual override returns (bytes32) {
-        uint256 value = _weightToValue(weight);
+         uint256 value = _weightToValue(weight);
+            
+        
         vm.startPrank(delegatorAddress);
+        //stakingToken.approve(address(app), TEST_TOKEN_ID);
         bytes32 delegationID = app.initializeDelegatorRegistration(validationID, value);
         vm.stopPrank();
+        
         return delegationID;
     }
 
-    function _beforeSend(uint256 amount, address spender) internal override {
-        token.safeIncreaseAllowance(spender, amount);
-        token.safeTransfer(spender, amount);
-
-        // ERC20 tokens need to be pre-approved
+    function _beforeSend(uint256 tokenId, address spender) internal override {
+        
+        stakingToken.approve(spender, tokenId);
+        ExampleERC721(address(stakingToken)).transferFrom(address(this), spender, tokenId);
+        
+        
         vm.startPrank(spender);
-        token.safeIncreaseAllowance(address(app), amount);
+
+        stakingToken.approve(address(app), tokenId);
         vm.stopPrank();
     }
 
-    function _expectStakeUnlock(address account, uint256 amount) internal override {
-        vm.expectCall(address(token), abi.encodeCall(IERC20.transfer, (account, amount)));
+    function _expectStakeUnlock(address account, uint256 tokenId) internal override {
+        vm.expectCall(
+            address(stakingToken),
+            abi.encodeWithSelector(
+            0x42842e0e, //safeTransferFrom(address,address,uint256)
+            address(app),
+            account,
+            tokenId
+        )
+        );
     }
 
     function _expectRewardIssuance(address account, uint256 amount) internal override {
-        vm.expectCall(address(token), abi.encodeCall(IERC20Mintable.mint, (account, amount)));
+        vm.expectCall(
+            address(rewardToken),
+            abi.encodeCall(IERC20.transfer, (account, amount))
+        );
     }
 
     function _setUp() internal override returns (IValidatorManager) {
         // Construct the object under test
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
-        token = new ExampleERC20();
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE,0);
+        app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
+        stakingToken = new ExampleERC721();
+        rewardToken = new ExampleERC20();
+        rewardToken.transfer(address(app), 100000 ether);
+
+        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE, 18);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
-        app.initialize(defaultPoSSettings, token);
+        app.initialize(defaultPoSSettings, stakingToken, rewardToken);
 
         validatorManager = app;
         posValidatorManager = app;
@@ -234,6 +277,11 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
     }
 
     function _getStakeAssetBalance(address account) internal view override returns (uint256) {
-        return token.balanceOf(account);
+        return stakingToken.balanceOf(account);
     }
+
+     function _getRewardAssetBalance(address account) internal view override returns (uint256) {
+        return rewardToken.balanceOf(account);
+    }
+    
 }

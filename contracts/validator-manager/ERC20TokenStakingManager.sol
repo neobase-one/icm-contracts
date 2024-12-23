@@ -35,6 +35,7 @@ contract ERC20TokenStakingManager is
         IERC20Mintable _token;
         uint8 _tokenDecimals;
     }
+
     // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.ERC20TokenStakingManager")) - 1)) & ~bytes32(uint256(0xff));
@@ -55,7 +56,20 @@ contract ERC20TokenStakingManager is
         }
     }
 
-    constructor(ICMInitializable init) {
+    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal override {}
+
+    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal override {}
+
+    function _deleteValidatorNft(
+        bytes32 validationID
+    ) internal override {}
+    function _deleteDelegatorNft(
+        bytes32 delegationID
+    ) internal override {}
+
+    constructor(
+        ICMInitializable init
+    ) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
         }
@@ -138,7 +152,9 @@ contract ERC20TokenStakingManager is
      * @notice See {PoSValidatorManager-_unlock}
      * Note: Must be guarded with reentrancy guard for safe transfer.
      */
-    function _unlock(address to, uint256 value) internal virtual override {
+    function _unlock(address to, bytes32 id, bool isValidator) internal virtual override {
+        uint64 weight = isValidator ? getValidator(id).startingWeight : getDelegator(id).weight;
+        uint256 value = weightToValue(weight);
         _getERC20StakingManagerStorage()._token.safeTransfer(to, value);
     }
 
