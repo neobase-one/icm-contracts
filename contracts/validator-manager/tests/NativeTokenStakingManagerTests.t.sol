@@ -178,7 +178,7 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
     function _setUp() internal override returns (IValidatorManager) {
         // Construct the object under test
         app = new TestableNativeTokenStakingManager(ICMInitializable.Allowed);
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE);
+        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE, 0);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
