@@ -20,7 +20,6 @@ import {
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 // TODO: Remove this once all unit tests implemented
 // solhint-disable no-empty-blocks
-
 abstract contract ERC721ValidatorManagerTest is Test {
     bytes32 public constant DEFAULT_L1_ID =
         bytes32(hex"1234567812345678123456781234567812345678123456781234567812345678");
@@ -284,7 +283,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
 
         validatorManager.completeEndValidation(0);
     }
-    /*
+/*
     function testInitialWeightsTooLow() public {
         vm.prank(address(123));
         IValidatorManager manager = _setUp();
@@ -313,7 +312,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         _forceInitializeEndValidation(validationID, false, address(0));
     }
     */
-    /*
+/*
     function testCumulativeChurnRegistration() public {
         uint64 churnThreshold =
             uint64(DEFAULT_STARTING_TOTAL_WEIGHT) * DEFAULT_MAXIMUM_CHURN_PERCENTAGE / 100;
@@ -436,9 +435,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         _mockSendWarpMessage(registerL1ValidatorMessage, bytes32(0));
         _beforeSend(_weightToValue(weight), address(this));
         vm.expectEmit(true, true, true, true, address(validatorManager));
-        emit ValidationPeriodCreated(
-            validationID, nodeID, bytes32(0), DEFAULT_WEIGHT, registrationExpiry
-        );
+        emit ValidationPeriodCreated(validationID, nodeID, bytes32(0), DEFAULT_WEIGHT, registrationExpiry);
 
         _initializeValidatorRegistration(
             ValidatorRegistrationInput({
@@ -580,9 +577,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         _mockGetBlockchainID(DEFAULT_SOURCE_BLOCKCHAIN_ID);
     }
 
-    function _mockGetBlockchainID(
-        bytes32 blockchainID
-    ) internal {
+    function _mockGetBlockchainID(bytes32 blockchainID) internal {
         vm.mockCall(
             WARP_PRECOMPILE_ADDRESS,
             abi.encodeWithSelector(IWarpMessenger.getBlockchainID.selector),
@@ -643,6 +638,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         }
         assertEq(initialWeight, DEFAULT_INITIAL_TOTAL_WEIGHT);
 
+
         return ConversionData({
             l1ID: DEFAULT_L1_ID,
             validatorManagerBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
@@ -698,24 +694,18 @@ abstract contract ERC721ValidatorManagerTest is Test {
     // This needs to be kept in line with the contract conversions, but we can't make external calls
     // to the contract and use vm.expectRevert at the same time.
     // These are okay to use for PoA as well, because they're just used for conversions inside the tests.
-    function _valueToWeight(
-        uint256 value
-    ) internal pure returns (uint64) {
+    function _valueToWeight(uint256 value) internal pure returns (uint64) {
         return uint64(value);
     }
 
     // This needs to be kept in line with the contract conversions, but we can't make external calls
     // to the contract and use vm.expectRevert at the same time.
     // These are okay to use for PoA as well, because they're just used for conversions inside the tests.
-    function _weightToValue(
-        uint64 weight
-    ) internal pure returns (uint256) {
+    function _weightToValue(uint64 weight) internal pure returns (uint256) {
         return uint256(weight);
     }
 
-    function _erc7201StorageSlot(
-        bytes memory storageName
-    ) internal pure returns (bytes32) {
+    function _erc7201StorageSlot(bytes memory storageName) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(
                 uint256(keccak256(abi.encodePacked("avalanche-icm.storage.", storageName))) - 1

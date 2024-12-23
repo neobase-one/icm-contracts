@@ -575,7 +575,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         _completeDefaultDelegator(validationID, delegationID);
     }
-    /*
+/*
     function testClaimDelegationFeesInvalidValidatorStatus() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -786,8 +786,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
         });
     }
-    */
-
+*/
     function testChangeDelegatorRewardRecipient() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -835,6 +834,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             rewardRecipient: newRewardRecipient
         });
     }
+    
 
     // Delegator registration is not allowed when Validator is pending removed.
     function testInitializeDelegatorRegistrationValidatorPendingRemoved() public {
@@ -2041,9 +2041,10 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         );
     }
 
-    function _registerDefaultDelegator(
-        bytes32 validationID
-    ) internal returns (bytes32 delegationID) {
+    function _registerDefaultDelegator(bytes32 validationID)
+        internal
+        returns (bytes32 delegationID)
+    {
         return _registerDelegator({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
@@ -2055,9 +2056,10 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         });
     }
 
-    function _initializeDefaultDelegatorRegistration(
-        bytes32 validationID
-    ) internal returns (bytes32) {
+    function _initializeDefaultDelegatorRegistration(bytes32 validationID)
+        internal
+        returns (bytes32)
+    {
         return _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
@@ -2332,9 +2334,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         }
     }
 
-    function _completeEndValidation(
-        bytes memory l1ValidatorRegistrationMessage
-    ) internal {
+    function _completeEndValidation(bytes memory l1ValidatorRegistrationMessage) internal {
         _mockGetPChainWarpMessage(l1ValidatorRegistrationMessage, true);
         posValidatorManager.completeEndValidation(0);
     }
@@ -2438,9 +2438,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         });
     }
 
-    function _getStakeAssetBalance(
-        address account
-    ) internal virtual returns (uint256);
+    function _getStakeAssetBalance(address account) internal virtual returns (uint256);
     function _expectStakeUnlock(address account, uint256 amount) internal virtual;
     function _expectRewardIssuance(address account, uint256 amount) internal virtual;
 

@@ -29,6 +29,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     uint64 public constant DEFAULT_DELEGATOR_TOKEN_ID = 2;
     uint64 public constant DEFAULT_DELEGATOR1_TOKEN_ID = 3;
 
+
     uint64 public constant DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP =
         DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EXPIRY;
     uint64 public constant DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP =
@@ -134,7 +135,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             DEFAULT_MINIMUM_STAKE_AMOUNT
         );
     }
-    /*
+/*
     function testStakeAmountTooLow() public {
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -628,12 +629,13 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             stakingEndTime: DEFAULT_COMPLETION_TIMESTAMP,
             uptimeSeconds: DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
         });
-
+        
         _expectRewardIssuance(
-            address(this), (expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS) / 10000
+            address(this), expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS / 10000
         );
         posValidatorManager.claimDelegationFees(validationID);
     }
+    
 
     function testCompleteEndDelegationWithNonDelegatorRewardRecipient() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -705,6 +707,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         );
         posValidatorManager.changeDelegatorRewardRecipient(delegationID, newRewardRecipient);
     }
+    
 
     function testChangeDelegatorRewardRecipientByNonDelegator() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -829,6 +832,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             rewardRecipient: newRewardRecipient
         });
     }
+    
 
     // Delegator registration is not allowed when Validator is pending removed.
     function testInitializeDelegatorRegistrationValidatorPendingRemoved() public {
@@ -1044,7 +1048,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             uptimeSeconds: DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
         });
 
-        uint256 expectedValidatorFees = (expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS) / 10000;
+        uint256 expectedValidatorFees = expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS / 10000;
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
         // completeDelegatorRegistration should fall through to _completeEndDelegation and refund the stake
@@ -1256,6 +1260,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             rewardRecipient: delegator
         });
     }
+    
 
     function testCompleteEndValidation() public virtual override {
         bytes32 validationID = _registerDefaultValidator();
@@ -1365,7 +1370,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             rewardRecipient: newRecipient
         });
     }
-    /*
+/*
     function testChangeValidatorRewardRecipientBackToSelf() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes memory setWeightMessage =
@@ -1657,7 +1662,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             defaultInitialValidationID, DEFAULT_DELEGATOR_ADDRESS, DEFAULT_DELEGATOR_WEIGHT
         );
     }
-    /*
+/*
     function testDelegationOverWeightLimit() public {
         bytes32 validationID = _registerDefaultValidator();
 
@@ -1741,7 +1746,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             abi.encodeWithSelector(
                 PoSValidatorManager.InvalidDelegatorStatus.selector, DelegatorStatus.PendingAdded
             )
-        );
+        );      
 
         posValidatorManager.initializeEndDelegation(delegationID, true, 0);
     }
@@ -1901,7 +1906,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         _forceInitializeEndValidation(validationID, true, address(0));
     }
-    /*
+/*
     function testValueToWeightTruncated() public {
         // default weightToValueFactor is 1e12
         vm.expectRevert(
@@ -2042,9 +2047,10 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         );
     }
 
-    function _registerDefaultDelegator(
-        bytes32 validationID
-    ) internal returns (bytes32 delegationID) {
+    function _registerDefaultDelegator(bytes32 validationID)
+        internal
+        returns (bytes32 delegationID)
+    {
         return _registerDelegator({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
@@ -2056,9 +2062,10 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         });
     }
 
-    function _initializeDefaultDelegatorRegistration(
-        bytes32 validationID
-    ) internal returns (bytes32) {
+    function _initializeDefaultDelegatorRegistration(bytes32 validationID)
+        internal
+        returns (bytes32)
+    {
         return _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
@@ -2335,9 +2342,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         }
     }
 
-    function _completeEndValidation(
-        bytes memory l1ValidatorRegistrationMessage
-    ) internal {
+    function _completeEndValidation(bytes memory l1ValidatorRegistrationMessage) internal {
         _mockGetPChainWarpMessage(l1ValidatorRegistrationMessage, true);
         posValidatorManager.completeEndValidation(0);
     }
@@ -2373,13 +2378,18 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         assertEq(posValidatorManager.getValidator(validationID).weight, expectedValidatorWeight);
 
         if (rewardRecipient == delegator) {
-            assertEq(_getStakeAssetBalance(delegator), balanceBefore + DEFAULT_DELEGATOR_WEIGHT);
+            assertEq(
+                _getStakeAssetBalance(delegator),
+                balanceBefore + DEFAULT_DELEGATOR_WEIGHT
+            );
             assertEq(
                 _getRewardAssetBalance(rewardRecipient),
                 rewardRecipientBalanceBefore + expectedDelegatorReward
             );
         } else {
-            assertEq(_getStakeAssetBalance(delegator), balanceBefore + DEFAULT_DELEGATOR_WEIGHT);
+            assertEq(
+                _getStakeAssetBalance(delegator), balanceBefore + DEFAULT_DELEGATOR_WEIGHT
+            );
 
             assertEq(
                 _getRewardAssetBalance(rewardRecipient),
@@ -2440,12 +2450,8 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         });
     }
 
-    function _getStakeAssetBalance(
-        address account
-    ) internal virtual returns (uint256);
-    function _getRewardAssetBalance(
-        address account
-    ) internal virtual returns (uint256);
+    function _getStakeAssetBalance(address account) internal virtual returns (uint256);
+    function _getRewardAssetBalance(address account) internal virtual returns (uint256);
     function _expectStakeUnlock(address account, uint256 amount) internal virtual;
     function _expectRewardIssuance(address account, uint256 amount) internal virtual;
 
@@ -2481,6 +2487,6 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 totalReward,
         uint64 delegationFeeBips
     ) internal pure returns (uint256) {
-        return (totalReward * delegationFeeBips) / 10000;
+        return totalReward * delegationFeeBips / 10000;
     }
 }
