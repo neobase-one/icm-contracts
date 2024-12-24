@@ -41,6 +41,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     address public constant DEFAULT_VALIDATOR_OWNER_ADDRESS =
         address(0x2345234523452345234523452345234523452345);
     uint64 public constant DEFAULT_REWARD_RATE = uint64(60);
+    uint64 public constant DEFAULT_UNLOCK_DELEGATE_DURATION = 21 days;
     uint64 public constant DEFAULT_MINIMUM_STAKE_DURATION = 24 hours;
     uint16 public constant DEFAULT_MINIMUM_DELEGATION_FEE_BIPS = 100;
     uint16 public constant DEFAULT_DELEGATION_FEE_BIPS = 150;
@@ -667,6 +668,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -771,6 +773,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -818,7 +821,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 expectedValidatorFees =
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -977,6 +980,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
 
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -1112,6 +1116,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_TOKEN_ID));
         _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         posValidatorManager.completeEndDelegation(delegationID, 0);
         assertEq(
             _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS),
@@ -1245,7 +1250,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         // Complete delegation1 by delivering the weight update from nonce 4 (delegator2's nonce)
         _completeEndDelegationWithChecks({
             validationID: validationID,
@@ -2108,6 +2113,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 expectedValidatorFees =
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -2475,6 +2481,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             minimumStakeAmount: DEFAULT_MINIMUM_STAKE_AMOUNT,
             maximumStakeAmount: DEFAULT_MAXIMUM_STAKE_AMOUNT,
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
+            unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,

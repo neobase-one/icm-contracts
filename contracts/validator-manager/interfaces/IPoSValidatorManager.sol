@@ -37,6 +37,7 @@ struct PoSValidatorManagerSettings {
     uint256 minimumStakeAmount;
     uint256 maximumStakeAmount;
     uint64 minimumStakeDuration;
+    uint64 unlockDelegateDuration;
     uint16 minimumDelegationFeeBips;
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
@@ -53,6 +54,7 @@ struct Delegator {
     bytes32 validationID;
     uint64 weight;
     uint64 startedAt;
+    uint64 endedAt;
     uint64 startingNonce;
     uint64 endingNonce;
 }
@@ -82,6 +84,8 @@ struct PoSValidatorManagerStorage {
     uint64 _minimumStakeDuration;
     /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
     uint16 _minimumDelegationFeeBips;
+    /// @notice The duration in seconds after a delegator's delegation is ended before the delegator's stake is unlocked.
+    uint64 _unlockDelegateDuration;
     /**
      * @notice A multiplier applied to validator's initial stake amount to determine
      * the maximum amount of stake a validator can have with delegations.

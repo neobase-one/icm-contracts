@@ -56,6 +56,7 @@ abstract contract PoSValidatorManager is
     error InvalidStakeMultiplier(uint8 maximumStakeMultiplier);
     error MaxWeightExceeded(uint64 newValidatorWeight);
     error MinStakeDurationNotPassed(uint64 endTime);
+    error UnlockDelegateDurationNotPassed(uint64 endTime);
     error UnauthorizedOwner(address sender);
     error ValidatorNotPoS(bytes32 validationID);
     error ValidatorIneligibleForRewards(bytes32 validationID);
@@ -91,6 +92,7 @@ abstract contract PoSValidatorManager is
             minimumStakeAmount: settings.minimumStakeAmount,
             maximumStakeAmount: settings.maximumStakeAmount,
             minimumStakeDuration: settings.minimumStakeDuration,
+            unlockDelegateDuration: settings.unlockDelegateDuration,
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
             maximumStakeMultiplier: settings.maximumStakeMultiplier,
             weightToValueFactor: settings.weightToValueFactor,
@@ -104,6 +106,7 @@ abstract contract PoSValidatorManager is
         uint256 minimumStakeAmount,
         uint256 maximumStakeAmount,
         uint64 minimumStakeDuration,
+        uint64 unlockDelegateDuration,
         uint16 minimumDelegationFeeBips,
         uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
@@ -141,6 +144,7 @@ abstract contract PoSValidatorManager is
         $._weightToValueFactor = weightToValueFactor;
         $._rewardCalculator = rewardCalculator;
         $._uptimeBlockchainID = uptimeBlockchainID;
+        $._unlockDelegateDuration = unlockDelegateDuration;
     }
 
     /**
@@ -717,7 +721,7 @@ abstract contract PoSValidatorManager is
             // the complete step, even if the delivered nonce is greater than the nonce used to
             // initialize the removal.
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
-
+            $._delegatorStakes[delegationID].endedAt = uint64(block.timestamp);
             ($._delegatorStakes[delegationID].endingNonce,) =
                 _setValidatorWeight(validationID, validator.weight - delegator.weight);
 
@@ -849,6 +853,9 @@ abstract contract PoSValidatorManager is
             if (delegator.endingNonce > nonce) {
                 revert InvalidNonce(nonce);
             }
+        }
+        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
+            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 
         _completeEndDelegation(delegationID);

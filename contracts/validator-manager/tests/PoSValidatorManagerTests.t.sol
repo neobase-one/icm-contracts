@@ -26,6 +26,7 @@ import {
 abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
     uint64 public constant DEFAULT_DELEGATOR_WEIGHT = uint64(1e5);
+    uint64 public constant DEFAULT_UNLOCK_DELEGATE_DURATION = 24 days;
     uint64 public constant DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP =
         DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EXPIRY;
     uint64 public constant DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP =
@@ -573,9 +574,10 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
 
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1); 
         _completeDefaultDelegator(validationID, delegationID);
     }
-/*
+
     function testClaimDelegationFeesInvalidValidatorStatus() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -665,7 +667,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 expectedValidatorFees =
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -772,7 +774,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 expectedValidatorFees =
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -786,7 +788,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
         });
     }
-*/
+
     function testChangeDelegatorRewardRecipient() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -820,7 +822,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 expectedValidatorFees =
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -978,7 +980,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -1107,7 +1109,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT));
         _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         posValidatorManager.completeEndDelegation(delegationID, 0);
 
         assertEq(
@@ -1238,7 +1240,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         // Complete delegation1 by delivering the weight update from nonce 4 (delegator2's nonce)
         _completeEndDelegationWithChecks({
             validationID: validationID,
@@ -2102,7 +2104,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 expectedValidatorFees =
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
-
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -2465,6 +2467,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
+            unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             rewardCalculator: IRewardCalculator(address(0)),
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
