@@ -7,6 +7,8 @@ pragma solidity 0.8.25;
 
 import {IValidatorManager, ValidatorManagerSettings} from "./IValidatorManager.sol";
 import {IRewardCalculator} from "./IRewardCalculator.sol";
+import {IRewardStream} from "./IRewardStream.sol";
+
 
 /**
  * @dev Delegator status
@@ -42,6 +44,7 @@ struct PoSValidatorManagerSettings {
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
     IRewardCalculator rewardCalculator;
+    IRewardStream rewardStream;
     bytes32 uptimeBlockchainID;
 }
 
@@ -97,10 +100,20 @@ struct PoSValidatorManagerStorage {
     uint256 _weightToValueFactor;
     /// @notice The reward calculator for this validator manager.
     IRewardCalculator _rewardCalculator;
+    /// @notice The reward stream for this validator manager.
+    IRewardStream _rewardStream;
     /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the l1ID that this contract manages.
     bytes32 _uptimeBlockchainID;
     /// @notice Maps the validation ID to its requirements.
     mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
+    /// @notice Maps validation ID and epoch number to uptime in seconds for that epoch
+    mapping(bytes32 validationID => mapping(uint48 epoch => uint64 uptimeSeconds)) _validatorEpochUptime;
+    /// @notice Maps validation ID to array of delegation IDs
+    mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
+    /// @notice Maps validation ID to the last epoch when balanceTracker was called
+    mapping(bytes32 validationID => uint48 lastTrackedEpoch) _validatorLastTrackedEpoch;
+    /// @notice Maps delegation ID to the last epoch when balanceTracker was called
+    mapping(bytes32 delegationID => uint48 lastTrackedEpoch) _delegatorLastTrackedEpoch;
     /// @notice Maps the delegation ID to the delegator information.
     mapping(bytes32 delegationID => Delegator) _delegatorStakes;
     /// @notice Maps the delegation ID to the delegator's NFTs.

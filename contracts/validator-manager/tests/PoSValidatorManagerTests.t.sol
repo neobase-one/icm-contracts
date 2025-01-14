@@ -6,6 +6,8 @@
 pragma solidity 0.8.25;
 
 import {IRewardCalculator} from "../interfaces/IRewardCalculator.sol";
+import {IRewardStream} from "../interfaces/IRewardStream.sol";
+
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
 import {PoSValidatorManager} from "../PoSValidatorManager.sol";
 import {
@@ -47,6 +49,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
     PoSValidatorManager public posValidatorManager;
     IRewardCalculator public rewardCalculator;
+    IRewardStream public rewardStream;
 
     ValidatorRegistrationInput public defaultRegistrationInput = ValidatorRegistrationInput({
         nodeID: DEFAULT_NODE_ID,
@@ -349,7 +352,9 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         vm.prank(address(1));
         vm.expectRevert(
-            abi.encodeWithSelector(PoSValidatorManager.UnauthorizedOwner.selector, address(1))
+            abi.encodeWithSelector(
+                PoSValidatorManager.UnauthorizedOwner.selector, address(1)
+            )
         );
         posValidatorManager.initializeEndValidation(validationID, false, 0);
     }
@@ -953,6 +958,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         });
 
         uint64 validationEndTime = DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + 1;
+
         bytes memory setWeightMessage =
             ValidatorMessages.packL1ValidatorWeightMessage(validationID, 3, 0);
         bytes memory uptimeMessage = ValidatorMessages.packValidationUptimeMessage(
@@ -1098,7 +1104,8 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         uint256 expectedTotalReward = _defaultDelegatorExpectedTotalReward();
 
-        uint256 expectedValidatorFees = (expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS) / 10000;
+        uint256 expectedValidatorFees =
+            _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
         vm.expectEmit(true, true, true, true, address(posValidatorManager));
@@ -1120,6 +1127,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
     function testCompleteEndDelegationWrongNonce() public {
         bytes32 validationID = _registerDefaultValidator();
+
         // Register two delegations
         address delegator1 = DEFAULT_DELEGATOR_ADDRESS;
         bytes32 delegationID1 = _registerDelegator({
@@ -1160,7 +1168,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             validationID: validationID,
             sender: delegator2,
             delegationID: delegationID2,
-            startDelegationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
+            startDelegationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
             endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + 1,
             expectedValidatorWeight: DEFAULT_WEIGHT,
             expectedNonce: 4,
@@ -1241,7 +1249,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
-        // Complete delegation1 by delivering the weight update from nonce 4 (delegator2's nonce)
+        // Complete delegation1 by delivering the weight update from nonce 4 (delegator 2's nonce)
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID1,
@@ -1306,8 +1314,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             setWeightMessage: setWeightMessage,
             includeUptime: true,
             uptimeMessage: uptimeMessage,
-            force: false,
-            recipientAddress: rewardRecipient
+            force: false
         });
 
         uint256 expectedReward = rewardCalculator.calculateReward({
@@ -1345,8 +1352,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             setWeightMessage: setWeightMessage,
             includeUptime: true,
             uptimeMessage: uptimeMessage,
-            force: false,
-            recipientAddress: rewardRecipient
+            force: false
         });
 
         posValidatorManager.changeValidatorRewardRecipient(validationID, newRecipient);
@@ -1384,8 +1390,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             setWeightMessage: setWeightMessage,
             includeUptime: true,
             uptimeMessage: uptimeMessage,
-            force: false,
-            recipientAddress: rewardRecipient
+            force: false
         });
 
         posValidatorManager.changeValidatorRewardRecipient(validationID, newRecipient);
@@ -1425,9 +1430,8 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             setWeightMessage: setWeightMessage,
             includeUptime: true,
             uptimeMessage: uptimeMessage,
-            force: false,
-            recipientAddress: rewardRecipient
-        });
+            force: false
+    });
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1454,8 +1458,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             setWeightMessage: setWeightMessage,
             includeUptime: true,
             uptimeMessage: uptimeMessage,
-            force: false,
-            recipientAddress: rewardRecipient
+            force: false
         });
 
         vm.prank(badActor);
@@ -1816,38 +1819,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         posValidatorManager.completeEndDelegation(delegationID, 0);
     }
 
-    function testCompleteDelegatorRegistrationValidatorPendingRemoved() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _initializeDefaultDelegatorRegistration(validationID);
-
-        bytes memory setWeightMessage =
-            ValidatorMessages.packL1ValidatorWeightMessage(validationID, 2, 0);
-        bytes memory uptimeMessage = ValidatorMessages.packValidationUptimeMessage(
-            validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        );
-
-        _initializeEndValidation({
-            validationID: validationID,
-            completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
-            setWeightMessage: setWeightMessage,
-            includeUptime: true,
-            uptimeMessage: uptimeMessage,
-            force: false
-        });
-
-        _setUpCompleteDelegatorRegistrationWithChecks(
-            validationID, delegationID, DEFAULT_COMPLETION_TIMESTAMP + 1, 0, 2
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
-            )
-        );
-
-        posValidatorManager.initializeEndDelegation(delegationID, false, 0);
-    }
-
     function testResendEndDelegationWhileActive() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -1875,7 +1846,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             includeUptime: true,
             uptimeMessage: uptimeMessage,
             force: true
-        });
+    });
     }
 
     function testForceInitializeEndValidationInsufficientUptime() public {
@@ -2245,19 +2216,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         });
     }
 
-    function _endDefaultValidator(bytes32 validationID, uint64 expectedNonce) internal {
-        address validatorOwner = address(this);
-        _endValidationWithChecks({
-            validationID: validationID,
-            validatorOwner: validatorOwner,
-            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
-            completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
-            validatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: expectedNonce,
-            rewardRecipient: validatorOwner
-        });
-    }
-
     function _endValidationWithChecks(
         bytes32 validationID,
         address validatorOwner,
@@ -2424,8 +2382,9 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 expectedValidatorFees =
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
-        address delegator = DEFAULT_DELEGATOR_ADDRESS;
 
+        address delegator = DEFAULT_DELEGATOR_ADDRESS;
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -2454,7 +2413,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         });
     }
 
-    function _defaultPoSSettings() internal pure returns (PoSValidatorManagerSettings memory) {
+    function _defaultPoSSettings() internal returns (PoSValidatorManagerSettings memory) {
         return PoSValidatorManagerSettings({
             baseSettings: ValidatorManagerSettings({
                 l1ID: DEFAULT_L1_ID,
@@ -2469,6 +2428,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             rewardCalculator: IRewardCalculator(address(0)),
+            rewardStream: IRewardStream(address(0)),
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
     }

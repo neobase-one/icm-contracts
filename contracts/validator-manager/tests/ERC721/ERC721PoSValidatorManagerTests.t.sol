@@ -6,6 +6,7 @@
 pragma solidity 0.8.25;
 
 import {IRewardCalculator} from "../../interfaces/IRewardCalculator.sol";
+import {IRewardStream} from "../../interfaces/IRewardStream.sol";
 import {ERC721ValidatorManagerTest} from "./ERC721ValidatorManagerTests.t.sol";
 import {PoSValidatorManager} from "../../PoSValidatorManager.sol";
 import {
@@ -2486,6 +2487,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             rewardCalculator: IRewardCalculator(address(0)),
+            rewardStream: IRewardStream(address(0)),
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
     }
