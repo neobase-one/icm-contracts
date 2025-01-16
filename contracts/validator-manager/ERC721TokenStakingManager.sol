@@ -7,11 +7,14 @@ pragma solidity 0.8.25;
 
 import {PoSValidatorManager} from "./PoSValidatorManager.sol";
 import {
-    PoSValidatorManagerSettings,
-    PoSValidatorManagerStorage
+    PoSValidatorManagerSettings
+    // PoSValidatorManagerStorage
 } from "./interfaces/IPoSValidatorManager.sol";
 import {
-    ValidatorRegistrationInput, ValidatorManagerStorage
+    PoSValidatorManager
+} from "./PoSValidatorManager.sol";
+import {
+    ValidatorRegistrationInput
 } from "./interfaces/IValidatorManager.sol";
 import {IERC721TokenStakingManager} from "./interfaces/IERC721TokenStakingManager.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -59,30 +62,6 @@ contract ERC721TokenStakingManager is
         assembly {
             $.slot := ERC721_STAKING_MANAGER_STORAGE_LOCATION
         }
-    }
-
-    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal override {
-        ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
-        $._validatorNFTs[validationID].nftIds.push(tokenId);
-    }
-
-    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal override {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._delegatorNFTs[delegationID].nftIds.push(tokenId);
-    }
-
-    function _deleteValidatorNft(
-        bytes32 validationID
-    ) internal override {
-        ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
-        delete $._validatorNFTs[validationID];
-    }
-
-    function _deleteDelegatorNft(
-        bytes32 delegationID
-    ) internal override {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        delete $._delegatorNFTs[delegationID];
     }
 
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");

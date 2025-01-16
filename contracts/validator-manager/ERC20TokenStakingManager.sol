@@ -35,7 +35,6 @@ contract ERC20TokenStakingManager is
         IERC20Mintable _token;
         uint8 _tokenDecimals;
     }
-
     // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.ERC20TokenStakingManager")) - 1)) & ~bytes32(uint256(0xff));
@@ -56,20 +55,7 @@ contract ERC20TokenStakingManager is
         }
     }
 
-    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal override {}
-
-    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal override {}
-
-    function _deleteValidatorNft(
-        bytes32 validationID
-    ) internal override {}
-    function _deleteDelegatorNft(
-        bytes32 delegationID
-    ) internal override {}
-
-    constructor(
-        ICMInitializable init
-    ) {
+    constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
         }

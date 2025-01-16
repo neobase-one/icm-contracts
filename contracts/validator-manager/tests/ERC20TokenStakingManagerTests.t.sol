@@ -17,6 +17,7 @@ import {IERC20Mintable} from "../interfaces/IERC20Mintable.sol";
 import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializable.sol";
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
+
 contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
     using SafeERC20 for IERC20Mintable;
 

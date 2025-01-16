@@ -7,9 +7,7 @@ pragma solidity 0.8.25;
 
 import {PoSValidatorManager} from "./PoSValidatorManager.sol";
 import {PoSValidatorManagerSettings} from "./interfaces/IPoSValidatorManager.sol";
-import {
-    ValidatorRegistrationInput, ValidatorManagerStorage
-} from "./interfaces/IValidatorManager.sol";
+import {ValidatorRegistrationInput} from "./interfaces/IValidatorManager.sol";
 import {INativeTokenStakingManager} from "./interfaces/INativeTokenStakingManager.sol";
 import {INativeMinter} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/INativeMinter.sol";
@@ -59,17 +57,6 @@ contract NativeTokenStakingManager is
 
     // solhint-disable-next-line func-name-mixedcase, no-empty-blocks
     function __NativeTokenStakingManager_init_unchained() internal onlyInitializing {}
-
-    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal override {}
-
-    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal override {}
-
-    function _deleteValidatorNft(
-        bytes32 validationID
-    ) internal override {}
-    function _deleteDelegatorNft(
-        bytes32 delegationID
-    ) internal override {}
 
     /**
      * @notice See {INativeTokenStakingManager-initializeValidatorRegistration}.

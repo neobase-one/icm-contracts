@@ -39,10 +39,6 @@ struct Validator {
     uint64 endedAt;
 }
 
-struct ValidatorNFT {
-    uint256[] nftIds;
-}
-
 /**
  * @dev Describes the current churn period
  */
@@ -97,33 +93,10 @@ struct ValidatorRegistrationInput {
     PChainOwner remainingBalanceOwner;
     PChainOwner disableOwner;
 }
-// solhint-disable private-vars-leading-underscore
-/// @custom:storage-location erc7201:avalanche-icm.storage.ValidatorManager
 
-struct ValidatorManagerStorage {
-    /// @notice The l1ID associated with this validator manager.
-    bytes32 _l1ID;
-    /// @notice The number of seconds after which to reset the churn tracker.
-    uint64 _churnPeriodSeconds;
-    /// @notice The maximum churn rate allowed per churn period.
-    uint8 _maximumChurnPercentage;
-    /// @notice The churn tracker used to track the amount of stake added or removed in the churn period.
-    ValidatorChurnPeriod _churnTracker;
-    /// @notice Maps the validationID to the registration message such that the message can be re-sent if needed.
-    mapping(bytes32 => bytes) _pendingRegisterValidationMessages;
-    /// @notice Maps the validationID to the validator information.
-    mapping(bytes32 => Validator) _validationPeriods;
-    /// @notice Maps the validationID to the validator NFT information.
-    mapping(bytes32 => ValidatorNFT) _validatorNFTs;
-    /// @notice Maps the nodeID to the validationID for validation periods that have not ended.
-    mapping(bytes => bytes32) _registeredValidators;
-    /// @notice Boolean that indicates if the initial validator set has been set.
-    bool _initializedValidatorSet;
-}
 /**
  * @notice Interface for Validator Manager contracts that implement Subnet-only Validator management.
  */
-
 interface IValidatorManager {
     /**
      * @notice Emitted when a new validation period is created by locking stake in the manager contract.
