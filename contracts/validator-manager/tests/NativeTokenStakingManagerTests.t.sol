@@ -8,9 +8,12 @@ pragma solidity 0.8.25;
 import {Test} from "@forge-std/Test.sol";
 import {PoSValidatorManagerTest} from "./PoSValidatorManagerTests.t.sol";
 import {NativeTokenStakingManager} from "../NativeTokenStakingManager.sol";
+import "evc/EthereumVaultConnector.sol";
 import {PoSValidatorManager, PoSValidatorManagerSettings} from "../PoSValidatorManager.sol";
 import {ValidatorRegistrationInput, IValidatorManager} from "../interfaces/IValidatorManager.sol";
 import {ExampleRewardCalculator} from "../ExampleRewardCalculator.sol";
+import {ITrackingRewardStreams} from "../../reward-streams/interfaces/IRewardStreams.sol";
+import {TrackingRewardStreams} from "../../reward-streams/TrackingRewardStreams.sol";
 import {ICMInitializable} from "../../utilities/ICMInitializable.sol";
 import {INativeMinter} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/INativeMinter.sol";
@@ -19,6 +22,8 @@ import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializ
 
 contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
     NativeTokenStakingManager public app;
+
+    EthereumVaultConnector internal evc;
 
     function setUp() public override {
         ValidatorManagerTest.setUp();
@@ -178,10 +183,10 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
     function _setUp() internal override returns (IValidatorManager) {
         // Construct the object under test
         app = new TestableNativeTokenStakingManager(ICMInitializable.Allowed);
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE, 0);
-
+        evc = new EthereumVaultConnector();
+        rewardStream = new TrackingRewardStreams(address(evc), DEFAULT_EPOCH_DURATION);
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.rewardCalculator = rewardCalculator;
+        defaultPoSSettings.rewardStream = rewardStream;
         app.initialize(defaultPoSSettings);
 
         validatorManager = app;

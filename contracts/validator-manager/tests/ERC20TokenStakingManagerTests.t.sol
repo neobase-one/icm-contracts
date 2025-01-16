@@ -28,7 +28,6 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
     IERC20Mintable public token;
     EthereumVaultConnector internal evc;
 
-    uint48 constant DEFAULT_EPOCH_DURATION = 7 days;
     address constant DEFAULT_EVC = address(0x123); // Mock EVC address for testing
 
     function setUp() public override {
@@ -229,11 +228,9 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         // Construct the object under test
         app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
         token = new ExampleERC20();
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE,0);
         evc = new EthereumVaultConnector();
         rewardStream = new TrackingRewardStreams(address(evc), DEFAULT_EPOCH_DURATION);
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.rewardCalculator = rewardCalculator;
         defaultPoSSettings.rewardStream = rewardStream;
         app.initialize(defaultPoSSettings, token);
 

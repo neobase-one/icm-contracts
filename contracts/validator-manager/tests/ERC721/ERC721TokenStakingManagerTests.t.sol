@@ -264,10 +264,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         rewardToken = new ExampleERC20();
         rewardToken.transfer(address(app), 100000 ether);
 
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE, 18);
-
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.rewardCalculator = rewardCalculator;
         app.initialize(defaultPoSSettings, stakingToken, rewardToken);
 
         validatorManager = app;

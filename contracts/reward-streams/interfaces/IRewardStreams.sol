@@ -37,13 +37,6 @@ interface IRewardStreams {
 /// @author Euler Labs (https://www.eulerlabs.com/)
 /// @notice Interface for Tracking Reward Streams distributor contract.
 interface ITrackingRewardStreams is IRewardStreams, IBalanceTracker {
-    function balanceTrackerHook(
-        address account,
-        uint256 newAccountBalance,
-        bool forfeitRecentReward
-    ) external;
-    function hasRewards(address account, address rewarded) external view returns (bool);
-    function claim(address account, address recipient) external returns (uint256[] memory amounts);
 }
 
 /// @title IStakingRewardStreams

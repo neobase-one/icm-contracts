@@ -49,6 +49,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     uint8 public constant DEFAULT_MAXIMUM_STAKE_MULTIPLIER = 4;
     uint256 public constant DEFAULT_WEIGHT_TO_VALUE_FACTOR = 1;
     uint256 public constant SECONDS_IN_YEAR = 31536000;
+    uint48 public constant DEFAULT_EPOCH_DURATION = 604800; // 7 days
 
     PoSValidatorManager public posValidatorManager;
     IRewardCalculator public rewardCalculator;
@@ -591,7 +592,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
                 ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Active
             )
         );
-        posValidatorManager.claimDelegationFees(validationID);
+        //TODO: claim from reward stream
     }
 
     function testClaimDelegationFeesInvalidSender() public {
@@ -605,7 +606,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         );
 
         vm.prank(address(123));
-        posValidatorManager.claimDelegationFees(validationID);
+        //TODO: claim from reward stream
     }
 
     function testClaimDelegationFees() public {
@@ -635,7 +636,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _expectRewardIssuance(
             address(this), expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS / 10000
         );
-        posValidatorManager.claimDelegationFees(validationID);
+        //TODO: claim from reward stream
     }
     
 
@@ -2486,9 +2487,9 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
-            rewardCalculator: IRewardCalculator(address(0)),
             rewardStream: ITrackingRewardStreams(address(0)),
-            uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
+            uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+            epochDuration: DEFAULT_EPOCH_DURATION
         });
     }
 

@@ -6,7 +6,6 @@
 pragma solidity 0.8.25;
 
 import {IValidatorManager, ValidatorManagerSettings} from "./IValidatorManager.sol";
-import {IRewardCalculator} from "./IRewardCalculator.sol";
 import {ITrackingRewardStreams} from "../../reward-streams/interfaces/IRewardStreams.sol";
 
 
@@ -43,7 +42,7 @@ struct PoSValidatorManagerSettings {
     uint16 minimumDelegationFeeBips;
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
-    IRewardCalculator rewardCalculator;
+    uint48 epochDuration;
     ITrackingRewardStreams rewardStream;
     bytes32 uptimeBlockchainID;
 }
@@ -98,12 +97,12 @@ struct PoSValidatorManagerStorage {
     uint64 _maximumStakeMultiplier;
     /// @notice The factor used to convert between weight and value.
     uint256 _weightToValueFactor;
-    /// @notice The reward calculator for this validator manager.
-    IRewardCalculator _rewardCalculator;
     /// @notice The reward stream for this validator manager.
     ITrackingRewardStreams _rewardStream;
     /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the l1ID that this contract manages.
     bytes32 _uptimeBlockchainID;
+    /// @notice The duration of an epoch in seconds
+    uint48 _epochDuration;
     /// @notice Maps the validation ID to its requirements.
     mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
     /// @notice Maps validation ID and epoch number to uptime in seconds for that epoch
@@ -118,7 +117,7 @@ struct PoSValidatorManagerStorage {
     mapping(bytes32 delegationID => Delegator) _delegatorStakes;
     /// @notice Maps the delegation ID to the delegator's NFTs.
     mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTs;
-    /// @notice Maps the validation ID to its reward recipient.
+        /// @notice Maps the validation ID to its reward recipient.
     mapping(bytes32 validationID => address) _rewardRecipients;
     /// @notice Maps the delegation ID to its reward recipient.
     mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
@@ -169,11 +168,9 @@ interface IPoSValidatorManager is IValidatorManager {
      * @notice Event emitted when delegator removal is completed
      * @param delegationID The ID of the delegation
      * @param validationID The ID of the validator the delegator was staked to
-     * @param rewards The rewards given to the delegator
-     * @param fees The portion of the delegator's rewards paid to the validator
      */
     event DelegationEnded(
-        bytes32 indexed delegationID, bytes32 indexed validationID, uint256 rewards, uint256 fees
+        bytes32 indexed delegationID, bytes32 indexed validationID
     );
 
     /**
@@ -342,12 +339,6 @@ interface IPoSValidatorManager is IValidatorManager {
      * @param messageIndex The index of the ICM message to be received providing the acknowledgement.
      */
     function completeEndDelegation(bytes32 delegationID, uint32 messageIndex) external;
-
-    /**
-     * @notice Withdraws the delegation fees from completed delegations to the owner of the validator.
-     * @param validationID The ID of the validation period being ended.
-     */
-    function claimDelegationFees(bytes32 validationID) external;
 
     /**
      * @notice Changes the address of the recipient of the validator's rewards for a validation period. This method can be called any time before {completeEndValidation}.
