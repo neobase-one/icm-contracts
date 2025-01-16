@@ -33,7 +33,7 @@ import {Initializable} from
  */
 abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValidatorManager {
     // solhint-disable private-vars-leading-underscore
-     /// @custom:storage-location erc7201:avalanche-icm.storage.ValidatorManager
+    /// @custom:storage-location erc7201:avalanche-icm.storage.ValidatorManager
 
     struct ValidatorManagerStorage {
         /// @notice The l1ID associated with this validator manager.
@@ -124,6 +124,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
     {
         ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
         $._l1ID = settings.l1ID;
+
         if (
             settings.maximumChurnPercentage > MAXIMUM_CHURN_PERCENTAGE_LIMIT
                 || settings.maximumChurnPercentage == 0
@@ -297,7 +298,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         $._validationPeriods[validationID].weight = weight;
         $._validationPeriods[validationID].startedAt = 0; // The validation period only starts once the registration is acknowledged.
         $._validationPeriods[validationID].endedAt = 0;
-        
+
         emit ValidationPeriodCreated(
             validationID, input.nodeID, messageID, weight, input.registrationExpiry
         );
@@ -463,6 +464,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         }
         // Remove the validator from the registered validators mapping.
         delete $._registeredValidators[validator.nodeID];
+
         // Update the validator.
         $._validationPeriods[validationID] = validator;
 
