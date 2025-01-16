@@ -15,8 +15,7 @@ import {
     ValidatorChurnPeriod,
     ValidatorManagerSettings,
     ValidatorRegistrationInput,
-    ValidatorStatus,
-    ValidatorManagerStorage
+    ValidatorStatus
 } from "./interfaces/IValidatorManager.sol";
 import {
     IWarpMessenger,
@@ -33,21 +32,26 @@ import {Initializable} from
  * @custom:security-contact https://github.com/ava-labs/icm-contracts/blob/main/SECURITY.md
  */
 abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValidatorManager {
-    // solhint-disable ordering
-    /**
-     * @dev This storage is visible to child contracts for convenience.
-     *      External getters would be better practice, but code size limitations are preventing this.
-     *      Child contracts should probably never write to this storage.
-     */
-    function _getValidatorManagerStorage()
-        internal
-        pure
-        returns (ValidatorManagerStorage storage $)
-    {
-        // solhint-disable-next-line no-inline-assembly
-        assembly {
-            $.slot := VALIDATOR_MANAGER_STORAGE_LOCATION
-        }
+    // solhint-disable private-vars-leading-underscore
+     /// @custom:storage-location erc7201:avalanche-icm.storage.ValidatorManager
+
+    struct ValidatorManagerStorage {
+        /// @notice The l1ID associated with this validator manager.
+        bytes32 _l1ID;
+        /// @notice The number of seconds after which to reset the churn tracker.
+        uint64 _churnPeriodSeconds;
+        /// @notice The maximum churn rate allowed per churn period.
+        uint8 _maximumChurnPercentage;
+        /// @notice The churn tracker used to track the amount of stake added or removed in the churn period.
+        ValidatorChurnPeriod _churnTracker;
+        /// @notice Maps the validationID to the registration message such that the message can be re-sent if needed.
+        mapping(bytes32 => bytes) _pendingRegisterValidationMessages;
+        /// @notice Maps the validationID to the validator information.
+        mapping(bytes32 => Validator) _validationPeriods;
+        /// @notice Maps the nodeID to the validationID for validation periods that have not ended.
+        mapping(bytes => bytes32) _registeredValidators;
+        /// @notice Boolean that indicates if the initial validator set has been set.
+        bool _initializedValidatorSet;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -80,6 +84,23 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
     error UnexpectedRegistrationStatus(bool validRegistration);
     error InvalidPChainOwnerThreshold(uint256 threshold, uint256 addressesLength);
     error PChainOwnerAddressesNotSorted();
+
+    // solhint-disable ordering
+    /**
+     * @dev This storage is visible to child contracts for convenience.
+     *      External getters would be better practice, but code size limitations are preventing this.
+     *      Child contracts should probably never write to this storage.
+     */
+    function _getValidatorManagerStorage()
+        internal
+        pure
+        returns (ValidatorManagerStorage storage $)
+    {
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            $.slot := VALIDATOR_MANAGER_STORAGE_LOCATION
+        }
+    }
 
     /**
      * @notice Warp precompile used for sending and receiving Warp messages.
@@ -174,11 +195,9 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
 
         // Rearranged equation for totalWeight < (100 / $._maximumChurnPercentage)
         // Total weight must be above this value in order to not trigger churn limits with an added/removed weight of 1.
-       
         if (totalWeight * $._maximumChurnPercentage < 100) {
             revert InvalidTotalWeight(totalWeight);
         }
-        
 
         // Verify that the sha256 hash of the L1 conversion data matches with the Warp message's conversionID.
         bytes32 conversionID = ValidatorMessages.unpackSubnetToL1ConversionMessage(
@@ -279,7 +298,6 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         $._validationPeriods[validationID].startedAt = 0; // The validation period only starts once the registration is acknowledged.
         $._validationPeriods[validationID].endedAt = 0;
         
-
         emit ValidationPeriodCreated(
             validationID, input.nodeID, messageID, weight, input.registrationExpiry
         );
@@ -522,7 +540,6 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         uint64 newValidatorWeight,
         uint64 oldValidatorWeight
     ) private {
-        
         ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
 
         uint64 weightChange;

@@ -55,20 +55,7 @@ contract ERC20TokenStakingManager is
         }
     }
 
-    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal override {}
-
-    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal override {}
-
-    function _deleteValidatorNft(
-        bytes32 validationID
-    ) internal override {}
-    function _deleteDelegatorNft(
-        bytes32 delegationID
-    ) internal override {}
-
-    constructor(
-        ICMInitializable init
-    ) {
+    constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
         }

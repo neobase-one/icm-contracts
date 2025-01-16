@@ -14,7 +14,7 @@ import {
     PoSValidatorManager
 } from "./PoSValidatorManager.sol";
 import {
-    ValidatorRegistrationInput, ValidatorManagerStorage
+    ValidatorRegistrationInput
 } from "./interfaces/IValidatorManager.sol";
 import {IERC721TokenStakingManager} from "./interfaces/IERC721TokenStakingManager.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
