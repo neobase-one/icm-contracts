@@ -565,10 +565,4 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
 
         $._churnTracker = churnTracker;
     }
-
-    function getValidatorNfts(
-        bytes32 validationID
-    ) public view returns (uint256[] memory) {
-        return _getValidatorManagerStorage()._validatorNFTs[validationID].nftIds;
-    }
 }

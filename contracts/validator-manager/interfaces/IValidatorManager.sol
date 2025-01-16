@@ -39,9 +39,6 @@ struct Validator {
     uint64 endedAt;
 }
 
-struct ValidatorNFT {
-    uint256[] nftIds;
-}
 
 /**
  * @dev Describes the current churn period
@@ -113,8 +110,6 @@ struct ValidatorManagerStorage {
     mapping(bytes32 => bytes) _pendingRegisterValidationMessages;
     /// @notice Maps the validationID to the validator information.
     mapping(bytes32 => Validator) _validationPeriods;
-    /// @notice Maps the validationID to the validator NFT information.
-    mapping(bytes32 => ValidatorNFT) _validatorNFTs;
     /// @notice Maps the nodeID to the validationID for validation periods that have not ended.
     mapping(bytes => bytes32) _registeredValidators;
     /// @notice Boolean that indicates if the initial validator set has been set.

@@ -64,30 +64,6 @@ contract ERC721TokenStakingManager is
         }
     }
 
-    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal override {
-        ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
-        $._validatorNFTs[validationID].nftIds.push(tokenId);
-    }
-
-    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal override {
-        PoSValidatorManager.PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._delegatorNFTs[delegationID].nftIds.push(tokenId);
-    }
-
-    function _deleteValidatorNft(
-        bytes32 validationID
-    ) internal override {
-        ValidatorManagerStorage storage $ = _getValidatorManagerStorage();
-        delete $._validatorNFTs[validationID];
-    }
-
-    function _deleteDelegatorNft(
-        bytes32 delegationID
-    ) internal override {
-        PoSValidatorManager.PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        delete $._delegatorNFTs[delegationID];
-    }
-
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     modifier onlyOperator() {

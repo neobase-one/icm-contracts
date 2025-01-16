@@ -10,6 +10,7 @@ import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {
     Delegator,
     DelegatorNFT,
+    ValidatorNFT,
     DelegatorStatus,
     IPoSValidatorManager,
     PoSValidatorInfo,
@@ -64,6 +65,8 @@ abstract contract PoSValidatorManager is
         bytes32 _uptimeBlockchainID;
         /// @notice Maps the validation ID to its requirements.
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
+        /// @notice Maps the validationID to the validator NFT information.
+        mapping(bytes32 validationID => ValidatorNFT) _validatorNFTs;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
         /// @notice Maps the delegation ID to the delegator's NFTs.
@@ -531,17 +534,35 @@ abstract contract PoSValidatorManager is
      */
     function _unlock(address to, bytes32 validationID, bool isValidator) internal virtual;
 
-    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal virtual;
+    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal virtual {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        $._validatorNFTs[validationID].nftIds.push(tokenId);
+    }
+
+    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal virtual {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        $._delegatorNFTs[delegationID].nftIds.push(tokenId);
+    }
 
     function _deleteValidatorNft(
         bytes32 validationID
-    ) internal virtual;
-
-    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal virtual;
+    ) internal virtual {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        delete $._validatorNFTs[validationID];
+    }
 
     function _deleteDelegatorNft(
         bytes32 delegationID
-    ) internal virtual;
+    ) internal virtual {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        delete $._delegatorNFTs[delegationID];
+    }
+
+    function getValidatorNfts(
+        bytes32 validationID
+    ) public view returns (uint256[] memory) {
+        return _getPoSValidatorManagerStorage()._validatorNFTs[validationID].nftIds;
+    }
 
     function _initializeDelegatorRegistration(
         bytes32 validationID,

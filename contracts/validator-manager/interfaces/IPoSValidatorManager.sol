@@ -73,6 +73,10 @@ struct PoSValidatorInfo {
     uint64 uptimeSeconds;
 }
 
+struct ValidatorNFT {
+    uint256[] nftIds;
+}
+
 /**
  * @notice Interface for Proof of Stake Validator Managers
  */
