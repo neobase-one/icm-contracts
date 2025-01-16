@@ -19,7 +19,7 @@ import {
     ValidatorRegistrationInput,
     ValidatorStatus
 } from "./interfaces/IValidatorManager.sol";
-import {IRewardStream} from "./interfaces/IRewardStream.sol";
+import {ITrackingRewardStreams} from "../reward-streams/interfaces/IRewardStreams.sol";
 import {IRewardCalculator} from "./interfaces/IRewardCalculator.sol";
 
 import {WarpMessage} from
@@ -118,7 +118,7 @@ abstract contract PoSValidatorManager is
         uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
         IRewardCalculator rewardCalculator,
-        IRewardStream rewardStream,
+        ITrackingRewardStreams rewardStream,
         bytes32 uptimeBlockchainID
     ) internal onlyInitializing {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
@@ -192,7 +192,7 @@ abstract contract PoSValidatorManager is
                     delegator.startedAt,
                     delegator.endedAt
                 );
-                $._rewardStream.balanceTrackerHook(delegator.owner, uptimeSeconds, false);
+                $._rewardStream.balanceTrackerHook(delegator.owner, delegateEffectiveWeight, false);
             }
         }
     }
@@ -360,7 +360,7 @@ abstract contract PoSValidatorManager is
         if (rewardRecipient == address(0)) {
             rewardRecipient = $._posValidatorInfo[validationID].owner;
         }
-        bool hasRewards = $._rewardStream.hasRewards(_msgSender());
+        bool hasRewards = $._rewardStream.hasRewards(_msgSender(), address(this));
         $._rewardRecipients[validationID] = rewardRecipient;
 
         return hasRewards;
@@ -829,7 +829,7 @@ abstract contract PoSValidatorManager is
                 delegationID: delegationID,
                 validationID: validationID
             });
-            return $._rewardStream.hasRewards(delegator.owner);
+            return $._rewardStream.hasRewards(delegator.owner, address(this));
             
         } else if (validator.status == ValidatorStatus.Completed) {
             _calculateAndSetDelegationReward(delegator, rewardRecipient, delegationID);
@@ -856,11 +856,6 @@ abstract contract PoSValidatorManager is
     }
 
     /**
-     * @dev This function must be implemented to mint rewards to validators and delegators.
-     */
-    function _reward(address account, uint256 amount) internal virtual;
-
-    /**
      * @dev Return true if this is a PoS validator with locked stake. Returns false if this was originally a PoA
      * validator that was later migrated to this PoS manager, or the validator was part of the initial validator set.
      */
@@ -871,11 +866,12 @@ abstract contract PoSValidatorManager is
 
     function _withdrawValidationRewards(address rewardRecipient, bytes32 validationID) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
-        uint256 rewards = $._redeemableValidatorRewards[validationID];
-        delete $._redeemableValidatorRewards[validationID];
-
-        _reward(rewardRecipient, rewards);
+        
+        // Store reward recipient for future claims
+        $._rewardRecipients[validationID] = rewardRecipient;
+        
+        // Claim rewards
+        $._rewardStream.claim(_msgSender(), rewardRecipient);
     }
 
     function _withdrawDelegationRewards(
@@ -884,26 +880,14 @@ abstract contract PoSValidatorManager is
         bytes32 validationID
     ) internal returns (uint256, uint256) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
-        uint256 delegationRewards;
-        uint256 validatorFees;
-
-        uint256 rewards = $._redeemableDelegatorRewards[delegationID];
-        delete $._redeemableDelegatorRewards[delegationID];
-
-        if (rewards > 0) {
-            validatorFees = (rewards * $._posValidatorInfo[validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-
-            // Allocate the delegation fees to the validator.
-            $._redeemableValidatorRewards[validationID] += validatorFees;
-
-            // Reward the remaining tokens to the delegator.
-            delegationRewards = rewards - validatorFees;
-            _reward(rewardRecipient, delegationRewards);
-        }
-
-        return (delegationRewards, validatorFees);
+        
+        // Store reward recipient for future claims
+        $._delegatorRewardRecipients[delegationID] = rewardRecipient;
+        
+        // Claim rewards
+        $._rewardStream.claim(_msgSender(), rewardRecipient);
+        
+        return (0, 0); // Since we're not tracking rewards in storage anymore
     }
 
     function getDelegator(

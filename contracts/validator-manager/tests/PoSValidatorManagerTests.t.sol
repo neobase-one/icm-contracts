@@ -6,7 +6,7 @@
 pragma solidity 0.8.25;
 
 import {IRewardCalculator} from "../interfaces/IRewardCalculator.sol";
-import {IRewardStream} from "../interfaces/IRewardStream.sol";
+import {ITrackingRewardStreams} from "../../reward-streams/interfaces/IRewardStreams.sol";
 
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
 import {PoSValidatorManager} from "../PoSValidatorManager.sol";
@@ -49,7 +49,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
     PoSValidatorManager public posValidatorManager;
     IRewardCalculator public rewardCalculator;
-    IRewardStream public rewardStream;
+    ITrackingRewardStreams public rewardStream;
 
     ValidatorRegistrationInput public defaultRegistrationInput = ValidatorRegistrationInput({
         nodeID: DEFAULT_NODE_ID,
@@ -2428,7 +2428,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             rewardCalculator: IRewardCalculator(address(0)),
-            rewardStream: IRewardStream(address(0)),
+            rewardStream: ITrackingRewardStreams(address(0)),
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
     }

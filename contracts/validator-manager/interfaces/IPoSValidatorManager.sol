@@ -7,7 +7,7 @@ pragma solidity 0.8.25;
 
 import {IValidatorManager, ValidatorManagerSettings} from "./IValidatorManager.sol";
 import {IRewardCalculator} from "./IRewardCalculator.sol";
-import {IRewardStream} from "./IRewardStream.sol";
+import {ITrackingRewardStreams} from "../../reward-streams/interfaces/IRewardStreams.sol";
 
 
 /**
@@ -44,7 +44,7 @@ struct PoSValidatorManagerSettings {
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
     IRewardCalculator rewardCalculator;
-    IRewardStream rewardStream;
+    ITrackingRewardStreams rewardStream;
     bytes32 uptimeBlockchainID;
 }
 
@@ -101,7 +101,7 @@ struct PoSValidatorManagerStorage {
     /// @notice The reward calculator for this validator manager.
     IRewardCalculator _rewardCalculator;
     /// @notice The reward stream for this validator manager.
-    IRewardStream _rewardStream;
+    ITrackingRewardStreams _rewardStream;
     /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the l1ID that this contract manages.
     bytes32 _uptimeBlockchainID;
     /// @notice Maps the validation ID to its requirements.
@@ -118,12 +118,10 @@ struct PoSValidatorManagerStorage {
     mapping(bytes32 delegationID => Delegator) _delegatorStakes;
     /// @notice Maps the delegation ID to the delegator's NFTs.
     mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTs;
-    /// @notice Maps the delegation ID to its pending staking rewards.
-    mapping(bytes32 delegationID => uint256) _redeemableDelegatorRewards;
-    mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
-    /// @notice Maps the validation ID to its pending staking rewards.
-    mapping(bytes32 validationID => uint256) _redeemableValidatorRewards;
+    /// @notice Maps the validation ID to its reward recipient.
     mapping(bytes32 validationID => address) _rewardRecipients;
+    /// @notice Maps the delegation ID to its reward recipient.
+    mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
 }
 
 /**

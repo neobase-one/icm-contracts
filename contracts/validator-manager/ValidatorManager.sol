@@ -80,6 +80,8 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
     error UnexpectedRegistrationStatus(bool validRegistration);
     error InvalidPChainOwnerThreshold(uint256 threshold, uint256 addressesLength);
     error PChainOwnerAddressesNotSorted();
+    error ValidatorNotActive(bytes32 validationID);
+    error NotValidatorOwner(bytes32 validationID, address owner);
 
     /**
      * @notice Warp precompile used for sending and receiving Warp messages.

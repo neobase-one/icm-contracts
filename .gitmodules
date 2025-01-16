@@ -8,3 +8,6 @@
 [submodule "lib/subnet-evm"]
 	path = lib/subnet-evm
 	url = https://github.com/ava-labs/subnet-evm
+[submodule "lib/ethereum-vault-connector"]
+	path = lib/ethereum-vault-connector
+	url = https://github.com/euler-xyz/ethereum-vault-connector

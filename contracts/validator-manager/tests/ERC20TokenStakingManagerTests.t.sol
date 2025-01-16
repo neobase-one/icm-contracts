@@ -6,10 +6,12 @@
 pragma solidity 0.8.25;
 
 import {PoSValidatorManagerTest} from "./PoSValidatorManagerTests.t.sol";
+import "evc/EthereumVaultConnector.sol";
 import {ERC20TokenStakingManager} from "../ERC20TokenStakingManager.sol";
 import {PoSValidatorManager, PoSValidatorManagerSettings} from "../PoSValidatorManager.sol";
 import {ExampleRewardCalculator} from "../ExampleRewardCalculator.sol";
-import {MockRewardStream} from "@mocks/MockRewardStream.sol";
+import {ITrackingRewardStreams} from "../../reward-streams/interfaces/IRewardStreams.sol";
+import {TrackingRewardStreams} from "../../reward-streams/TrackingRewardStreams.sol";
 import {ValidatorRegistrationInput, IValidatorManager} from "../interfaces/IValidatorManager.sol";
 import {ICMInitializable} from "../../utilities/ICMInitializable.sol";
 import {ExampleERC20} from "@mocks/ExampleERC20.sol";
@@ -18,11 +20,16 @@ import {IERC20Mintable} from "../interfaces/IERC20Mintable.sol";
 import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializable.sol";
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
+
 contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
     using SafeERC20 for IERC20Mintable;
 
     ERC20TokenStakingManager public app;
     IERC20Mintable public token;
+    EthereumVaultConnector internal evc;
+
+    uint48 constant DEFAULT_EPOCH_DURATION = 7 days;
+    address constant DEFAULT_EVC = address(0x123); // Mock EVC address for testing
 
     function setUp() public override {
         ValidatorManagerTest.setUp();
@@ -223,7 +230,8 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
         token = new ExampleERC20();
         rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE,0);
-        rewardStream = new MockRewardStream();
+        evc = new EthereumVaultConnector();
+        rewardStream = new TrackingRewardStreams(address(evc), DEFAULT_EPOCH_DURATION);
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
         defaultPoSSettings.rewardStream = rewardStream;

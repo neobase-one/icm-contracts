@@ -202,15 +202,6 @@ contract ERC721TokenStakingManager is
     }
 
     /**
-     * @notice See {PoSValidatorManager-_reward}
-     * @dev Distributes ERC20 rewards to stakers
-     */
-    function _reward(address account, uint256 amount) internal virtual override {
-        ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
-        $._rewardToken.safeTransfer(account, amount);
-    }
-
-    /**
      * @notice Allows the contract to receive reward tokens
      * @dev Called by owner to fund rewards
      * @param amount Amount of reward tokens to transfer to the contract

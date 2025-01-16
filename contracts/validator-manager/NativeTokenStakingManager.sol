@@ -112,10 +112,5 @@ contract NativeTokenStakingManager is
         payable(to).sendValue(value);
     }
 
-    /**
-     * @notice See {PoSValidatorManager-_reward}
-     */
-    function _reward(address account, uint256 amount) internal virtual override {
-        NATIVE_MINTER.mintNativeCoin(account, amount);
-    }
+   
 }

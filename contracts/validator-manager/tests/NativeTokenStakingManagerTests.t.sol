@@ -196,10 +196,11 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
 
 contract TestableNativeTokenStakingManager is NativeTokenStakingManager, Test {
     constructor(ICMInitializable init) NativeTokenStakingManager(init) {}
-
+   /*
     function _reward(address account, uint256 amount) internal virtual override {
         super._reward(account, amount);
         // Units tests don't have access to the native minter precompile, so use vm.deal instead.
         vm.deal(account, account.balance + amount);
     }
+    */
 }

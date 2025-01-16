@@ -6,6 +6,10 @@ solc_version = '0.8.25'
 evm_version = 'shanghai'
 test = 'tests'
 bytecode_hash = "none"
+remappings = [
+    "evc/=lib/ethereum-vault-connector/src/",
+    "@openzeppelin/contracts@5.0.2/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/"
+]
 
 [fmt]
 line_length = 100

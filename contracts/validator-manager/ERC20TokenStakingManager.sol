@@ -157,12 +157,4 @@ contract ERC20TokenStakingManager is
         uint256 value = weightToValue(weight);
         _getERC20StakingManagerStorage()._token.safeTransfer(to, value);
     }
-
-    /**
-     * @notice See {PoSValidatorManager-_reward}
-     */
-    function _reward(address account, uint256 amount) internal virtual override {
-        ERC20TokenStakingManagerStorage storage $ = _getERC20StakingManagerStorage();
-        $._token.mint(account, amount);
-    }
 }
