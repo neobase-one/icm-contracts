@@ -37,7 +37,7 @@ abstract contract PoSValidatorManager is
     ValidatorManager,
     ReentrancyGuardUpgradeable
 {
-    // solhint-enable private-vars-leading-underscore
+    // solhint-disable private-vars-leading-underscore
     /// @custom:storage-location erc7201:avalanche-icm.storage.PoSValidatorManager
     struct PoSValidatorManagerStorage {
         /// @notice The minimum amount of stake required to be a validator.
@@ -688,7 +688,6 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) external {
-
         _initializeEndDelegationWithCheck(
             delegationID, includeUptimeProof, messageIndex, rewardRecipient
         );
@@ -730,7 +729,6 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) external {
-
         // Ignore the return value here to force end delegation, regardless of possible missed rewards
         _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
     }

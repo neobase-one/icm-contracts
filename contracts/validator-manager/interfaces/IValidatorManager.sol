@@ -39,7 +39,6 @@ struct Validator {
     uint64 endedAt;
 }
 
-
 /**
  * @dev Describes the current churn period
  */
@@ -94,13 +93,10 @@ struct ValidatorRegistrationInput {
     PChainOwner remainingBalanceOwner;
     PChainOwner disableOwner;
 }
-// solhint-disable private-vars-leading-underscore
-/// @custom:storage-location erc7201:avalanche-icm.storage.ValidatorManager
 
 /**
  * @notice Interface for Validator Manager contracts that implement Subnet-only Validator management.
  */
-
 interface IValidatorManager {
     /**
      * @notice Emitted when a new validation period is created by locking stake in the manager contract.
