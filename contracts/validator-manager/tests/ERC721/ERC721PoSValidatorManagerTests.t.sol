@@ -1680,7 +1680,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         address recipientAddress
     ) internal virtual override {
         posValidatorManager.initializeEndValidation(
-            validationID, includeUptime, 0, recipientAddress
+            validationID, includeUptime, 0
         );
     }
 
@@ -1690,7 +1690,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         address recipientAddress
     ) internal virtual override {
         posValidatorManager.forceInitializeEndValidation(
-            validationID, includeUptime, 0, recipientAddress
+            validationID, includeUptime, 0
         );
     }
 
@@ -1944,11 +1944,11 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         vm.prank(sender);
         if (force) {
             posValidatorManager.forceInitializeEndDelegation(
-                delegationID, includeUptime, 0, rewardRecipient
+                delegationID, includeUptime, 0
             );
         } else {
             posValidatorManager.initializeEndDelegation(
-                delegationID, includeUptime, 0, rewardRecipient
+                delegationID, includeUptime, 0
             );
         }
     }
