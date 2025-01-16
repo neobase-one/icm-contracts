@@ -7,9 +7,12 @@ pragma solidity 0.8.25;
 
 import {PoSValidatorManager} from "./PoSValidatorManager.sol";
 import {
-    PoSValidatorManagerSettings,
-    PoSValidatorManagerStorage
+    PoSValidatorManagerSettings
+    // PoSValidatorManagerStorage
 } from "./interfaces/IPoSValidatorManager.sol";
+import {
+    PoSValidatorManager
+} from "./PoSValidatorManager.sol";
 import {
     ValidatorRegistrationInput, ValidatorManagerStorage
 } from "./interfaces/IValidatorManager.sol";
@@ -67,7 +70,7 @@ contract ERC721TokenStakingManager is
     }
 
     function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal override {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        PoSValidatorManager.PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         $._delegatorNFTs[delegationID].nftIds.push(tokenId);
     }
 
@@ -81,7 +84,7 @@ contract ERC721TokenStakingManager is
     function _deleteDelegatorNft(
         bytes32 delegationID
     ) internal override {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        PoSValidatorManager.PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         delete $._delegatorNFTs[delegationID];
     }
 

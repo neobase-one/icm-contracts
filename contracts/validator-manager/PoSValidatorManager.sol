@@ -9,10 +9,11 @@ import {ValidatorManager} from "./ValidatorManager.sol";
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {
     Delegator,
+    DelegatorNFT,
     DelegatorStatus,
     IPoSValidatorManager,
-    PoSValidatorManagerSettings,
-    PoSValidatorManagerStorage
+    PoSValidatorInfo,
+    PoSValidatorManagerSettings
 } from "./interfaces/IPoSValidatorManager.sol";
 import {
     Validator,
@@ -24,6 +25,7 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
+
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
  *
@@ -35,6 +37,44 @@ abstract contract PoSValidatorManager is
     ReentrancyGuardUpgradeable
 {
     // solhint-enable private-vars-leading-underscore
+    /// @custom:storage-location erc7201:avalanche-icm.storage.PoSValidatorManager
+    struct PoSValidatorManagerStorage {
+        /// @notice The minimum amount of stake required to be a validator.
+        uint256 _minimumStakeAmount;
+        /// @notice The maximum amount of stake allowed to be a validator.
+        uint256 _maximumStakeAmount;
+        /// @notice The minimum amount of time in seconds a validator must be staked for. Must be at least {_churnPeriodSeconds}.
+        uint64 _minimumStakeDuration;
+        /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
+        uint16 _minimumDelegationFeeBips;
+        /// @notice The duration in seconds after a delegator's delegation is ended before the delegator's stake is unlocked.
+        uint64 _unlockDelegateDuration;
+        /**
+         * @notice A multiplier applied to validator's initial stake amount to determine
+         * the maximum amount of stake a validator can have with delegations.
+         * Note: Setting this value to 1 would disable delegations to validators, since
+         * the maximum stake would be equal to the initial stake.
+         */
+        uint64 _maximumStakeMultiplier;
+        /// @notice The factor used to convert between weight and value.
+        uint256 _weightToValueFactor;
+        /// @notice The reward calculator for this validator manager.
+        IRewardCalculator _rewardCalculator;
+        /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the l1ID that this contract manages.
+        bytes32 _uptimeBlockchainID;
+        /// @notice Maps the validation ID to its requirements.
+        mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
+        /// @notice Maps the delegation ID to the delegator information.
+        mapping(bytes32 delegationID => Delegator) _delegatorStakes;
+        /// @notice Maps the delegation ID to the delegator's NFTs.
+        mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTs;
+        /// @notice Maps the delegation ID to its pending staking rewards.
+        mapping(bytes32 delegationID => uint256) _redeemableDelegatorRewards;
+        mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
+        /// @notice Maps the validation ID to its pending staking rewards.
+        mapping(bytes32 validationID => uint256) _redeemableValidatorRewards;
+        mapping(bytes32 validationID => address) _rewardRecipients;
+    }
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.PoSValidatorManager")) - 1)) & ~bytes32(uint256(0xff));
     bytes32 public constant POS_VALIDATOR_MANAGER_STORAGE_LOCATION =
@@ -434,12 +474,14 @@ abstract contract PoSValidatorManager is
         if (minStakeDuration < $._minimumStakeDuration) {
             revert InvalidMinStakeDuration(minStakeDuration);
         }
+
         // Ensure the weight is within the valid range.
         if (stakeAmount < $._minimumStakeAmount || stakeAmount > $._maximumStakeAmount) {
             revert InvalidStakeAmount(stakeAmount);
         }
         // Lock the stake in the contract.
         uint256 lockedValue = _lock(stakeAmount);
+
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
         _addValidatorNft(validationID, stakeAmount);
@@ -508,6 +550,7 @@ abstract contract PoSValidatorManager is
     ) internal returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         uint64 weight = valueToWeight(_lock(delegationAmount));
+
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
         // Check that the validation ID is a PoS validator
@@ -525,7 +568,9 @@ abstract contract PoSValidatorManager is
         }
 
         (uint64 nonce, bytes32 messageID) = _setValidatorWeight(validationID, newValidatorWeight);
+
         bytes32 delegationID = keccak256(abi.encodePacked(validationID, nonce));
+
         // Store the delegation information. Set the delegator status to pending added,
         // so that it can be properly started in the complete step, even if the delivered
         // nonce is greater than the nonce used to initialize registration.

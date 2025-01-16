@@ -35,7 +35,6 @@ contract ERC20TokenStakingManager is
         IERC20Mintable _token;
         uint8 _tokenDecimals;
     }
-
     // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.ERC20TokenStakingManager")) - 1)) & ~bytes32(uint256(0xff));
