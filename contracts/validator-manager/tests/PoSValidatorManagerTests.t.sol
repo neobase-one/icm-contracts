@@ -86,7 +86,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         bytes32 indexed delegationID, bytes32 indexed validationID, uint256 rewards, uint256 fees
     );
 
-    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime);
+    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
     function testDelegationFeeBipsTooLow() public {
         vm.expectRevert(
@@ -1503,7 +1503,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
-        emit UptimeUpdated(validationID, uptime1);
+        emit UptimeUpdated(validationID, uptime1, 27);
         posValidatorManager.submitUptimeProof(validationID, 0);
 
         // Submit a second uptime proof via initializeEndValidation. This one is not sufficient for rewards
@@ -1542,7 +1542,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
-        emit UptimeUpdated(validationID, uptime1);
+        emit UptimeUpdated(validationID, uptime1, 27);
         posValidatorManager.submitUptimeProof(validationID, 0);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
@@ -2471,7 +2471,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             rewardCalculator: IRewardCalculator(address(0)),
             balanceTracker: IBalanceTracker(address(0)),
-            epochDuration: 604800,
+            epochDuration: 3600,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
     }

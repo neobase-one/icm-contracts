@@ -136,8 +136,9 @@ interface IPoSValidatorManager is IValidatorManager {
      * @notice Event emitted when the uptime of a validator is updated. Only emitted when the uptime is greater than the stored uptime.
      * @param validationID The ID of the validation period
      * @param uptime The updated uptime of the validator
+     * @param epoch The epoch of updation
      */
-    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime);
+    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
     /**
      * @notice Updates the uptime of the validationID if the submitted proof is greated than the stored uptime.
