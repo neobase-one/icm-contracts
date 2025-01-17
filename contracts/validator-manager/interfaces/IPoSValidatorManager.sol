@@ -7,6 +7,7 @@ pragma solidity 0.8.25;
 
 import {IValidatorManager, ValidatorManagerSettings} from "./IValidatorManager.sol";
 import {IRewardCalculator} from "./IRewardCalculator.sol";
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
 /**
  * @dev Delegator status
@@ -42,6 +43,8 @@ struct PoSValidatorManagerSettings {
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
     IRewardCalculator rewardCalculator;
+    IBalanceTracker balanceTracker;
+    uint64 epochDuration;
     bytes32 uptimeBlockchainID;
 }
 
@@ -133,8 +136,9 @@ interface IPoSValidatorManager is IValidatorManager {
      * @notice Event emitted when the uptime of a validator is updated. Only emitted when the uptime is greater than the stored uptime.
      * @param validationID The ID of the validation period
      * @param uptime The updated uptime of the validator
+     * @param epoch The epoch of updation
      */
-    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime);
+    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
     /**
      * @notice Updates the uptime of the validationID if the submitted proof is greated than the stored uptime.

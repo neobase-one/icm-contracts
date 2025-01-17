@@ -22,6 +22,7 @@ import {
     WarpMessage,
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
 abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
@@ -89,7 +90,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 indexed delegationID, bytes32 indexed validationID, uint256 rewards, uint256 fees
     );
 
-    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime);
+    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
     function testDelegationFeeBipsTooLow() public {
         vm.expectRevert(
@@ -1512,7 +1513,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
-        emit UptimeUpdated(validationID, uptime1);
+        emit UptimeUpdated(validationID, uptime1, 27);
         posValidatorManager.submitUptimeProof(validationID, 0);
 
         // Submit a second uptime proof via initializeEndValidation. This one is not sufficient for rewards
@@ -1551,7 +1552,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
-        emit UptimeUpdated(validationID, uptime1);
+        emit UptimeUpdated(validationID, uptime1, 27);
         posValidatorManager.submitUptimeProof(validationID, 0);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
@@ -2486,6 +2487,8 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             rewardCalculator: IRewardCalculator(address(0)),
+            balanceTracker: IBalanceTracker(address(0)),
+            epochDuration: 3600,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
     }
