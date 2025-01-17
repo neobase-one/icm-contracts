@@ -59,7 +59,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
     bytes32 public constant VALIDATOR_MANAGER_STORAGE_LOCATION =
         0xe92546d698950ddd38910d2e15ed1d923cd0a7b3dde9e2a6a3f380565559cb00;
 
-    uint8 public constant MAXIMUM_CHURN_PERCENTAGE_LIMIT = 70;
+    uint8 public constant MAXIMUM_CHURN_PERCENTAGE_LIMIT = 30;
     uint64 public constant MAXIMUM_REGISTRATION_EXPIRY_LENGTH = 2 days;
     uint32 public constant ADDRESS_LENGTH = 20; // This is only used as a packed uint32
     uint8 public constant BLS_PUBLIC_KEY_LENGTH = 48;
