@@ -22,6 +22,7 @@ import {
     WarpMessage,
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
 abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
@@ -2486,6 +2487,8 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             rewardCalculator: IRewardCalculator(address(0)),
+            balanceTracker: IBalanceTracker(address(0)),
+            epochDuration: 604800,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
     }

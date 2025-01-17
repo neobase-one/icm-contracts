@@ -22,6 +22,7 @@ import {
     WarpMessage,
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
 abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
@@ -2469,6 +2470,8 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             rewardCalculator: IRewardCalculator(address(0)),
+            balanceTracker: IBalanceTracker(address(0)),
+            epochDuration: 604800,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });
     }

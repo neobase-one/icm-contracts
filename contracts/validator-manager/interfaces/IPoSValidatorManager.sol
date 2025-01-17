@@ -7,6 +7,7 @@ pragma solidity 0.8.25;
 
 import {IValidatorManager, ValidatorManagerSettings} from "./IValidatorManager.sol";
 import {IRewardCalculator} from "./IRewardCalculator.sol";
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
 /**
  * @dev Delegator status
@@ -42,6 +43,8 @@ struct PoSValidatorManagerSettings {
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
     IRewardCalculator rewardCalculator;
+    IBalanceTracker balanceTracker;
+    uint64 epochDuration;
     bytes32 uptimeBlockchainID;
 }
 

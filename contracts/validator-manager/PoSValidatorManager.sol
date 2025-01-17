@@ -22,6 +22,9 @@ import {
     ValidatorStatus
 } from "./interfaces/IValidatorManager.sol";
 import {IRewardCalculator} from "./interfaces/IRewardCalculator.sol";
+import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
@@ -37,6 +40,7 @@ abstract contract PoSValidatorManager is
     ValidatorManager,
     ReentrancyGuardUpgradeable
 {
+    using SafeERC20 for IERC20;
     // solhint-disable private-vars-leading-underscore
     /// @custom:storage-location erc7201:avalanche-icm.storage.PoSValidatorManager
     struct PoSValidatorManagerStorage {
@@ -61,6 +65,10 @@ abstract contract PoSValidatorManager is
         uint256 _weightToValueFactor;
         /// @notice The reward calculator for this validator manager.
         IRewardCalculator _rewardCalculator;
+        /// @notice The reward stream balance tracker for this validator manager.
+        IBalanceTracker _balanceTracker;
+        /// @notice The duration of an epoch in seconds
+        uint64 _epochDuration;
         /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the l1ID that this contract manages.
         bytes32 _uptimeBlockchainID;
         /// @notice Maps the validation ID to its requirements.
@@ -77,6 +85,10 @@ abstract contract PoSValidatorManager is
         /// @notice Maps the validation ID to its pending staking rewards.
         mapping(bytes32 validationID => uint256) _redeemableValidatorRewards;
         mapping(bytes32 validationID => address) _rewardRecipients;
+        /// @notice Maps validation ID to array of delegation IDs
+        mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
+        /// @notice Maps validation ID and epoch number to uptime in seconds for that epoch
+        mapping(bytes32 validationID => mapping(uint64 epoch => uint64 uptimeSeconds)) _validatorEpochUptime;
     }
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.PoSValidatorManager")) - 1)) & ~bytes32(uint256(0xff));
@@ -140,6 +152,8 @@ abstract contract PoSValidatorManager is
             maximumStakeMultiplier: settings.maximumStakeMultiplier,
             weightToValueFactor: settings.weightToValueFactor,
             rewardCalculator: settings.rewardCalculator,
+            balanceTracker: settings.balanceTracker,
+            epochDuration: settings.epochDuration,
             uptimeBlockchainID: settings.uptimeBlockchainID
         });
     }
@@ -154,6 +168,8 @@ abstract contract PoSValidatorManager is
         uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
         IRewardCalculator rewardCalculator,
+        IBalanceTracker balanceTracker,
+        uint64 epochDuration,
         bytes32 uptimeBlockchainID
     ) internal onlyInitializing {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
@@ -185,6 +201,8 @@ abstract contract PoSValidatorManager is
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
         $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
+        $._balanceTracker = balanceTracker;
+        $._epochDuration = epochDuration;
         $._rewardCalculator = rewardCalculator;
         $._uptimeBlockchainID = uptimeBlockchainID;
         $._unlockDelegateDuration = unlockDelegateDuration;
@@ -417,6 +435,46 @@ abstract contract PoSValidatorManager is
         _deleteValidatorNft(validationID);
     }
 
+    function _calculateEffectiveWeight(
+         uint256 weight,
+         uint64 currentUptime,
+         uint64 previousUptime
+    ) internal view returns (uint256) {
+        if(previousUptime > currentUptime || currentUptime == 0) {
+            return 0;
+        }
+        // Calculate effective weight based on both weight and time period
+        return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
+    }
+
+    /**
+     * @dev Returns array of active delegation IDs for a validator
+     * @param validationID The validator's ID
+     * @return Array of active delegation IDs
+     */
+    function _getActiveDelegations(bytes32 validationID) internal view returns (bytes32[] memory) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        bytes32[] memory allDelegations = $._validatorDelegations[validationID];
+
+        // First pass to count active delegations
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeCount++;
+            }
+        }
+        // Second pass to fill active delegations array
+        bytes32[] memory activeDelegations = new bytes32[](activeCount);
+        uint256 activeIndex = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeDelegations[activeIndex] = allDelegations[i];
+                activeIndex++;
+            }
+        }
+        return activeDelegations;
+    }
+
     /**
      * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
      * If the uptime is greater than the stored uptime, update the stored uptime.
@@ -449,12 +507,53 @@ abstract contract PoSValidatorManager is
             revert InvalidValidationID(validationID);
         }
 
-        if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
-            $._posValidatorInfo[validationID].uptimeSeconds = uptime;
+        uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
+        uint64 currentEpochUptime = $._validatorEpochUptime[validationID][currentEpoch];
+
+        if (uptime > currentEpochUptime) {
+            $._validatorEpochUptime[validationID][currentEpoch] = uptime;
             emit UptimeUpdated(validationID, uptime);
+
+            Validator memory validator = getValidator(validationID);
+            address owner = $._posValidatorInfo[validationID].owner;
+            uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
+
+            if (owner != address(0)) {
+                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
+                    validator.weight, 
+                    uptime,
+                    previousEpochUptime
+                );
+                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight, false);
+            }
+
+            // Update balance trackers for all active delegators
+            bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
+
+            for (uint256 i = 0; i < activeDelegations.length; i++) {
+                Delegator memory delegator = $._delegatorStakes[activeDelegations[i]];
+
+                if (delegator.owner != address(0)) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        uptime,
+                        previousEpochUptime
+                    );
+                    $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight, false);
+                }
+            }
         } else {
-            uptime = $._posValidatorInfo[validationID].uptimeSeconds;
+            uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
         }
+
+        // TODO: uncomment to make tests pass momentarily
+
+        // if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
+            //  $._posValidatorInfo[validationID].uptimeSeconds = uptime;
+            //  emit UptimeUpdated(validationID, uptime);
+        // } else {
+            //  uptime = $._posValidatorInfo[validationID].uptimeSeconds;
+        // }
 
         return uptime;
     }
