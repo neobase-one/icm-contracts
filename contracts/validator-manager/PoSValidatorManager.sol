@@ -546,7 +546,7 @@ abstract contract PoSValidatorManager is
         //     uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
         // }
 
-        // TODO: uncomment to make tests pass momentarily
+        // TODO: uncomment below and comment above to make tests pass momentarily
 
         if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
              $._posValidatorInfo[validationID].uptimeSeconds = uptime;
@@ -862,6 +862,45 @@ abstract contract PoSValidatorManager is
     ) external {
         // Ignore the return value here to force end delegation, regardless of possible missed rewards
         _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
+    }
+
+    function initializeReDelegation(
+        bytes32 delegationID,
+        uint32 messageIndex,
+        bytes32 newValidationID
+    ) external {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        Delegator memory delegator = $._delegatorStakes[delegationID];
+
+        if (delegator.owner != _msgSender()) {
+            revert UnauthorizedOwner(_msgSender());
+        }
+
+        // Ensure the delegator is pending removed.
+        if (delegator.status != DelegatorStatus.PendingRemoved) {
+            revert InvalidDelegatorStatus(delegator.status);
+        }
+
+        if (getValidator(delegator.validationID).status != ValidatorStatus.Completed) {
+            // Unpack the Warp message
+            WarpMessage memory warpMessage = _getPChainWarpMessage(messageIndex);
+            (bytes32 validationID, uint64 nonce,) =
+                ValidatorMessages.unpackL1ValidatorWeightMessage(warpMessage.payload);
+
+            if (delegator.validationID != validationID) {
+                revert InvalidValidationID(validationID);
+            }
+
+            // The received nonce should be at least as high as the delegation's ending nonce. This allows a weight
+            // update using a higher nonce (which implicitly includes the delegation's weight update) to be used to
+            // complete delisting for an earlier delegation. This is necessary because the P-Chain is only willing
+            // to sign the latest weight update.
+            if (delegator.endingNonce > nonce) {
+                revert InvalidNonce(nonce);
+            }
+        }
+        _completeEndDelegation(delegationID);
+        _initializeDelegatorRegistration(newValidationID, delegator.owner, weightToValue(getDelegator(delegationID).weight));
     }
 
     /**
