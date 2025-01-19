@@ -698,8 +698,26 @@ abstract contract PoSValidatorManager is
         address delegatorAddress,
         uint256 delegationAmount
     ) internal returns (bytes32) {
+        return _initializeDelegatorRegistrationRedelegation(
+            validationID,
+            delegatorAddress,
+            delegationAmount,
+            false
+        );
+    }
+
+    function _initializeDelegatorRegistrationRedelegation(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint256 delegationAmount,
+        bool redelegation
+    ) internal returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        uint64 weight = valueToWeight(_lock(delegationAmount));
+        uint64 weight = valueToWeight(delegationAmount);
+
+        if(!redelegation){
+            weight = valueToWeight(_lock(delegationAmount));
+        }
 
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
@@ -864,11 +882,11 @@ abstract contract PoSValidatorManager is
         _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
     }
 
-    function initializeReDelegation(
+    function initializeRedelegation(
         bytes32 delegationID,
         uint32 messageIndex,
-        bytes32 newValidationID
-    ) external {
+        bytes32 nextValidationID
+    ) external returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         Delegator memory delegator = $._delegatorStakes[delegationID];
 
@@ -899,8 +917,13 @@ abstract contract PoSValidatorManager is
                 revert InvalidNonce(nonce);
             }
         }
-        _completeEndDelegation(delegationID);
-        _initializeDelegatorRegistration(newValidationID, delegator.owner, weightToValue(getDelegator(delegationID).weight));
+        _completeEndDelegationRedelegation(delegationID, true);
+        return _initializeDelegatorRegistrationRedelegation(
+            nextValidationID,
+            delegator.owner,
+            weightToValue(delegator.weight),
+            true
+        );
     }
 
     /**
@@ -1096,6 +1119,10 @@ abstract contract PoSValidatorManager is
     }
 
     function _completeEndDelegation(bytes32 delegationID) internal {
+       _completeEndDelegationRedelegation(delegationID, false); 
+    }
+
+    function _completeEndDelegationRedelegation(bytes32 delegationID, bool redelegation) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         Delegator memory delegator = $._delegatorStakes[delegationID];
@@ -1120,7 +1147,9 @@ abstract contract PoSValidatorManager is
         _removeDelegationFromValidator(validationID, delegationID);
 
         // Unlock the delegator's stake.
-        _unlock(delegator.owner, delegationID, false);
+        if(!redelegation){
+            _unlock(delegator.owner, delegationID, false);
+        }
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
         _deleteDelegatorNft(delegationID);
