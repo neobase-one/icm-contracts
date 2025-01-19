@@ -275,13 +275,11 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) internal {
-        if (
-            !_initializeEndPoSValidation(
-                validationID, includeUptimeProof, messageIndex, rewardRecipient
-            )
-        ) {
-            revert ValidatorIneligibleForRewards(validationID);
-        }
+       
+        _initializeEndPoSValidation(
+            validationID, includeUptimeProof, messageIndex, rewardRecipient
+        );
+       
     }
 
     /**
@@ -353,14 +351,14 @@ abstract contract PoSValidatorManager is
         bool includeUptimeProof,
         uint32 messageIndex,
         address rewardRecipient
-    ) internal returns (bool) {
+    ) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         Validator memory validator = _initializeEndValidation(validationID);
 
         // Non-PoS validators are required to boostrap the network, but are not eligible for rewards.
         if (!_isPoSValidator(validationID)) {
-            return true;
+            return ;
         }
 
         // PoS validations can only be ended by their owners.
@@ -384,22 +382,14 @@ abstract contract PoSValidatorManager is
             uptimeSeconds = $._posValidatorInfo[validationID].uptimeSeconds;
         }
 
-        uint256 reward = $._rewardCalculator.calculateReward({
-            stakeAmount: weightToValue(validator.startingWeight),
-            validatorStartTime: validator.startedAt,
-            stakingStartTime: validator.startedAt,
-            stakingEndTime: validator.endedAt,
-            uptimeSeconds: uptimeSeconds
-        });
+        
 
         if (rewardRecipient == address(0)) {
             rewardRecipient = $._posValidatorInfo[validationID].owner;
         }
 
-        $._redeemableValidatorRewards[validationID] += reward;
         $._rewardRecipients[validationID] = rewardRecipient;
 
-        return (reward > 0);
     }
 
     /**
