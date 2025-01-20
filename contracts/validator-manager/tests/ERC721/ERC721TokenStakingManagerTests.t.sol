@@ -297,6 +297,10 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         return balanceTracker.earnedReward(address(this),address(app),address(rewardToken), false);
     }
 
+    function _getDelegatorReward() internal view override returns(uint256) {
+        return balanceTracker.earnedReward(DEFAULT_DELEGATOR_ADDRESS,address(app),address(rewardToken), false);
+    }
+
     function _update() internal override {
         balanceTracker.updateReward(address(app),address(rewardToken),address(0));
     }

@@ -253,6 +253,10 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         return token.balanceOf(account);
     }
 
+    function _getDelegatorReward() internal view override returns(uint256) {
+        return balanceTracker.earnedReward(DEFAULT_DELEGATOR_ADDRESS,address(app),address(rewardToken), false);
+    }
+
     function _getReward() internal view override returns(uint256) {
         return balanceTracker.earnedReward(address(this),address(app),address(rewardToken), false);
     }

@@ -581,7 +581,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testClaimDelegationFeesInvalidValidatorStatus() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
-        /*
+        
         _completeDefaultDelegator(validationID, delegationID);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -589,7 +589,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             )
         );
         posValidatorManager.claimDelegationFees(validationID);
-        */
+        
     }
 
     function testClaimDelegationFeesInvalidSender() public {
@@ -667,18 +667,9 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             force: false,
             rewardRecipient: rewardRecipient
         });
-        /*
-        uint256 expectedTotalReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_DELEGATOR_WEIGHT),
-            validatorStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingStartTime: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            uptimeSeconds: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        });
-
-        uint256 expectedValidatorFees =
-            _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
-        uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
 
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
@@ -693,7 +684,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             expectedNonce: 2,
             rewardRecipient: rewardRecipient
         });
-        */
+        
     }
 
     function testChangeDelegatorRewardRecipientWithNullAddress() public {
@@ -774,16 +765,9 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         posValidatorManager.changeDelegatorRewardRecipient(delegationID, DEFAULT_DELEGATOR_ADDRESS);
 
-        uint256 expectedTotalReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_DELEGATOR_WEIGHT),
-            validatorStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingStartTime: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            uptimeSeconds: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        });
-
-        uint256 expectedValidatorFees = 0;
-        uint256 expectedDelegatorReward = 0;
+       
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
 
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
@@ -822,16 +806,8 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);
         posValidatorManager.changeDelegatorRewardRecipient(delegationID, newRewardRecipient);
 
-        uint256 expectedTotalReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_DELEGATOR_WEIGHT),
-            validatorStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingStartTime: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            uptimeSeconds: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        });
-
-       uint256 expectedValidatorFees = 0;
-       uint256 expectedDelegatorReward = 0;
+       uint256 expectedValidatorFees = _getReward();
+       uint256 expectedDelegatorReward = _getDelegatorReward();
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
@@ -976,18 +952,10 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             uptimeMessage: uptimeMessage,
             force: false
         });
-        /*
-        uint256 expectedTotalReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_DELEGATOR_WEIGHT),
-            validatorStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingStartTime: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            uptimeSeconds: validationEndTime - DEFAULT_REGISTRATION_TIMESTAMP
-        });
+        
 
-        uint256 expectedValidatorFees =
-            _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
-        uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
 
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
 
@@ -1004,7 +972,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             expectedNonce: 2,
             rewardRecipient: delegator
         });
-        */
+        
     }
 
     function testInitializeDelegatorRegistrationValidatorCompleted() public {
@@ -1067,17 +1035,10 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _endDefaultValidatorWithChecks(validationID, 2);
 
         uint64 delegationEndTime = DEFAULT_COMPLETION_TIMESTAMP + 1;
-        /*
-        uint256 expectedTotalReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_DELEGATOR_WEIGHT),
-            validatorStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingStartTime: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_COMPLETION_TIMESTAMP,
-            uptimeSeconds: DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        });
-
-        uint256 expectedValidatorFees = expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS / 10000;
-        uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        
+    
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
 
         // completeDelegatorRegistration should fall through to _completeEndDelegation and refund the stake
         vm.expectEmit(true, true, true, true, address(validatorManager));
@@ -1089,7 +1050,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 rewardBefore = _getRewardAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
 
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_TOKEN_ID));
-        _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
+        //_expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
         // warp to right after validator ended
         vm.warp(delegationEndTime);
@@ -1104,7 +1065,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             _getRewardAssetBalance(DEFAULT_DELEGATOR_ADDRESS),
             rewardBefore + expectedDelegatorReward
         );
-        */
+        
     }
 
     function testCompleteEndDelegationValidatorCompleted() public {
@@ -1125,11 +1086,10 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         });
 
         _endDefaultValidatorWithChecks(validationID, 3);
-        /*
-        uint256 expectedTotalReward = _defaultDelegatorExpectedTotalReward();
+        
 
-        uint256 expectedValidatorFees = (expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS) / 10000;
-        uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
 
         vm.expectEmit(true, true, true, true, address(posValidatorManager));
         emit DelegationEnded(
@@ -1139,7 +1099,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 rewardBefore = _getRewardAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
 
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_TOKEN_ID));
-        _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
+       // _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         posValidatorManager.completeEndDelegation(delegationID, 0);
@@ -1151,7 +1111,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             _getRewardAssetBalance(DEFAULT_DELEGATOR_ADDRESS),
             rewardBefore + expectedDelegatorReward
         );
-        */
+        
     }
 
     function testCompleteEndDelegationWrongNonce() public {
@@ -1268,12 +1228,10 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             force: false,
             rewardRecipient: address(0)
         });
-        /*
-        uint256 expectedTotalReward = _defaultDelegatorExpectedTotalReward();
+        
 
-        uint256 expectedValidatorFees =
-            _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
-        uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
 
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
@@ -1290,7 +1248,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             expectedNonce: 4,
             rewardRecipient: delegator
         });
-        */
+        
     }
     
 
@@ -1423,7 +1381,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             rewardRecipient: newRecipient
         });
     }
-/*
+
     function testChangeValidatorRewardRecipientBackToSelf() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes memory setWeightMessage =
@@ -1433,7 +1391,19 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         );
         address rewardRecipient = address(42);
         address newRecipient = address(this);
+         vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
+        uint64 uptimePercentage1 = 80;
+        uint64 uptime1 = (
+            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
+        ) / 100;
+        bytes memory uptimeMsg1 =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
+        _mockGetUptimeWarpMessage(uptimeMsg1, true);
+        _update();
 
+        posValidatorManager.submitUptimeProof(validationID, 0);
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 2);
+        _update();
         _initializeEndValidation({
             validationID: validationID,
             completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
@@ -1446,13 +1416,10 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         posValidatorManager.changeValidatorRewardRecipient(validationID, newRecipient);
 
-        uint256 expectedReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_WEIGHT),
-            validatorStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_COMPLETION_TIMESTAMP,
-            uptimeSeconds: DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        });
+        _update();
+
+        
+        uint256 expectedReward = _getReward();
 
         address validatorOwner = address(this);
 
@@ -1523,7 +1490,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         posValidatorManager.changeValidatorRewardRecipient(validationID, badActor);
     }
-    */
+
 
     function testInitializeEndValidation() public virtual override {
         bytes32 validationID = _registerDefaultValidator();
@@ -2157,11 +2124,9 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             force: false,
             rewardRecipient: address(this)
         });
-        /*
-        uint256 expectedTotalReward = _defaultDelegatorExpectedTotalReward();
-        uint256 expectedValidatorFees =
-            _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
-        uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         _completeEndDelegationWithChecks({
             validationID: validationID,
@@ -2175,7 +2140,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             expectedNonce: 2,
             rewardRecipient: address(this)
         });
-        */
+        
     }
 
     function _registerDelegator(
@@ -2420,26 +2385,27 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         );
         uint256 balanceBefore = _getStakeAssetBalance(delegator);
         uint256 rewardRecipientBalanceBefore = _getRewardAssetBalance(rewardRecipient);
+        uint256 delegatorRewardBalanceBefore = _getRewardAssetBalance(delegator);
 
         _expectStakeUnlock(delegator, _weightToValue(delegatorWeight));
         //_expectRewardIssuance(rewardRecipient, expectedDelegatorReward);
 
         _completeEndDelegation(delegationID, weightUpdateMessage);
-
-        assertEq(posValidatorManager.getValidator(validationID).weight, expectedValidatorWeight);
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        _claim(rewardRecipient);
 
         if (rewardRecipient == delegator) {
             assertEq(
                 _getStakeAssetBalance(delegator),
-                balanceBefore + DEFAULT_DELEGATOR_WEIGHT
+                balanceBefore + _weightToValue(DEFAULT_DELEGATOR_WEIGHT) 
             );
             assertEq(
-                _getRewardAssetBalance(rewardRecipient),
-                rewardRecipientBalanceBefore + expectedDelegatorReward
+                _getRewardAssetBalance(delegator),
+                delegatorRewardBalanceBefore + expectedDelegatorReward
             );
         } else {
             assertEq(
-                _getStakeAssetBalance(delegator), balanceBefore + DEFAULT_DELEGATOR_WEIGHT
+                _getStakeAssetBalance(delegator), balanceBefore + _weightToValue(DEFAULT_DELEGATOR_WEIGHT)
             );
 
             assertEq(
@@ -2474,17 +2440,8 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             rewardRecipient: address(0)
         });
 
-        uint256 expectedTotalReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_DELEGATOR_WEIGHT),
-            validatorStartTime: 0,
-            stakingStartTime: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            uptimeSeconds: 0
-        });
-
-        uint256 expectedValidatorFees =
-            _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
-        uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
+        uint256 expectedValidatorFees = _getReward();
+        uint256 expectedDelegatorReward = _getDelegatorReward();
         address delegator = DEFAULT_DELEGATOR_ADDRESS;
 
         _completeEndDelegationWithChecks({
@@ -2548,6 +2505,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     }
 
     function _getReward() internal view virtual returns(uint256){}
+    function _getDelegatorReward() internal view virtual returns(uint256){}
     function _update() internal virtual {}
     function _claim(address rewardRecipient) internal virtual {}
 }

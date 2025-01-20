@@ -434,6 +434,14 @@ abstract contract PoSValidatorManager is
         return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
     }
 
+    function _calculateDelegatorFeeWeight(
+        bytes32 validationID,
+        uint256 delegateEffectiveWeight
+    ) internal view returns (uint256) {
+        return (delegateEffectiveWeight * _getPoSValidatorManagerStorage()._posValidatorInfo[validationID].delegationFeeBips)
+            / BIPS_CONVERSION_FACTOR;
+    }
+
     /**
      * @dev Returns array of active delegation IDs for a validator
      * @param validationID The validator's ID
@@ -505,30 +513,19 @@ abstract contract PoSValidatorManager is
             address owner = $._posValidatorInfo[validationID].owner;
             uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
 
+            // Update balance trackers for all active delegators
+            uint256 totalDelegatorFeeWeight = _updateDelegatorBalances($, validationID, uptime, previousEpochUptime);
+
             if (owner != address(0)) {
                 uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
                     validator.startingWeight, 
                     uptime,
                     previousEpochUptime
-                );
-                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight, false);
+            );
+                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
             }
 
-            // Update balance trackers for all active delegators
-            bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
-
-            for (uint256 i = 0; i < activeDelegations.length; i++) {
-                Delegator memory delegator = $._delegatorStakes[activeDelegations[i]];
-
-                if (delegator.owner != address(0)) {
-                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                        delegator.weight,
-                        uptime,
-                        previousEpochUptime
-                    );
-                    $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight, false);
-                }
-            }
+            
         } else {
             uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
         }
@@ -544,6 +541,26 @@ abstract contract PoSValidatorManager is
         */
 
         return uptime;
+    }
+
+    function _updateDelegatorBalances(PoSValidatorManagerStorage storage $, bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+        bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
+        uint256 totalDelegatorFeeWeight;
+            for (uint256 i = 0; i < activeDelegations.length; i++) {
+                Delegator memory delegator = $._delegatorStakes[activeDelegations[i]];
+
+                if (delegator.owner != address(0)) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        uptime,
+                        previousEpochUptime
+                    );
+                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                    totalDelegatorFeeWeight += delegatorFeeWeight;
+                    $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
+                }
+            }
     }
 
     function _initializeValidatorRegistration(
@@ -740,7 +757,6 @@ abstract contract PoSValidatorManager is
      */
     function completeDelegatorRegistration(bytes32 delegationID, uint32 messageIndex) external {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
         Delegator memory delegator = $._delegatorStakes[delegationID];
         bytes32 validationID = delegator.validationID;
         Validator memory validator = getValidator(validationID);
