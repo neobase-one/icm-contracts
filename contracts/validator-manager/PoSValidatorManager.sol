@@ -29,7 +29,6 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
-
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
  *
@@ -399,7 +398,6 @@ abstract contract PoSValidatorManager is
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         (bytes32 validationID, Validator memory validator) = _completeEndValidation(messageIndex);
-
         // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
         // or the validator was part of the initial validator set.
         if (!_isPoSValidator(validationID)) {
@@ -419,7 +417,6 @@ abstract contract PoSValidatorManager is
         if (validator.status == ValidatorStatus.Completed) {
             _withdrawValidationRewards(rewardRecipient, validationID);
         }
-
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock(owner, validationID, true);
         _deleteValidatorNft(validationID);
@@ -498,52 +495,53 @@ abstract contract PoSValidatorManager is
         }
 
         uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
-        // uint64 currentEpochUptime = $._validatorEpochUptime[validationID][currentEpoch];
+        uint64 currentEpochUptime = $._validatorEpochUptime[validationID][currentEpoch];
 
-        // if (uptime > currentEpochUptime) {
-        //     $._validatorEpochUptime[validationID][currentEpoch] = uptime;
-            // emit UptimeUpdated(validationID, uptime, currentEpoch);
+        if (uptime > currentEpochUptime) {
+            $._validatorEpochUptime[validationID][currentEpoch] = uptime;
+            emit UptimeUpdated(validationID, uptime, currentEpoch);
 
-        //     Validator memory validator = getValidator(validationID);
-        //     address owner = $._posValidatorInfo[validationID].owner;
-        //     uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
+            Validator memory validator = getValidator(validationID);
+            address owner = $._posValidatorInfo[validationID].owner;
+            uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
 
-        //     if (owner != address(0)) {
-        //         uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
-        //             validator.weight, 
-        //             uptime,
-        //             previousEpochUptime
-        //         );
-        //         $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight, false);
-        //     }
+            if (owner != address(0)) {
+                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
+                    validator.startingWeight, 
+                    uptime,
+                    previousEpochUptime
+                );
+                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight, false);
+            }
 
-        //     // Update balance trackers for all active delegators
-        //     bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
+            // Update balance trackers for all active delegators
+            bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
 
-        //     for (uint256 i = 0; i < activeDelegations.length; i++) {
-        //         Delegator memory delegator = $._delegatorStakes[activeDelegations[i]];
+            for (uint256 i = 0; i < activeDelegations.length; i++) {
+                Delegator memory delegator = $._delegatorStakes[activeDelegations[i]];
 
-        //         if (delegator.owner != address(0)) {
-        //             uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-        //                 delegator.weight,
-        //                 uptime,
-        //                 previousEpochUptime
-        //             );
-        //             $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight, false);
-        //         }
-        //     }
-        // } else {
-        //     uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
-        // }
+                if (delegator.owner != address(0)) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        uptime,
+                        previousEpochUptime
+                    );
+                    $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight, false);
+                }
+            }
+        } else {
+            uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
+        }
 
         // TODO: uncomment below and comment above to make tests pass momentarily
-
+        /*
         if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
              $._posValidatorInfo[validationID].uptimeSeconds = uptime;
              emit UptimeUpdated(validationID, uptime, currentEpoch);
         } else {
              uptime = $._posValidatorInfo[validationID].uptimeSeconds;
         }
+        */
 
         return uptime;
     }
@@ -1083,7 +1081,7 @@ abstract contract PoSValidatorManager is
         uint256 rewards = $._redeemableValidatorRewards[validationID];
         delete $._redeemableValidatorRewards[validationID];
 
-        _reward(rewardRecipient, rewards);
+       // _reward(rewardRecipient, rewards);
     }
 
     function _withdrawDelegationRewards(
@@ -1108,7 +1106,7 @@ abstract contract PoSValidatorManager is
 
             // Reward the remaining tokens to the delegator.
             delegationRewards = rewards - validatorFees;
-            _reward(rewardRecipient, delegationRewards);
+            //_reward(rewardRecipient, delegationRewards);
         }
 
         return (delegationRewards, validatorFees);

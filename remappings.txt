@@ -6,3 +6,6 @@
 @teleporter=contracts/teleporter
 @mocks=contracts/mocks
 @utilities=contracts/utilities
+evc/=lib/ethereum-vault-connector/src/
+openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/
+@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/

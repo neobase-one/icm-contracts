@@ -19,13 +19,17 @@ import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC
 import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializable.sol";
 import {ERC721ValidatorManagerTest} from "./ERC721ValidatorManagerTests.t.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
+import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
+import {ITrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/interfaces/IRewardStreams.sol";
 
 contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721Receiver {
     using SafeERC20 for IERC20;
 
     ERC721TokenStakingManager public app;
     IERC721 public stakingToken;
-    IERC20 public rewardToken;
+    ITrackingRewardStreams public balanceTracker;
+    EthereumVaultConnector public evc;
     uint256 public constant TEST_TOKEN_ID = 1;
 
     function setUp() public override {
@@ -261,13 +265,21 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         // Construct the object under test
         app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         stakingToken = new ExampleERC721();
-        rewardToken = new ExampleERC20();
-        rewardToken.transfer(address(app), 100000 ether);
 
         rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE, 18);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
+         evc = new EthereumVaultConnector();
+        balanceTracker = new TrackingRewardStreams(address(evc), DEFAULT_EPOCH_DURATION);
+        defaultPoSSettings.balanceTracker = balanceTracker;
+        uint128 rewardAmount = 50e18;
+        rewardToken.approve(address(balanceTracker), rewardAmount);
+        uint128[] memory amounts = new uint128[](1);
+        amounts[0] = rewardAmount;
+
+        balanceTracker.registerReward(address(app), address(rewardToken), 0, amounts);
+        balanceTracker.enableReward(address(app), address(rewardToken));
         app.initialize(defaultPoSSettings, stakingToken, rewardToken);
 
         validatorManager = app;
@@ -276,12 +288,21 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         return app;
     }
 
+
     function _getStakeAssetBalance(address account) internal view override returns (uint256) {
         return stakingToken.balanceOf(account);
     }
 
-     function _getRewardAssetBalance(address account) internal view override returns (uint256) {
-        return rewardToken.balanceOf(account);
+    function _getReward() internal view override returns(uint256) {
+        return balanceTracker.earnedReward(address(this),address(app),address(rewardToken), false);
+    }
+
+    function _update() internal override {
+        balanceTracker.updateReward(address(app),address(rewardToken),address(0));
+    }
+
+    function _claim(address rewardRecipient) internal override {
+        balanceTracker.claimReward(address(app), address(rewardToken), rewardRecipient, false);
     }
     
 }
