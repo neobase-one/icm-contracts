@@ -18,6 +18,8 @@ import {
     WarpMessage,
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
+import {ExampleERC20} from "@mocks/ExampleERC20.sol";
+
 // TODO: Remove this once all unit tests implemented
 // solhint-disable no-empty-blocks
 abstract contract ERC721ValidatorManagerTest is Test {
@@ -35,7 +37,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
     bytes32 public constant DEFAULT_SOURCE_BLOCKCHAIN_ID =
         bytes32(hex"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd");
     bytes32 public constant DEFAULT_SUBNET_CONVERSION_ID =
-        bytes32(hex"f85870b6f0dc2003f57cefc0e302fea0d174668c72ae409204fee73843983be8");
+        bytes32(hex"e00817570a1c4cd09858346b5b98efb6caa9077a5e23e3072b543307159ca31b");
     address public constant WARP_PRECOMPILE_ADDRESS = 0x0200000000000000000000000000000000000005;
 
     uint64 public constant DEFAULT_WEIGHT = 1;
@@ -57,6 +59,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
     PChainOwner public DEFAULT_P_CHAIN_OWNER;
 
     ValidatorManager public validatorManager;
+    ExampleERC20 public rewardToken;
 
     // Used to create unique validator IDs in {_newNodeID}
     uint64 public nodeIDCounter = 0;
@@ -93,6 +96,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
         address[] memory addresses = new address[](1);
         addresses[0] = 0x1234567812345678123456781234567812345678;
         DEFAULT_P_CHAIN_OWNER = PChainOwner({threshold: 1, addresses: addresses});
+        rewardToken = new ExampleERC20();
     }
 
     function testInitializeValidatorRegistrationSuccess() public {
