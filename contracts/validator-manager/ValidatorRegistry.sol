@@ -10,6 +10,7 @@ contract ValidatorRegistry is Ownable {
     IERC721TokenStakingManager public erc721TokenStakingManager;
     uint256 public minAmount;
 
+
     constructor(address _nativeTokenStakingManager, address _erc721TokenStakingManager, uint256 _minAmount) Ownable(msg.sender) {
         nativeTokenStakingManager = INativeTokenStakingManager(_nativeTokenStakingManager);
         erc721TokenStakingManager = IERC721TokenStakingManager(_erc721TokenStakingManager);
@@ -22,6 +23,9 @@ contract ValidatorRegistry is Ownable {
         uint64 minStakeDuration,
         uint256 tokenId
     ) external payable{
+        require(msg.value >= minAmount, "NativeTokenStakingManager: insufficient stake amount");
+        erc721TokenStakingManager.erc721().transferFrom(msg.sender, address(this), tokenId);
+        erc721TokenStakingManager.erc721().approve(address(nativeTokenStakingManager), tokenId);
 
         nativeTokenStakingManager.initializeValidatorRegistration{value: msg.value}(registrationInput, delegationFeeBips, minStakeDuration);
         erc721TokenStakingManager.initializeValidatorRegistration(registrationInput, delegationFeeBips, minStakeDuration, tokenId);
