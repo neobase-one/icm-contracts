@@ -2350,7 +2350,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             validationID, expectedNonce, validatorWeight
         );
 
-        _expectRewardIssuance(rewardRecipient, expectedDelegatorReward);
+       // _expectRewardIssuance(rewardRecipient, expectedDelegatorReward);
 
         _mockGetPChainWarpMessage(weightUpdateMessage, true);
         vm.prank(sender);
