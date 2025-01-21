@@ -179,7 +179,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
             )
         );
         app.initializeValidatorRegistration(
-            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, TEST_TOKEN_ID
+            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, TEST_TOKEN_ID, address(this)
         );
     }
 
@@ -197,7 +197,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         uint256 tokenId
     ) internal virtual override returns (bytes32) {
         return app.initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, tokenId
+            registrationInput, delegationFeeBips, minStakeDuration, tokenId, address(this)
         );
     }
 
@@ -210,7 +210,8 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
             input,
             DEFAULT_DELEGATION_FEE_BIPS,
             DEFAULT_MINIMUM_STAKE_DURATION,
-            weight
+            weight,
+            address(this)
         );
     }
 

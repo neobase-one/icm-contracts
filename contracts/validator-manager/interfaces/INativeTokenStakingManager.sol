@@ -21,7 +21,8 @@ interface INativeTokenStakingManager is IPoSValidatorManager {
     function initializeValidatorRegistration(
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
-        uint64 minStakeDuration
+        uint64 minStakeDuration,
+        address account
     ) external payable returns (bytes32 validationID);
 
     /**

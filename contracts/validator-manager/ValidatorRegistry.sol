@@ -27,8 +27,8 @@ contract ValidatorRegistry is Ownable {
         erc721TokenStakingManager.erc721().transferFrom(msg.sender, address(this), tokenId);
         erc721TokenStakingManager.erc721().approve(address(nativeTokenStakingManager), tokenId);
 
-        nativeTokenStakingManager.initializeValidatorRegistration{value: msg.value}(registrationInput, delegationFeeBips, minStakeDuration);
-        erc721TokenStakingManager.initializeValidatorRegistration(registrationInput, delegationFeeBips, minStakeDuration, tokenId);
+        nativeTokenStakingManager.initializeValidatorRegistration{value: msg.value}(registrationInput, delegationFeeBips, minStakeDuration,msg.sender);
+        erc721TokenStakingManager.initializeValidatorRegistration(registrationInput, delegationFeeBips, minStakeDuration, tokenId, msg.sender);
     }
 
     function setMinAmount(uint256 _minAmount) public onlyOwner {

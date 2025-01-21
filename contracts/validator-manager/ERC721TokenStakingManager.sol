@@ -134,10 +134,11 @@ contract ERC721TokenStakingManager is
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 tokenId
+        uint256 tokenId,
+        address account
     ) external nonReentrant onlyOperator returns (bytes32 validationID) {
         return _initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, tokenId
+            registrationInput, delegationFeeBips, minStakeDuration, tokenId, account
         );
     }
 

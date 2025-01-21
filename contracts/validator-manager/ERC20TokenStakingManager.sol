@@ -102,10 +102,11 @@ contract ERC20TokenStakingManager is
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 stakeAmount
+        uint256 stakeAmount,
+        address account
     ) external nonReentrant returns (bytes32 validationID) {
         return _initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, stakeAmount
+            registrationInput, delegationFeeBips, minStakeDuration, stakeAmount, account
         );
     }
 

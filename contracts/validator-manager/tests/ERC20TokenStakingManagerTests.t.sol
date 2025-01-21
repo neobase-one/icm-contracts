@@ -159,7 +159,7 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
             )
         );
         app.initializeValidatorRegistration(
-            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, stakeAmount
+            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, stakeAmount, address(this)
         );
     }
 
@@ -177,7 +177,7 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         uint256 stakeAmount
     ) internal virtual override returns (bytes32) {
         return app.initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, stakeAmount
+            registrationInput, delegationFeeBips, minStakeDuration, stakeAmount, address(this)
         );
     }
 
@@ -189,7 +189,8 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
             input,
             DEFAULT_DELEGATION_FEE_BIPS,
             DEFAULT_MINIMUM_STAKE_DURATION,
-            _weightToValue(weight)
+            _weightToValue(weight),
+            address(this)
         );
     }
 

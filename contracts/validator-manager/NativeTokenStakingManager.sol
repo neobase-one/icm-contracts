@@ -75,10 +75,11 @@ contract NativeTokenStakingManager is
     function initializeValidatorRegistration(
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
-        uint64 minStakeDuration
+        uint64 minStakeDuration,
+        address account
     ) external payable nonReentrant onlyOperator returns (bytes32) {
         return _initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, msg.value
+            registrationInput, delegationFeeBips, minStakeDuration, msg.value, account
         );
     }
 

@@ -25,7 +25,8 @@ interface IERC721TokenStakingManager is IPoSValidatorManager {
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 tokenId
+        uint256 tokenId,
+        address account
     ) external returns (bytes32 validationID);
 
     /**

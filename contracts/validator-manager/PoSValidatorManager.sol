@@ -567,7 +567,8 @@ abstract contract PoSValidatorManager is
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 stakeAmount
+        uint256 stakeAmount,
+        address account
     ) internal virtual returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         // Validate and save the validator requirements
@@ -593,7 +594,7 @@ abstract contract PoSValidatorManager is
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
         _addValidatorNft(validationID, stakeAmount);
 
-        address owner = _msgSender();
+        address owner = account;
 
         $._posValidatorInfo[validationID].owner = owner;
         $._posValidatorInfo[validationID].delegationFeeBips = delegationFeeBips;
