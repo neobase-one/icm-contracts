@@ -15,6 +15,7 @@ import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializ
 import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
 import {ITrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/interfaces/IRewardStreams.sol";
 import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
+import {console2} from "forge-std/console2.sol";
 
 contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
     NativeTokenStakingManager public app;
@@ -195,7 +196,9 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
         balanceTracker.registerReward(address(app), address(rewardToken), 0, amounts);
         balanceTracker.enableReward(address(app), address(rewardToken));
         app.initialize(defaultPoSSettings);
-
+        console2.log("app initialized");
+        app.setOperator(address(this));
+        console2.log("operator set");
         validatorManager = app;
         posValidatorManager = app;
         return app;

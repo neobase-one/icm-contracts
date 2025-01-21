@@ -281,6 +281,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         balanceTracker.registerReward(address(app), address(rewardToken), 0, amounts);
         balanceTracker.enableReward(address(app), address(rewardToken));
         app.initialize(defaultPoSSettings, stakingToken, rewardToken);
+        app.setOperator(address(this));
 
         validatorManager = app;
         posValidatorManager = app;

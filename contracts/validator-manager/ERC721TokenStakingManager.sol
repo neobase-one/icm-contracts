@@ -71,11 +71,16 @@ contract ERC721TokenStakingManager is
         _;
     }
 
+    modifier onlyOwner() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "ERC721TokenStakingManager: caller not owner");
+        _;
+    }
+
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
-            _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         }
+
     }
 
     /**
@@ -91,6 +96,7 @@ contract ERC721TokenStakingManager is
         IERC20 rewardToken
     ) external reinitializer(2) {
         __ERC721TokenStakingManager_init(settings, stakingToken, rewardToken);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     // solhint-disable-next-line func-name-mixedcase
@@ -129,7 +135,7 @@ contract ERC721TokenStakingManager is
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
         uint256 tokenId
-    ) external nonReentrant returns (bytes32 validationID) {
+    ) external nonReentrant onlyOperator returns (bytes32 validationID) {
         return _initializeValidatorRegistration(
             registrationInput, delegationFeeBips, minStakeDuration, tokenId
         );
@@ -206,5 +212,12 @@ contract ERC721TokenStakingManager is
     function recoverRewardTokens(uint256 amount) external onlyOperator {
         ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
         $._rewardToken.safeTransfer(_msgSender(), amount);
+    }
+    /**
+     * @notice Sets the operator for this manager
+     * @param _operator The address of the operator
+     */
+    function setOperator(address _operator) public onlyOwner {
+        _grantRole(OPERATOR_ROLE, _operator);
     }
 }

@@ -15,7 +15,7 @@ import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Address} from "@openzeppelin/contracts@5.0.2/utils/Address.sol";
 import {Initializable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
-
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable@5.0.2/access/AccessControlUpgradeable.sol";
 /**
  * @dev Implementation of the {INativeTokenStakingManager} interface.
  *
@@ -24,12 +24,22 @@ import {Initializable} from
 contract NativeTokenStakingManager is
     Initializable,
     PoSValidatorManager,
-    INativeTokenStakingManager
+    INativeTokenStakingManager,
+    AccessControlUpgradeable
 {
     using Address for address payable;
 
     INativeMinter public constant NATIVE_MINTER =
         INativeMinter(0x0200000000000000000000000000000000000001);
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+     modifier onlyOperator() {
+        require(hasRole(OPERATOR_ROLE, msg.sender), "NativeTokenStakingManager: caller is not an operator");
+        _;
+    }
+    modifier onlyOwner() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "NativeTokenStakingManager: caller not owner");
+        _;
+    }    
 
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
@@ -45,6 +55,7 @@ contract NativeTokenStakingManager is
     // solhint-disable ordering
     function initialize(PoSValidatorManagerSettings calldata settings) external reinitializer(2) {
         __NativeTokenStakingManager_init(settings);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     // solhint-disable-next-line func-name-mixedcase
@@ -65,7 +76,7 @@ contract NativeTokenStakingManager is
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration
-    ) external payable nonReentrant returns (bytes32) {
+    ) external payable nonReentrant onlyOperator returns (bytes32) {
         return _initializeValidatorRegistration(
             registrationInput, delegationFeeBips, minStakeDuration, msg.value
         );
@@ -104,5 +115,12 @@ contract NativeTokenStakingManager is
      */
     function _reward(address account, uint256 amount) internal virtual override {
         NATIVE_MINTER.mintNativeCoin(account, amount);
+    }
+    /**
+     * @notice Sets the operator for this manager
+     * @param _operator The address of the operator
+     */
+    function setOperator(address _operator) public onlyOwner {
+        _grantRole(OPERATOR_ROLE, _operator);
     }
 }
