@@ -298,7 +298,6 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         $._validationPeriods[validationID].weight = weight;
         $._validationPeriods[validationID].startedAt = 0; // The validation period only starts once the registration is acknowledged.
         $._validationPeriods[validationID].endedAt = 0;
-        console2.log("vm weight:",weight);
         emit ValidationPeriodCreated(
             validationID, input.nodeID, messageID, weight, input.registrationExpiry
         );

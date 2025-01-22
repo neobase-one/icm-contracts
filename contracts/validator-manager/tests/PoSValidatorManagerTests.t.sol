@@ -779,7 +779,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             _calculateValidatorFeesFromDelegator(expectedTotalReward, DEFAULT_DELEGATION_FEE_BIPS);
         uint256 expectedDelegatorReward = expectedTotalReward - expectedValidatorFees;
 
-        console.log("EGWEG");
         _completeEndDelegationWithChecks({
             validationID: validationID,
             delegationID: delegationID,
@@ -2366,8 +2365,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         );
 
         vm.expectEmit(true, true, true, true, address(posValidatorManager));
-        console.log(expectedDelegatorReward);
-        console.log(expectedValidatorFees);
         emit DelegationEnded(
             delegationID, validationID, expectedDelegatorReward, expectedValidatorFees
         );
@@ -2403,12 +2400,9 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         bytes32 delegationID,
         bytes memory weightUpdateMessage
     ) internal {
-        console.log("HIII");
         _mockGetPChainWarpMessage(weightUpdateMessage, true);
 
-        console.log("HIII");
         posValidatorManager.completeEndDelegation(delegationID, 0);
-        console.log("HIII");
     }
 
     function _initializeAndCompleteEndDelegationWithChecks(

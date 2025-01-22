@@ -38,7 +38,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     ITrackingRewardStreams public balanceTracker;
     ITrackingRewardStreams public balanceTrackerNFT;
 
-    uint256[] TEST_TOKENS = [uint256(1)];
+    uint256 testTokenID = 0;
 
     function setUp() public override {
         ValidatorManagerTest.setUp();
@@ -172,8 +172,10 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         uint64 minStakeDuration,
         uint256 stakeAmount
     ) internal virtual override returns (bytes32) {
+        uint256[] memory tokens = new uint256[](1);
+        tokens[0] = ++testTokenID;
         return app.initializeValidatorRegistration{value: stakeAmount}(
-            registrationInput, delegationFeeBips, minStakeDuration, TEST_TOKENS
+            registrationInput, delegationFeeBips, minStakeDuration, tokens
         );
     }
 
@@ -181,8 +183,10 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         ValidatorRegistrationInput memory input,
         uint64 weight
     ) internal virtual override returns (bytes32) {
+        uint256[] memory tokens = new uint256[](1);
+        tokens[0] = ++testTokenID;
         return app.initializeValidatorRegistration{value: _weightToValue(weight)}(
-            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION, TEST_TOKENS
+            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION, tokens
         );
     }
 
@@ -223,7 +227,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         stakingToken = new ExampleERC721();
         rewardToken = new ExampleERC20();        
 
-        stakingToken.approve(address(app), 1);
+        stakingToken.setApprovalForAll(address(app), true);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
