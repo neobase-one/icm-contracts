@@ -1,6 +1,5 @@
 // (c) 2024, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
-
 // SPDX-License-Identifier: Ecosystem
 pragma solidity 0.8.25;
 
@@ -1038,7 +1037,8 @@ abstract contract PoSValidatorManager is
             ($._delegatorStakes[delegationID].endingNonce,) =
                 _setValidatorWeight(validationID, validator.weight - delegator.weight);
 
-            uint256 reward = _calculateAndSetDelegationReward(delegator, rewardRecipient, delegationID);
+            uint256 reward =
+                 _calculateAndSetDelegationReward(delegator, rewardRecipient, delegationID);
 
             emit DelegatorRemovalInitialized({
                 delegationID: delegationID,
