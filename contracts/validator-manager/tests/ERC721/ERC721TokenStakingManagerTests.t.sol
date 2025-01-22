@@ -266,7 +266,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         app = new ERC721TokenStakingManager(ICMInitializable.Allowed);
         stakingToken = new ExampleERC721();
 
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE, 18);
+        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;

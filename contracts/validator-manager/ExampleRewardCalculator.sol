@@ -6,6 +6,7 @@
 pragma solidity 0.8.25;
 
 import {IRewardCalculator} from "./interfaces/IRewardCalculator.sol";
+
 contract ExampleRewardCalculator is IRewardCalculator {
     uint256 public constant SECONDS_IN_YEAR = 31536000;
 
@@ -15,11 +16,8 @@ contract ExampleRewardCalculator is IRewardCalculator {
 
     uint64 public immutable rewardBasisPoints;
 
-    uint64 public immutable decimals;
-
-    constructor(uint64 rewardBasisPoints_, uint64 decimals_) {
+    constructor(uint64 rewardBasisPoints_) {
         rewardBasisPoints = rewardBasisPoints_;
-        decimals = decimals_;
     }
 
     /**
@@ -33,7 +31,6 @@ contract ExampleRewardCalculator is IRewardCalculator {
         uint64 stakingEndTime,
         uint64 uptimeSeconds
     ) external view returns (uint256) {
-
         // Equivalent to uptimeSeconds/(validator.endedAt - validator.startedAt) < UPTIME_REWARDS_THRESHOLD_PERCENTAGE/100
         // Rearranged to prevent integer division truncation.
         if (
@@ -43,7 +40,7 @@ contract ExampleRewardCalculator is IRewardCalculator {
             return 0;
         }
 
-        return (stakeAmount * rewardBasisPoints * (stakingEndTime - stakingStartTime) * (10 ** decimals))
+        return (stakeAmount * rewardBasisPoints * (stakingEndTime - stakingStartTime))
             / SECONDS_IN_YEAR / BIPS_CONVERSION_FACTOR;
     }
 }

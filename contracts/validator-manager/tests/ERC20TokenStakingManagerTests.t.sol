@@ -227,7 +227,7 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         // Construct the object under test
         app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
         token = new ExampleERC20();
-        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE,0);
+        rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
