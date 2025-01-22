@@ -26,10 +26,9 @@ import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalan
 
 abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
-    uint64 public constant DEFAULT_DELEGATOR_WEIGHT = 1;
-    uint64 public constant DEFAULT_DELEGATOR_TOKEN_ID = 2;
-    uint64 public constant DEFAULT_DELEGATOR1_TOKEN_ID = 3;
-
+    uint64 public constant DEFAULT_DELEGATOR_WEIGHT = uint64(1e5);
+    uint64 public constant DEFAULT_VALIDATOR_NFT_WEIGHT = 1;
+    uint64 public constant DEFAULT_DELEGATOR_NFT_WEIGHT = 2;
 
     uint64 public constant DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP =
         DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EXPIRY;
@@ -75,6 +74,15 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint64 validatorWeight,
         uint64 delegatorWeight,
         bytes32 setWeightMessageID
+    );
+
+    event DelegatorAddedNFT(
+        bytes32 indexed delegationID,
+        bytes32 indexed validationID,
+        address indexed delegatorAddress,
+        uint64 nonce,
+        uint64 delegatorWeight,
+        uint256[] tokenIDs
     );
 
     event DelegatorRegistered(
@@ -251,7 +259,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             registrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
             expectedNonce: 1
@@ -264,7 +272,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID = _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             registrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
             expectedNonce: 1
@@ -290,7 +298,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: delegator1,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             registrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
             expectedNonce: 1
@@ -299,7 +307,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID2 = _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: delegator2,
-            weight: DEFAULT_DELEGATOR1_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             registrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP + 1,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_DELEGATOR_WEIGHT
                 + DEFAULT_WEIGHT,
@@ -448,7 +456,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID = _registerDelegator({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             initRegistrationTimestamp: delegatorRegistrationTime - 1,
             completeRegistrationTimestamp: delegatorRegistrationTime,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
@@ -679,7 +687,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             validationID: validationID,
             delegationID: delegationID,
             delegator: DEFAULT_DELEGATOR_ADDRESS,
-            delegatorWeight: DEFAULT_DELEGATOR_TOKEN_ID,
+            delegatorWeight: DEFAULT_DELEGATOR_WEIGHT ,
             expectedValidatorFees: expectedValidatorFees,
             expectedDelegatorReward: expectedDelegatorReward,
             validatorWeight: DEFAULT_WEIGHT,
@@ -777,7 +785,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             validationID: validationID,
             delegationID: delegationID,
             delegator: DEFAULT_DELEGATOR_ADDRESS,
-            delegatorWeight: DEFAULT_DELEGATOR_TOKEN_ID,
+            delegatorWeight: DEFAULT_DELEGATOR_WEIGHT ,
             expectedValidatorFees: expectedValidatorFees,
             expectedDelegatorReward: expectedDelegatorReward,
             validatorWeight: DEFAULT_WEIGHT,
@@ -815,7 +823,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             validationID: validationID,
             delegationID: delegationID,
             delegator: DEFAULT_DELEGATOR_ADDRESS,
-            delegatorWeight: DEFAULT_DELEGATOR_TOKEN_ID,
+            delegatorWeight: DEFAULT_DELEGATOR_WEIGHT ,
             expectedValidatorFees: expectedValidatorFees,
             expectedDelegatorReward: expectedDelegatorReward,
             validatorWeight: DEFAULT_WEIGHT,
@@ -844,7 +852,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             force: false
         });
 
-        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_TOKEN_ID), DEFAULT_DELEGATOR_ADDRESS);
+        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_NFT_WEIGHT ), DEFAULT_DELEGATOR_ADDRESS);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -852,7 +860,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             )
         );
         _initializeDelegatorRegistration(
-            validationID, DEFAULT_DELEGATOR_ADDRESS, DEFAULT_DELEGATOR_TOKEN_ID
+            validationID, DEFAULT_DELEGATOR_ADDRESS, DEFAULT_DELEGATOR_WEIGHT 
         );
     }
 
@@ -863,7 +871,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID = _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             registrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
             expectedNonce: 1
@@ -910,7 +918,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             force: false
         });
 
-        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_TOKEN_ID), DEFAULT_DELEGATOR_ADDRESS);
+        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_NFT_WEIGHT ), DEFAULT_DELEGATOR_ADDRESS);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -918,7 +926,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             )
         );
         _initializeDelegatorRegistration(
-            validationID, DEFAULT_DELEGATOR_ADDRESS, DEFAULT_DELEGATOR_TOKEN_ID
+            validationID, DEFAULT_DELEGATOR_ADDRESS, DEFAULT_DELEGATOR_WEIGHT 
         );
     }
 
@@ -966,7 +974,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             validationID: validationID,
             delegationID: delegationID,
             delegator: delegator,
-            delegatorWeight: DEFAULT_DELEGATOR_TOKEN_ID,
+            delegatorWeight: DEFAULT_DELEGATOR_WEIGHT ,
             expectedValidatorFees: expectedValidatorFees,
             expectedDelegatorReward: expectedDelegatorReward,
             validatorWeight: DEFAULT_WEIGHT,
@@ -981,7 +989,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 validationID = _registerDefaultValidator();
         _endDefaultValidatorWithChecks(validationID, 1);
 
-        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_WEIGHT), DEFAULT_DELEGATOR_ADDRESS);
+        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_NFT_WEIGHT), DEFAULT_DELEGATOR_ADDRESS);
 
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP + 1);
         vm.expectRevert(
@@ -1006,7 +1014,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
 
         uint256 balanceBefore = _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
 
-        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_TOKEN_ID));
+        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT ));
 
         // warp to right after validator ended
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP + 1);
@@ -1051,7 +1059,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 balanceBefore = _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
         uint256 rewardBefore = _getRewardAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
 
-        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_TOKEN_ID));
+        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT ));
         //_expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
         // warp to right after validator ended
@@ -1100,7 +1108,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         uint256 balanceBefore = _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
         uint256 rewardBefore = _getRewardAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
 
-        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_TOKEN_ID));
+        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT ));
        // _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
@@ -1123,7 +1131,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID1 = _registerDelegator({
             validationID: validationID,
             delegatorAddress: delegator1,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
@@ -1134,7 +1142,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID2 = _registerDelegator({
             validationID: validationID,
             delegatorAddress: delegator2,
-            weight: DEFAULT_DELEGATOR1_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT,
             initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP + 1,
             completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT * 2 + DEFAULT_WEIGHT,
@@ -1187,7 +1195,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID1 = _registerDelegator({
             validationID: validationID,
             delegatorAddress: delegator1,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
@@ -1198,7 +1206,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         bytes32 delegationID2 = _registerDelegator({
             validationID: validationID,
             delegatorAddress: delegator2,
-            weight: DEFAULT_DELEGATOR1_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT,
             initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP + 1,
             completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT * 2 + DEFAULT_WEIGHT,
@@ -1242,7 +1250,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             validationID: validationID,
             delegationID: delegationID1,
             delegator: delegator,
-            delegatorWeight: DEFAULT_DELEGATOR_TOKEN_ID,
+            delegatorWeight: DEFAULT_DELEGATOR_WEIGHT ,
             expectedValidatorFees: expectedValidatorFees,
             expectedDelegatorReward: expectedDelegatorReward,
             validatorWeight: DEFAULT_WEIGHT,
@@ -1627,7 +1635,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             force: false
         });
 
-        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_TOKEN_ID), DEFAULT_DELEGATOR_ADDRESS);
+        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_NFT_WEIGHT ), DEFAULT_DELEGATOR_ADDRESS);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1666,7 +1674,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     function testDelegationToPoAValidator() public {
         bytes32 defaultInitialValidationID = sha256(abi.encodePacked(DEFAULT_L1_ID, uint32(1)));
 
-        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_WEIGHT), DEFAULT_DELEGATOR_ADDRESS);
+        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_NFT_WEIGHT), DEFAULT_DELEGATOR_ADDRESS);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -1828,7 +1836,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         });
 
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP + 1 + DEFAULT_MINIMUM_STAKE_DURATION);
-        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, DEFAULT_DELEGATOR_TOKEN_ID);
+        _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, DEFAULT_DELEGATOR_WEIGHT );
         posValidatorManager.initializeEndDelegation(delegationID, true, 0);
     }
 
@@ -2077,7 +2085,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         return _registerDelegator({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
@@ -2092,7 +2100,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         return _setUpInitializeDelegatorRegistration({
             validationID: validationID,
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
-            weight: DEFAULT_DELEGATOR_TOKEN_ID,
+            weight: DEFAULT_DELEGATOR_WEIGHT ,
             registrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
             expectedNonce: 1
@@ -2134,7 +2142,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             validationID: validationID,
             delegationID: delegationID,
             delegator: DEFAULT_DELEGATOR_ADDRESS,
-            delegatorWeight: DEFAULT_DELEGATOR_TOKEN_ID,
+            delegatorWeight: DEFAULT_DELEGATOR_WEIGHT ,
             expectedValidatorFees: expectedValidatorFees,
             expectedDelegatorReward: expectedDelegatorReward,
             validatorWeight: DEFAULT_WEIGHT,

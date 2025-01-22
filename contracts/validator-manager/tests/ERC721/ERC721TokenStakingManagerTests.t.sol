@@ -180,7 +180,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         );
         uint256[] memory nftTokenIDs = new uint256[](1);
         nftTokenIDs[0] = TEST_TOKEN_ID;
-        app.initializeValidatorRegistration(
+        app.initializeValidatorRegistration{value: _weightToValue(uint64(nftTokenIDs.length))}(
             input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, nftTokenIDs
         );
     }
@@ -200,7 +200,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
     ) internal virtual override returns (bytes32) {
          uint256[] memory nftTokenIDs = new uint256[](1);
         nftTokenIDs[0] = tokenId;
-        return app.initializeValidatorRegistration(
+        return app.initializeValidatorRegistration{value: _weightToValue(uint64(nftTokenIDs.length))}(
             registrationInput, delegationFeeBips, minStakeDuration, nftTokenIDs
         );
     }
@@ -210,8 +210,8 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         uint64 weight
     ) internal virtual override returns (bytes32) {
         uint256[] memory nftTokenIDs = new uint256[](1);
-        nftTokenIDs[0] = weight;
-        return app.initializeValidatorRegistration(
+        nftTokenIDs[0] = 1;
+        return app.initializeValidatorRegistration{value: _weightToValue(weight)}(
             input,
             DEFAULT_DELEGATION_FEE_BIPS,
             DEFAULT_MINIMUM_STAKE_DURATION,
@@ -229,14 +229,14 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         
         vm.startPrank(delegatorAddress);
         //stakingToken.approve(address(app), TEST_TOKEN_ID);
-        bytes32 delegationID = app.initializeDelegatorRegistration(validationID, value);
+        bytes32 delegationID = app.initializeDelegatorRegistration{value: value}(validationID);
         vm.stopPrank();
         
         return delegationID;
     }
 
     function _beforeSend(uint256 tokenId, address spender) internal override {
-        
+       
         stakingToken.approve(spender, tokenId);
         ExampleERC721(address(stakingToken)).transferFrom(address(this), spender, tokenId);
         
@@ -245,6 +245,7 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
 
         stakingToken.approve(address(app), tokenId);
         vm.stopPrank();
+        
     }
 
     function _expectStakeUnlock(address account, uint256 tokenId) internal override {

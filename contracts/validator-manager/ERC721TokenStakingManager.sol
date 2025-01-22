@@ -44,6 +44,7 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 
 import {ValidatorMessages} from "./ValidatorMessages.sol";
+import {console2} from "forge-std/console2.sol";
 
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
@@ -162,10 +163,9 @@ contract ERC721TokenStakingManager is
      * @notice See {IERC721TokenStakingManager-initializeDelegatorRegistration}
      */
     function initializeDelegatorRegistration(
-        bytes32 validationID,
-        uint256 tokenId
-    ) external nonReentrant returns (bytes32) {
-        return _initializeDelegatorRegistration(validationID, _msgSender(), tokenId);
+        bytes32 validationID
+    ) external payable nonReentrant returns (bytes32) {
+        return _initializeDelegatorRegistration(validationID, _msgSender(), msg.value);
     }
 
     /**
@@ -251,9 +251,9 @@ contract ERC721TokenStakingManager is
         bytes32 validationID,
         address delegatorAddress,
         uint256[] memory tokenIDs
-    ) external nonReentrant {
+    ) external nonReentrant returns (bytes32) {
         _lockNFTs(tokenIDs);
-        _registerDelegationNFTs(validationID, delegatorAddress, tokenIDs);
+        return _registerDelegationNFTs(validationID, delegatorAddress, tokenIDs);
     }
 
     function endDelegationNFTs(
@@ -309,7 +309,9 @@ contract ERC721TokenStakingManager is
         if (stakeAmount < $._minimumStakeAmount || stakeAmount > $._maximumStakeAmount) {
             revert InvalidStakeAmount(stakeAmount);
         }
-
+        console2.log("nft amount:", nftTokenIDs.length);
+        console2.log("minimum nft amount:", $._minimumNFTAmount);
+        console2.log("maximum nft amount:", $._maximumNFTAmount);
         if (nftTokenIDs.length < $._minimumNFTAmount || nftTokenIDs.length > $._maximumNFTAmount) {
             revert InvalidNFTAmount(nftTokenIDs.length);
         }
@@ -317,7 +319,7 @@ contract ERC721TokenStakingManager is
         uint256 lockedValue = _lock(stakeAmount);
 
         // Lock NFTs in the contract
-        lockedValue += _lockNFTs(nftTokenIDs);
+        _lockNFTs(nftTokenIDs);
 
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
@@ -339,7 +341,7 @@ contract ERC721TokenStakingManager is
         bytes32 validationID,
         address delegatorAddress,
         uint256[] memory tokenIDs
-    ) internal {
+    ) internal returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         uint64 weight = valueToWeight(tokenIDs.length);
 
@@ -373,9 +375,9 @@ contract ERC721TokenStakingManager is
             delegatorAddress: delegatorAddress,
             nonce: nonce,
             delegatorWeight: weight,
-            startTime: uint64(block.timestamp),
             tokenIDs: tokenIDs
         }); 
+        return delegationID;
     }
 
    /**

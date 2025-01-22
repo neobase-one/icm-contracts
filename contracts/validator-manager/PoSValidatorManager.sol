@@ -29,6 +29,7 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
+import {console2} from "forge-std/console2.sol";    
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
  *
@@ -164,7 +165,9 @@ abstract contract PoSValidatorManager is
             balanceTracker: settings.balanceTracker,
             balanceTrackerNFT: settings.balanceTrackerNFT,
             epochDuration: settings.epochDuration,
-            uptimeBlockchainID: settings.uptimeBlockchainID
+            uptimeBlockchainID: settings.uptimeBlockchainID,
+            minimumNFTAmount: settings.minimumNFTAmount,
+            maximumNFTAmount: settings.maximumNFTAmount
         });
     }
 
@@ -181,7 +184,9 @@ abstract contract PoSValidatorManager is
         IBalanceTracker balanceTracker,
         IBalanceTracker balanceTrackerNFT,
         uint64 epochDuration,
-        bytes32 uptimeBlockchainID
+        bytes32 uptimeBlockchainID,
+        uint256 minimumNFTAmount,
+        uint256 maximumNFTAmount
     ) internal onlyInitializing {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -209,6 +214,8 @@ abstract contract PoSValidatorManager is
         $._minimumStakeAmount = minimumStakeAmount;
         $._maximumStakeAmount = maximumStakeAmount;
         $._minimumStakeDuration = minimumStakeDuration;
+        $._minimumNFTAmount = minimumNFTAmount;
+        $._maximumNFTAmount = maximumNFTAmount;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
         $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
@@ -609,6 +616,7 @@ abstract contract PoSValidatorManager is
         uint64 minStakeDuration,
         uint256 stakeAmount
     ) internal virtual returns (bytes32) {
+        console2.log("pos init");
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         // Validate and save the validator requirements
         if (
@@ -630,6 +638,7 @@ abstract contract PoSValidatorManager is
         uint256 lockedValue = _lock(stakeAmount);
 
         uint64 weight = valueToWeight(lockedValue);
+        console2.log("pos weight:",weight);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
 
         _addValidatorNft(validationID, stakeAmount);

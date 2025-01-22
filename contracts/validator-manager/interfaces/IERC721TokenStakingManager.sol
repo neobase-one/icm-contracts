@@ -31,12 +31,10 @@ interface IERC721TokenStakingManager is IPoSValidatorManager {
     /**
      * @notice Begins the delegator registration process. Locks the specified ERC721 token in the contract as the stake.
      * @param validationID The ID of the validator to stake to.
-     * @param tokenId The ID of the NFT to stake.
      */
     function initializeDelegatorRegistration(
-        bytes32 validationID,
-        uint256 tokenId
-    ) external returns (bytes32);
+        bytes32 validationID
+    ) external payable returns (bytes32);
 
     /**
      * @notice Returns the ERC721 token contract used for staking

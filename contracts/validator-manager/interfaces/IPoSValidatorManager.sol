@@ -119,7 +119,6 @@ interface IPoSValidatorManager is IValidatorManager {
         address indexed delegatorAddress,
         uint64 nonce,
         uint64 delegatorWeight,
-        uint256 startTime,
         uint256[] tokenIDs
     );
 
