@@ -34,6 +34,7 @@ import {
 import {IERC721TokenStakingManager} from "./interfaces/IERC721TokenStakingManager.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Address} from "@openzeppelin/contracts@5.0.2/utils/Address.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
@@ -55,6 +56,7 @@ contract ERC721TokenStakingManager is
     PoSValidatorManager,
     IERC721TokenStakingManager
 {
+    using Address for address payable;
     using SafeERC20 for IERC20;
 
     // solhint-disable private-vars-leading-underscore
@@ -191,12 +193,8 @@ contract ERC721TokenStakingManager is
      * @notice See {PoSValidatorManager-_unlock}
      * Note: Must be guarded with reentrancy guard for safe transfer.
      */
-    function _unlock(address to, bytes32 id, bool isValidator) internal virtual override {
-        uint256[] memory nfts = isValidator ? getValidatorNfts(id) : getDelegatorNfts(id);
-        for (uint256 i = 0; i < nfts.length; i++) {
-            uint256 nftId = nfts[i];
-            _getERC721StakingManagerStorage()._token.safeTransferFrom(address(this), to, nftId);
-        }
+    function _unlock(address to, uint256 value) internal virtual override {
+        payable(to).sendValue(value);
     }
 
     /**

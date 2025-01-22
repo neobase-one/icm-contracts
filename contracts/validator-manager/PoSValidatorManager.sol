@@ -430,8 +430,7 @@ abstract contract PoSValidatorManager is
             // _withdrawValidationRewards(rewardRecipient, validationID);
         // }
         // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock(owner, validationID, true);
-        _deleteValidatorNft(validationID);
+        _unlock(owner, weightToValue(validator.startingWeight));
     }
 
     function _calculateEffectiveWeight(
@@ -570,16 +569,6 @@ abstract contract PoSValidatorManager is
             uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
         }
 
-        // TODO: uncomment below and comment above to make tests pass momentarily
-        /*
-        if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
-             $._posValidatorInfo[validationID].uptimeSeconds = uptime;
-             emit UptimeUpdated(validationID, uptime, currentEpoch);
-        } else {
-             uptime = $._posValidatorInfo[validationID].uptimeSeconds;
-        }
-        */
-
         return uptime;
     }
 
@@ -694,10 +683,9 @@ abstract contract PoSValidatorManager is
     /**
      * @notice Unlocks token to a specific address.
      * @param to Address to send token to.
-     * @param validationID ID of validator
-     * @param isValidator Whether the unlock is for a validator or a delegator
+     * @param value Number of tokens to lock.
      */
-    function _unlock(address to, bytes32 validationID, bool isValidator) internal virtual;
+    function _unlock(address to, uint256 value) internal virtual;
 
     function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal virtual {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
@@ -1187,9 +1175,9 @@ abstract contract PoSValidatorManager is
         _removeDelegationFromValidator(validationID, delegationID);
 
         // Unlock the delegator's stake.
-        if(!redelegation){
-            _unlock(delegator.owner, delegationID, false);
-        }
+        // if(!redelegation){
+            // _unlock(delegator.owner, delegationID, false);
+        // }
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
         _deleteDelegatorNft(delegationID);
