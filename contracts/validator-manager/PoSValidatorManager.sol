@@ -1030,7 +1030,7 @@ abstract contract PoSValidatorManager is
                 _setValidatorWeight(validationID, validator.weight - delegator.weight);
 
             uint256 reward =
-                 _calculateAndSetDelegationReward(delegator, rewardRecipient, delegationID);
+                _calculateAndSetDelegationReward(delegator, rewardRecipient, delegationID);
 
             emit DelegatorRemovalInitialized({
                 delegationID: delegationID,
