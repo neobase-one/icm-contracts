@@ -66,6 +66,12 @@ struct Delegator {
 }
 
 struct DelegatorNFT {
+    DelegatorStatus status;
+    address owner;
+    bytes32 validationID;
+    uint64 weight;
+    uint64 startedAt;
+    uint64 endedAt;
     uint256[] nftIds;
 }
 
