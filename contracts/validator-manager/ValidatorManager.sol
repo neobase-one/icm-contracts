@@ -25,6 +25,7 @@ import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 import {Initializable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
+import {console2} from "forge-std/console2.sol";  
 
 /**
  * @dev Implementation of the {IValidatorManager} interface.
@@ -297,7 +298,7 @@ abstract contract ValidatorManager is Initializable, ContextUpgradeable, IValida
         $._validationPeriods[validationID].weight = weight;
         $._validationPeriods[validationID].startedAt = 0; // The validation period only starts once the registration is acknowledged.
         $._validationPeriods[validationID].endedAt = 0;
-
+        console2.log("vm weight:",weight);
         emit ValidationPeriodCreated(
             validationID, input.nodeID, messageID, weight, input.registrationExpiry
         );

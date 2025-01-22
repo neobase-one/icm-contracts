@@ -72,7 +72,7 @@ struct DelegatorNFT {
     uint64 weight;
     uint64 startedAt;
     uint64 endedAt;
-    uint256[] nftIds;
+    uint256[] tokenIDs;
 }
 
 /**
@@ -119,7 +119,6 @@ interface IPoSValidatorManager is IValidatorManager {
         address indexed delegatorAddress,
         uint64 nonce,
         uint64 delegatorWeight,
-        uint256 startTime,
         uint256[] tokenIDs
     );
 
