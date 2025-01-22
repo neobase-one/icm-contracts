@@ -38,7 +38,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     ITrackingRewardStreams public balanceTracker;
     ITrackingRewardStreams public balanceTrackerNFT;
 
-    uint256[] TEST_TOKENS = [uint256(0)];
+    uint256[] TEST_TOKENS = [uint256(1)];
 
     function setUp() public override {
         ValidatorManagerTest.setUp();
@@ -56,7 +56,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         uint256,
         bytes memory
     ) public virtual returns (bytes4) {
-        return this.onERC721Received.selector;
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     function testDisableInitialization() public {
@@ -222,6 +222,8 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE);
         stakingToken = new ExampleERC721();
         rewardToken = new ExampleERC20();        
+
+        stakingToken.approve(address(app), 1);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;

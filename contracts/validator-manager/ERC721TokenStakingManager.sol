@@ -45,6 +45,7 @@ import {WarpMessage} from
 
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {console2} from "forge-std/console2.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
@@ -55,7 +56,8 @@ contract ERC721TokenStakingManager is
     Initializable,
     AccessControlUpgradeable,
     PoSValidatorManager,
-    IERC721TokenStakingManager
+    IERC721TokenStakingManager,
+    IERC721Receiver
 {
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -133,6 +135,15 @@ contract ERC721TokenStakingManager is
         }
         
         $._token = stakingToken;
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     /**
