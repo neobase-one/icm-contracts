@@ -182,11 +182,9 @@ contract ERC721TokenStakingManager is
 
     /**
      * @notice See {PoSValidatorManager-_lock}
-     * Note: Must be guarded with reentrancy guard for safe transfer from.
      */
-    function _lock(uint256 tokenId) internal virtual override returns (uint256) {
-        _getERC721StakingManagerStorage()._token.transferFrom(_msgSender(), address(this), tokenId);
-        return 1;
+    function _lock(uint256 value) internal virtual override returns (uint256) {
+        return value;
     }
 
     /**
@@ -251,6 +249,44 @@ contract ERC721TokenStakingManager is
         $._rewardToken.safeTransfer(_msgSender(), amount);
     }
 
+    function registerDelegationNFTs(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint256[] memory tokenIDs
+    ) external nonReentrant {
+        _lockNFTs(tokenIDs);
+        _registerDelegationNFTs(validationID, delegatorAddress, tokenIDs);
+    }
+
+    function endDelegationNFTs(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) external nonReentrant {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        Delegator memory delegator = $._delegatorNFTStakes[delegationID];
+
+        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
+            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
+        }
+
+        uint256[] memory tokenIDs = _endDelegationNFTs(delegationID, includeUptimeProof, messageIndex);
+        _unlockNFTs(delegator.owner, tokenIDs);
+    }
+
+    function reDelegateNFTs(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex,
+        bytes32 nextValidationID
+    ) external nonReentrant {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        Delegator memory delegator = $._delegatorNFTStakes[delegationID];
+
+        uint256[] memory tokenIDs = _endDelegationNFTs(delegationID, includeUptimeProof, messageIndex);
+        _registerDelegationNFTs(nextValidationID, delegator.owner, tokenIDs);
+    }
+
     function _initializeValidatorRegistration(
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
@@ -301,13 +337,13 @@ contract ERC721TokenStakingManager is
         return validationID;
     }
 
-    function _delegatorRegistrationNFTs(
+    function _registerDelegationNFTs(
         bytes32 validationID,
         address delegatorAddress,
         uint256[] memory tokenIDs
     ) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        uint64 weight = valueToWeight(_lockNFTs(tokenIDs));
+        uint64 weight = valueToWeight(tokenIDs.length);
 
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
@@ -351,7 +387,7 @@ contract ERC721TokenStakingManager is
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex
-    ) external nonReentrant {
+    ) internal returns (uint256[] memory tokenIDs) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         Delegator memory delegator = $._delegatorNFTStakes[delegationID];
@@ -389,24 +425,18 @@ contract ERC721TokenStakingManager is
                 _updateUptime(validationID, messageIndex);
             }
 
-            $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
-            $._delegatorStakes[delegationID].endedAt = uint64(block.timestamp);
+            $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
+            $._delegatorNFTStakes[delegationID].endedAt = uint64(block.timestamp);
 
-            if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
-                revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
-            }
+            tokenIDs = $._delegatorNFTs[delegationID].nftIds;
 
             _removeNFTDelegationFromValidator(validationID, delegationID);
 
-            // Unlock the delegator's stake.
-            _unlock(delegator.owner, delegationID, false);
-
             // Once this function completes, the delegation is completed so we can clear it from state now.
-            delete $._delegatorStakes[delegationID];
-            _deleteDelegatorNft(delegationID);
+            delete $._delegatorNFTs[delegationID];
+            delete $._delegatorNFTStakes[delegationID];
 
             emit DelegationEnded(delegationID, validationID, 0, 0); 
-
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
