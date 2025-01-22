@@ -18,7 +18,7 @@ import {
     WarpMessage,
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
-import {ExampleERC20} from "@mocks/ExampleERC20.sol";
+
 // TODO: Remove this once all unit tests implemented
 // solhint-disable no-empty-blocks
 abstract contract ValidatorManagerTest is Test {
@@ -36,7 +36,7 @@ abstract contract ValidatorManagerTest is Test {
     bytes32 public constant DEFAULT_SOURCE_BLOCKCHAIN_ID =
         bytes32(hex"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd");
     bytes32 public constant DEFAULT_SUBNET_CONVERSION_ID =
-        bytes32(hex"0485829f4bf3aa6ad9c3d69fb5ae9ad023fc364b6f9782946809b2668d3b651d");
+        bytes32(hex"76a386628f079b7b00452f8cab0925740363fcd52b721a8cf91773e857327b36");
     address public constant WARP_PRECOMPILE_ADDRESS = 0x0200000000000000000000000000000000000005;
 
     uint64 public constant DEFAULT_WEIGHT = 1e6;
@@ -58,7 +58,6 @@ abstract contract ValidatorManagerTest is Test {
     PChainOwner public DEFAULT_P_CHAIN_OWNER;
 
     ValidatorManager public validatorManager;
-    ExampleERC20 public rewardToken;
 
     // Used to create unique validator IDs in {_newNodeID}
     uint64 public nodeIDCounter = 0;
@@ -95,7 +94,6 @@ abstract contract ValidatorManagerTest is Test {
         address[] memory addresses = new address[](1);
         addresses[0] = 0x1234567812345678123456781234567812345678;
         DEFAULT_P_CHAIN_OWNER = PChainOwner({threshold: 1, addresses: addresses});
-        rewardToken = new ExampleERC20();
     }
 
     function testInitializeValidatorRegistrationSuccess() public {
@@ -433,6 +431,7 @@ abstract contract ValidatorManagerTest is Test {
         );
         vm.warp(registrationExpiry - 1);
         _mockSendWarpMessage(registerL1ValidatorMessage, bytes32(0));
+
         _beforeSend(_weightToValue(weight), address(this));
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit ValidationPeriodCreated(validationID, nodeID, bytes32(0), weight, registrationExpiry);

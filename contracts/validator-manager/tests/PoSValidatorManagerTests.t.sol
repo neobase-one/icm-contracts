@@ -8,6 +8,7 @@ pragma solidity 0.8.25;
 import {IRewardCalculator} from "../interfaces/IRewardCalculator.sol";
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
 import {PoSValidatorManager} from "../PoSValidatorManager.sol";
+import {ExampleERC20} from "@mocks/ExampleERC20.sol";
 import {
     DelegatorStatus, PoSValidatorManagerSettings
 } from "../interfaces/IPoSValidatorManager.sol";
@@ -51,6 +52,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
     PoSValidatorManager public posValidatorManager;
     IRewardCalculator public rewardCalculator;
+    ExampleERC20 public rewardToken;
 
     ValidatorRegistrationInput public defaultRegistrationInput = ValidatorRegistrationInput({
         nodeID: DEFAULT_NODE_ID,
