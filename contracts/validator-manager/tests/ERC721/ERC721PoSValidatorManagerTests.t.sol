@@ -51,6 +51,9 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
     uint256 public constant SECONDS_IN_YEAR = 31536000;
     uint48 public constant DEFAULT_EPOCH_DURATION = 604800;
 
+    uint256 public constant DEFAULT_MINIMUM_NFT_AMOUNT = 1;
+    uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 10;
+
     PoSValidatorManager public posValidatorManager;
     IRewardCalculator public rewardCalculator;
 
@@ -2481,6 +2484,8 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             }),
             minimumStakeAmount: DEFAULT_MINIMUM_STAKE_AMOUNT,
             maximumStakeAmount: DEFAULT_MAXIMUM_STAKE_AMOUNT,
+            minimumNFTAmount: DEFAULT_MINIMUM_NFT_AMOUNT,
+            maximumNFTAmount: DEFAULT_MAXIMUM_NFT_AMOUNT,
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
             unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
@@ -2488,6 +2493,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             rewardCalculator: IRewardCalculator(address(0)),
             balanceTracker: IBalanceTracker(address(0)),
+            balanceTrackerNFT: IBalanceTracker(address(0)),
             epochDuration: 3600,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });

@@ -2,7 +2,6 @@
 // See the file LICENSE for licensing terms.
 
 // SPDX-License-Identifier: Ecosystem
-
 pragma solidity 0.8.25;
 
 import {ValidatorManager} from "./ValidatorManager.sol";
@@ -47,6 +46,10 @@ abstract contract PoSValidatorManager is
         uint256 _minimumStakeAmount;
         /// @notice The maximum amount of stake allowed to be a validator.
         uint256 _maximumStakeAmount;
+        /// @notice The minimum amount of stake required to be a validator.
+        uint256 _minimumNFTAmount;
+        /// @notice The maximum amount of stake allowed to be a validator.
+        uint256 _maximumNFTAmount;
         /// @notice The minimum amount of time in seconds a validator must be staked for. Must be at least {_churnPeriodSeconds}.
         uint64 _minimumStakeDuration;
         /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
@@ -66,6 +69,8 @@ abstract contract PoSValidatorManager is
         IRewardCalculator _rewardCalculator;
         /// @notice The reward stream balance tracker for this validator manager.
         IBalanceTracker _balanceTracker;
+        /// @notice The reward stream balance tracker for this validator manager.
+        IBalanceTracker _balanceTrackerNFT;
         /// @notice The duration of an epoch in seconds
         uint64 _epochDuration;
         /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the l1ID that this contract manages.
@@ -76,6 +81,8 @@ abstract contract PoSValidatorManager is
         mapping(bytes32 validationID => ValidatorNFT) _validatorNFTs;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
+        /// @notice Maps the delegation ID to the delegator information.
+        mapping(bytes32 delegationID => Delegator) _delegatorNFTStakes;
         /// @notice Maps the delegation ID to the delegator's NFTs.
         mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTs;
         /// @notice Maps the delegation ID to its pending staking rewards.
@@ -86,6 +93,8 @@ abstract contract PoSValidatorManager is
         mapping(bytes32 validationID => address) _rewardRecipients;
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
+        /// @notice Maps validation ID to array of delegation IDs
+        mapping(bytes32 validationID => bytes32[]) _validatorNFTDelegations;
         /// @notice Maps validation ID and epoch number to uptime in seconds for that epoch
         mapping(bytes32 validationID => mapping(uint64 epoch => uint64 uptimeSeconds)) _validatorEpochUptime;
     }
@@ -106,6 +115,7 @@ abstract contract PoSValidatorManager is
     error InvalidNonce(uint64 nonce);
     error InvalidRewardRecipient(address rewardRecipient);
     error InvalidStakeAmount(uint256 stakeAmount);
+    error InvalidNFTAmount(uint256 nftAmount);
     error InvalidMinStakeDuration(uint64 minStakeDuration);
     error InvalidStakeMultiplier(uint8 maximumStakeMultiplier);
     error MaxWeightExceeded(uint64 newValidatorWeight);
@@ -152,6 +162,7 @@ abstract contract PoSValidatorManager is
             weightToValueFactor: settings.weightToValueFactor,
             rewardCalculator: settings.rewardCalculator,
             balanceTracker: settings.balanceTracker,
+            balanceTrackerNFT: settings.balanceTrackerNFT,
             epochDuration: settings.epochDuration,
             uptimeBlockchainID: settings.uptimeBlockchainID
         });
@@ -168,6 +179,7 @@ abstract contract PoSValidatorManager is
         uint256 weightToValueFactor,
         IRewardCalculator rewardCalculator,
         IBalanceTracker balanceTracker,
+        IBalanceTracker balanceTrackerNFT,
         uint64 epochDuration,
         bytes32 uptimeBlockchainID
     ) internal onlyInitializing {
@@ -201,6 +213,7 @@ abstract contract PoSValidatorManager is
         $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
         $._balanceTracker = balanceTracker;
+        $._balanceTrackerNFT = balanceTrackerNFT;
         $._epochDuration = epochDuration;
         $._rewardCalculator = rewardCalculator;
         $._uptimeBlockchainID = uptimeBlockchainID;
@@ -221,24 +234,6 @@ abstract contract PoSValidatorManager is
 
         // Uptime proofs include the absolute number of seconds the validator has been active.
         _updateUptime(validationID, messageIndex);
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-claimDelegationFees}.
-     */
-    function claimDelegationFees(bytes32 validationID) external {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
-        ValidatorStatus status = getValidator(validationID).status;
-        if (status != ValidatorStatus.Completed) {
-            revert InvalidValidatorStatus(status);
-        }
-
-        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
-
-        _withdrawValidationRewards($._posValidatorInfo[validationID].owner, validationID);
     }
 
     /**
@@ -274,11 +269,27 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) internal {
-       
         _initializeEndPoSValidation(
             validationID, includeUptimeProof, messageIndex, rewardRecipient
         );
-       
+    }
+
+      /**
+     * @notice See {IPoSValidatorManager-claimDelegationFees}.
+     */
+    function claimDelegationFees(bytes32 validationID) external {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+
+        ValidatorStatus status = getValidator(validationID).status;
+        if (status != ValidatorStatus.Completed) {
+            revert InvalidValidatorStatus(status);
+        }
+
+        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
+            revert UnauthorizedOwner(_msgSender());
+        }
+
+        _withdrawValidationRewards($._posValidatorInfo[validationID].owner, validationID);
     }
 
     /**
@@ -414,9 +425,9 @@ abstract contract PoSValidatorManager is
         }
 
         // The validator can either be Completed or Invalidated here. We only grant rewards for Completed.
-        if (validator.status == ValidatorStatus.Completed) {
-            _withdrawValidationRewards(rewardRecipient, validationID);
-        }
+        // if (validator.status == ValidatorStatus.Completed) {
+            // _withdrawValidationRewards(rewardRecipient, validationID);
+        // }
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock(owner, validationID, true);
         _deleteValidatorNft(validationID);
@@ -591,6 +602,7 @@ abstract contract PoSValidatorManager is
 
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
+
         _addValidatorNft(validationID, stakeAmount);
 
         address owner = _msgSender();
@@ -1126,7 +1138,7 @@ abstract contract PoSValidatorManager is
         uint256 rewards = $._redeemableValidatorRewards[validationID];
         delete $._redeemableValidatorRewards[validationID];
 
-       // _reward(rewardRecipient, rewards);
+       _reward(rewardRecipient, rewards);
     }
 
     function _withdrawDelegationRewards(
