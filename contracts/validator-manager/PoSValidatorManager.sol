@@ -288,12 +288,14 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) internal {
-        _initializeEndPoSValidation(
-            validationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
+        if (
+            !_initializeEndPoSValidation(
+                validationID, includeUptimeProof, messageIndex, rewardRecipient
+            )
+        ) {
+            revert ValidatorIneligibleForRewards(validationID);
+        }
     }
-
-    
 
     /**
      * @notice See {IPoSValidatorManager-forceInitializeEndValidation}.
@@ -903,9 +905,13 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex,
         address rewardRecipient
     ) internal {
-        _initializeEndDelegation(
-            delegationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
+        if (
+            !_initializeEndDelegation(
+                delegationID, includeUptimeProof, messageIndex, rewardRecipient
+            )
+        ) {
+            revert DelegatorIneligibleForRewards(delegationID);
+        }
     }
 
     /**

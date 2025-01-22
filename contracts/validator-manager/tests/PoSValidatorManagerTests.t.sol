@@ -1114,6 +1114,8 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT));
         _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
+
         posValidatorManager.completeEndDelegation(delegationID, 0);
 
         assertEq(
