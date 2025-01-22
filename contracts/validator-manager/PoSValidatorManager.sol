@@ -115,7 +115,6 @@ abstract contract PoSValidatorManager is
     error InvalidNonce(uint64 nonce);
     error InvalidRewardRecipient(address rewardRecipient);
     error InvalidStakeAmount(uint256 stakeAmount);
-    error InvalidNFTAmount(uint256 nftAmount);
     error InvalidMinStakeDuration(uint64 minStakeDuration);
     error InvalidStakeMultiplier(uint8 maximumStakeMultiplier);
     error MaxWeightExceeded(uint64 newValidatorWeight);
@@ -237,6 +236,24 @@ abstract contract PoSValidatorManager is
     }
 
     /**
+     * @notice See {IPoSValidatorManager-claimDelegationFees}.
+     */
+    function claimDelegationFees(bytes32 validationID) external {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+
+        ValidatorStatus status = getValidator(validationID).status;
+        if (status != ValidatorStatus.Completed) {
+            revert InvalidValidatorStatus(status);
+        }
+
+        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
+            revert UnauthorizedOwner(_msgSender());
+        }
+
+        _withdrawValidationRewards($._posValidatorInfo[validationID].owner, validationID);
+    }
+
+    /**
      * @notice See {IPoSValidatorManager-initializeEndValidation}.
      */
     function initializeEndValidation(
@@ -274,23 +291,7 @@ abstract contract PoSValidatorManager is
         );
     }
 
-      /**
-     * @notice See {IPoSValidatorManager-claimDelegationFees}.
-     */
-    function claimDelegationFees(bytes32 validationID) external {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
-        ValidatorStatus status = getValidator(validationID).status;
-        if (status != ValidatorStatus.Completed) {
-            revert InvalidValidatorStatus(status);
-        }
-
-        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
-
-        _withdrawValidationRewards($._posValidatorInfo[validationID].owner, validationID);
-    }
+    
 
     /**
      * @notice See {IPoSValidatorManager-forceInitializeEndValidation}.
@@ -485,7 +486,7 @@ abstract contract PoSValidatorManager is
      * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
      * If the uptime is greater than the stored uptime, update the stored uptime.
      */
-    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal returns (uint64) {
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal virtual returns (uint64) {
         (WarpMessage memory warpMessage, bool valid) =
             WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
         if (!valid) {

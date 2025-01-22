@@ -39,6 +39,11 @@ import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable@5.0.2/access/AccessControlUpgradeable.sol";
 
+import {WarpMessage} from
+    "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
+
+import {ValidatorMessages} from "./ValidatorMessages.sol";
+
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
  *
@@ -64,6 +69,7 @@ contract ERC721TokenStakingManager is
     bytes32 public constant ERC721_STAKING_MANAGER_STORAGE_LOCATION =
         0xf2d79c30881febd0da8597832b5b1bf1f4d4b2209b19059420303eb8fcab8a00;
 
+    error InvalidNFTAmount(uint256 nftAmount);
     error InvalidTokenAddress(address tokenAddress);
     error InvalidRewardTokenAddress(address tokenAddress);
 
@@ -402,5 +408,68 @@ contract ERC721TokenStakingManager is
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
+    }
+
+    /**
+     * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
+     * If the uptime is greater than the stored uptime, update the stored uptime.
+     */
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
+        (WarpMessage memory warpMessage, bool valid) =
+            WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
+        if (!valid) {
+            revert InvalidWarpMessage();
+        }
+
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        // The uptime proof must be from the specifed uptime blockchain
+        if (warpMessage.sourceChainID != $._uptimeBlockchainID) {
+            revert InvalidWarpSourceChainID(warpMessage.sourceChainID);
+        }
+
+        // The sender is required to be the zero address so that we know the validator node
+        // signed the proof directly, rather than as an arbitrary on-chain message
+        if (warpMessage.originSenderAddress != address(0)) {
+            revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
+        }
+        if (warpMessage.originSenderAddress != address(0)) {
+            revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
+        }
+
+        (bytes32 uptimeValidationID, uint64 uptime) =
+            ValidatorMessages.unpackValidationUptimeMessage(warpMessage.payload);
+        if (validationID != uptimeValidationID) {
+            revert InvalidValidationID(validationID);
+        }
+
+        uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
+        uint64 currentEpochUptime = $._validatorEpochUptime[validationID][currentEpoch];
+
+        if (uptime > currentEpochUptime) {
+            $._validatorEpochUptime[validationID][currentEpoch] = uptime;
+            emit UptimeUpdated(validationID, uptime, currentEpoch);
+
+            Validator memory validator = getValidator(validationID);
+            address owner = $._posValidatorInfo[validationID].owner;
+            uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
+
+            // Update balance trackers for all active delegators
+            uint256 totalDelegatorFeeWeight = _updateDelegatorBalances($, validationID, uptime, previousEpochUptime);
+
+            if (owner != address(0)) {
+                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
+                    validator.startingWeight, 
+                    uptime,
+                    previousEpochUptime
+            );
+                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
+            }
+
+            
+        } else {
+            uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
+        }
+
+        return uptime;
     }
 }
