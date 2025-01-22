@@ -64,7 +64,6 @@ contract ERC721TokenStakingManager is
     /// @custom:storage-location erc7201:avalanche-icm.storage.ERC721TokenStakingManager
     struct ERC721TokenStakingManagerStorage {
         IERC721 _token;
-        IERC20 _rewardToken;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -74,7 +73,6 @@ contract ERC721TokenStakingManager is
 
     error InvalidNFTAmount(uint256 nftAmount);
     error InvalidTokenAddress(address tokenAddress);
-    error InvalidRewardTokenAddress(address tokenAddress);
 
 
     // solhint-disable ordering
@@ -107,42 +105,34 @@ contract ERC721TokenStakingManager is
      * @dev Uses reinitializer(2) on the PoS staking contracts to make sure after migration from PoA, the PoS contracts can reinitialize with its needed values.
      * @param settings Initial settings for the PoS validator manager
      * @param stakingToken The ERC721 token to be staked
-     * @param _rewardToken The ERC20 token to be used for rewards
      */
     function initialize(
         PoSValidatorManagerSettings calldata settings,
-        IERC721 stakingToken,
-        IERC20 _rewardToken
+        IERC721 stakingToken
     ) external reinitializer(2) {
-        __ERC721TokenStakingManager_init(settings, stakingToken, _rewardToken);
+        __ERC721TokenStakingManager_init(settings, stakingToken);
     }
 
     // solhint-disable-next-line func-name-mixedcase
     function __ERC721TokenStakingManager_init(
         PoSValidatorManagerSettings calldata settings,
-        IERC721 stakingToken,
-        IERC20 _rewardToken
+        IERC721 stakingToken
     ) internal onlyInitializing {
         __POS_Validator_Manager_init(settings);
-        __ERC721TokenStakingManager_init_unchained(stakingToken, _rewardToken);
+        __ERC721TokenStakingManager_init_unchained(stakingToken);
     }
 
     // solhint-disable-next-line func-name-mixedcase
     function __ERC721TokenStakingManager_init_unchained(
-        IERC721 stakingToken,
-        IERC20 _rewardToken
+        IERC721 stakingToken
     ) internal onlyInitializing {
         ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
         
         if (address(stakingToken) == address(0)) {
             revert InvalidTokenAddress(address(stakingToken));
         }
-        if (address(_rewardToken) == address(0)) {
-            revert InvalidRewardTokenAddress(address(_rewardToken));
-        }
         
         $._token = stakingToken;
-        $._rewardToken = _rewardToken;
     }
 
     /**
@@ -160,12 +150,53 @@ contract ERC721TokenStakingManager is
     }
 
     /**
-     * @notice See {IERC721TokenStakingManager-initializeDelegatorRegistration}
+     * @notice See {INativeTokenStakingManager-initializeDelegatorRegistration}.
      */
-    function initializeDelegatorRegistration(
-        bytes32 validationID
-    ) external payable nonReentrant returns (bytes32) {
+    function initializeDelegatorRegistration(bytes32 validationID)
+        external
+        payable
+        nonReentrant
+        returns (bytes32)
+    {
         return _initializeDelegatorRegistration(validationID, _msgSender(), msg.value);
+    }
+
+    function registerNFTDelegation(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint256[] memory tokenIDs
+    ) external nonReentrant returns (bytes32) {
+        _lockNFTs(tokenIDs);
+        return _registerNFTDelegation(validationID, delegatorAddress, tokenIDs);
+    }
+
+    function endNFTDelegation(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) external nonReentrant {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
+
+        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
+            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
+        }
+
+        uint256[] memory tokenIDs = _endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        _unlockNFTs(delegator.owner, tokenIDs);
+    }
+
+    function redelegateNFT(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex,
+        bytes32 nextValidationID
+    ) external nonReentrant {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
+
+        uint256[] memory tokenIDs = _endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
 
     /**
@@ -173,13 +204,6 @@ contract ERC721TokenStakingManager is
      */
     function erc721() external view returns (IERC721) {
         return _getERC721StakingManagerStorage()._token;
-    }
-
-    /**
-     * @notice Returns the ERC20 token used for rewards
-     */
-    function rewardToken() external view returns (IERC20) {
-        return _getERC721StakingManagerStorage()._rewardToken;
     }
 
     /**
@@ -203,7 +227,7 @@ contract ERC721TokenStakingManager is
      */
     function _lockNFTs(uint256[] memory tokenIDs) internal virtual returns (uint256) {
         for (uint256 i = 0; i < tokenIDs.length; i++) {
-            _getERC721StakingManagerStorage()._token.transferFrom(_msgSender(), address(this), tokenIDs[i]);
+            _getERC721StakingManagerStorage()._token.safeTransferFrom(_msgSender(), address(this), tokenIDs[i]);
         }
         return tokenIDs.length;
     }
@@ -224,65 +248,6 @@ contract ERC721TokenStakingManager is
      * @dev Distributes ERC20 rewards to stakers
      */
     function _reward(address account, uint256 amount) internal virtual override {
-        ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
-        $._rewardToken.safeTransfer(account, amount);
-    }
-
-    /**
-     * @notice Allows the contract to receive reward tokens
-     * @dev Called by owner to fund rewards
-     * @param amount Amount of reward tokens to transfer to the contract
-     */
-    function fundRewards(uint256 amount) external onlyOperator {
-        ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
-        $._rewardToken.safeTransferFrom(_msgSender(), address(this), amount);
-    }
-
-    /**
-     * @notice Allows owner to recover excess reward tokens
-     * @param amount Amount of reward tokens to recover
-     */
-    function recoverRewardTokens(uint256 amount) external onlyOperator {
-        ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
-        $._rewardToken.safeTransfer(_msgSender(), amount);
-    }
-
-    function registerDelegationNFTs(
-        bytes32 validationID,
-        address delegatorAddress,
-        uint256[] memory tokenIDs
-    ) external nonReentrant returns (bytes32) {
-        _lockNFTs(tokenIDs);
-        return _registerDelegationNFTs(validationID, delegatorAddress, tokenIDs);
-    }
-
-    function endDelegationNFTs(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external nonReentrant {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        Delegator memory delegator = $._delegatorNFTStakes[delegationID];
-
-        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
-            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
-        }
-
-        uint256[] memory tokenIDs = _endDelegationNFTs(delegationID, includeUptimeProof, messageIndex);
-        _unlockNFTs(delegator.owner, tokenIDs);
-    }
-
-    function reDelegateNFTs(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        bytes32 nextValidationID
-    ) external nonReentrant {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        Delegator memory delegator = $._delegatorNFTStakes[delegationID];
-
-        uint256[] memory tokenIDs = _endDelegationNFTs(delegationID, includeUptimeProof, messageIndex);
-        _registerDelegationNFTs(nextValidationID, delegator.owner, tokenIDs);
     }
 
     function _initializeValidatorRegistration(
@@ -309,9 +274,6 @@ contract ERC721TokenStakingManager is
         if (stakeAmount < $._minimumStakeAmount || stakeAmount > $._maximumStakeAmount) {
             revert InvalidStakeAmount(stakeAmount);
         }
-        console2.log("nft amount:", nftTokenIDs.length);
-        console2.log("minimum nft amount:", $._minimumNFTAmount);
-        console2.log("maximum nft amount:", $._maximumNFTAmount);
         if (nftTokenIDs.length < $._minimumNFTAmount || nftTokenIDs.length > $._maximumNFTAmount) {
             revert InvalidNFTAmount(nftTokenIDs.length);
         }
@@ -337,7 +299,7 @@ contract ERC721TokenStakingManager is
         return validationID;
     }
 
-    function _registerDelegationNFTs(
+    function _registerNFTDelegation(
         bytes32 validationID,
         address delegatorAddress,
         uint256[] memory tokenIDs
@@ -362,8 +324,6 @@ contract ERC721TokenStakingManager is
         $._delegatorNFTStakes[delegationID].owner = delegatorAddress;
         $._delegatorNFTStakes[delegationID].validationID = validationID;
         $._delegatorNFTStakes[delegationID].weight = weight;
-        $._delegatorNFTStakes[delegationID].startingNonce = nonce;
-        $._delegatorNFTStakes[delegationID].endingNonce = 0;
         $._delegatorNFTStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorNFTStakes[delegationID].startedAt = uint64(block.timestamp);
 
@@ -383,14 +343,14 @@ contract ERC721TokenStakingManager is
    /**
      * @notice See {IPoSValidatorManager-completeEndDelegation}.
      */
-    function _endDelegationNFTs(
+    function _endNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex
     ) internal returns (uint256[] memory tokenIDs) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
-        Delegator memory delegator = $._delegatorNFTStakes[delegationID];
+        DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
         bytes32 validationID = delegator.validationID;
         Validator memory validator = getValidator(validationID);
 
@@ -428,12 +388,11 @@ contract ERC721TokenStakingManager is
             $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
             $._delegatorNFTStakes[delegationID].endedAt = uint64(block.timestamp);
 
-            tokenIDs = $._delegatorNFTs[delegationID].nftIds;
+            tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
 
             _removeNFTDelegationFromValidator(validationID, delegationID);
 
             // Once this function completes, the delegation is completed so we can clear it from state now.
-            delete $._delegatorNFTs[delegationID];
             delete $._delegatorNFTStakes[delegationID];
 
             emit DelegationEnded(delegationID, validationID, 0, 0); 

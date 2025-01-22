@@ -84,9 +84,7 @@ abstract contract PoSValidatorManager is
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
         /// @notice Maps the delegation ID to the delegator information.
-        mapping(bytes32 delegationID => Delegator) _delegatorNFTStakes;
-        /// @notice Maps the delegation ID to the delegator's NFTs.
-        mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTs;
+        mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTStakes;
         /// @notice Maps the delegation ID to its pending staking rewards.
         mapping(bytes32 delegationID => uint256) _redeemableDelegatorRewards;
         mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
@@ -594,7 +592,7 @@ abstract contract PoSValidatorManager is
         bytes32[] memory activeDelegations = _getActiveNFTDelegations(validationID);
         uint256 totalDelegatorFeeWeight;
             for (uint256 i = 0; i < activeDelegations.length; i++) {
-                Delegator memory delegator = $._delegatorNFTStakes[activeDelegations[i]];
+                DelegatorNFT memory delegator = $._delegatorNFTStakes[activeDelegations[i]];
 
                 if (delegator.owner != address(0)) {
                     uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
@@ -616,7 +614,6 @@ abstract contract PoSValidatorManager is
         uint64 minStakeDuration,
         uint256 stakeAmount
     ) internal virtual returns (bytes32) {
-        console2.log("pos init");
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         // Validate and save the validator requirements
         if (
@@ -638,7 +635,6 @@ abstract contract PoSValidatorManager is
         uint256 lockedValue = _lock(stakeAmount);
 
         uint64 weight = valueToWeight(lockedValue);
-        console2.log("pos weight:",weight);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
 
         _addValidatorNft(validationID, stakeAmount);
@@ -692,23 +688,11 @@ abstract contract PoSValidatorManager is
         $._validatorNFTs[validationID].nftIds.push(tokenId);
     }
 
-    function _addDelegatorNft(bytes32 delegationID, uint256 tokenId) internal virtual {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._delegatorNFTs[delegationID].nftIds.push(tokenId);
-    }
-
     function _deleteValidatorNft(
         bytes32 validationID
     ) internal virtual {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         delete $._validatorNFTs[validationID];
-    }
-
-    function _deleteDelegatorNft(
-        bytes32 delegationID
-    ) internal virtual {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        delete $._delegatorNFTs[delegationID];
     }
 
     function getValidatorNfts(
@@ -816,7 +800,6 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].startingNonce = nonce;
         $._delegatorStakes[delegationID].endingNonce = 0;
 
-        _addDelegatorNft(delegationID, delegationAmount);
         _addDelegationToValidator(validationID, delegationID);
 
         emit DelegatorAdded({
@@ -1261,8 +1244,6 @@ abstract contract PoSValidatorManager is
             _reward(rewardRecipient, delegationRewards);
         }
 
-        console.log(delegationRewards, validatorFees);
-
         return (delegationRewards, validatorFees);
     }
 
@@ -1271,11 +1252,5 @@ abstract contract PoSValidatorManager is
     ) public view returns (Delegator memory) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         return $._delegatorStakes[delegationID];
-    }
-
-    function getDelegatorNfts(
-        bytes32 delegationID
-    ) public view returns (uint256[] memory) {
-        return _getPoSValidatorManagerStorage()._delegatorNFTs[delegationID].nftIds;
     }
 }

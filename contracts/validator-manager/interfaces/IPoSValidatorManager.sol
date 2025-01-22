@@ -72,7 +72,7 @@ struct DelegatorNFT {
     uint64 weight;
     uint64 startedAt;
     uint64 endedAt;
-    uint256[] nftIds;
+    uint256[] tokenIDs;
 }
 
 /**
