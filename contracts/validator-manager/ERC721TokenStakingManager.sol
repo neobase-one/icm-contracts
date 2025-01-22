@@ -416,75 +416,73 @@ contract ERC721TokenStakingManager is
      * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
      * If the uptime is greater than the stored uptime, update the stored uptime.
      */
-    // function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
-    //     (WarpMessage memory warpMessage, bool valid) =
-    //         WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
-    //     if (!valid) {
-    //         revert InvalidWarpMessage();
-    //     }
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
+        (WarpMessage memory warpMessage, bool valid) =
+            WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
+        if (!valid) {
+            revert InvalidWarpMessage();
+        }
 
-    //     PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-    //     // The uptime proof must be from the specifed uptime blockchain
-    //     if (warpMessage.sourceChainID != $._uptimeBlockchainID) {
-    //         revert InvalidWarpSourceChainID(warpMessage.sourceChainID);
-    //     }
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        // The uptime proof must be from the specifed uptime blockchain
+        if (warpMessage.sourceChainID != $._uptimeBlockchainID) {
+            revert InvalidWarpSourceChainID(warpMessage.sourceChainID);
+        }
 
-    //     // The sender is required to be the zero address so that we know the validator node
-    //     // signed the proof directly, rather than as an arbitrary on-chain message
-    //     if (warpMessage.originSenderAddress != address(0)) {
-    //         revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
-    //     }
-    //     if (warpMessage.originSenderAddress != address(0)) {
-    //         revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
-    //     }
+        // The sender is required to be the zero address so that we know the validator node
+        // signed the proof directly, rather than as an arbitrary on-chain message
+        if (warpMessage.originSenderAddress != address(0)) {
+            revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
+        }
+        if (warpMessage.originSenderAddress != address(0)) {
+            revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
+        }
 
-    //     (bytes32 uptimeValidationID, uint64 uptime) =
-    //         ValidatorMessages.unpackValidationUptimeMessage(warpMessage.payload);
-    //     if (validationID != uptimeValidationID) {
-    //         revert InvalidValidationID(validationID);
-    //     }
+        (bytes32 uptimeValidationID, uint64 uptime) =
+            ValidatorMessages.unpackValidationUptimeMessage(warpMessage.payload);
+        if (validationID != uptimeValidationID) {
+            revert InvalidValidationID(validationID);
+        }
 
-    //     uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
+        uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
 
-    //     if (uptime > $._validatorEpochUptime[validationID][currentEpoch]) {
-    //         $._validatorEpochUptime[validationID][currentEpoch] = uptime;
-    //         emit UptimeUpdated(validationID, uptime, currentEpoch);
+        if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
+            if(currentEpoch > $._posValidatorInfo[validationID].currentEpoch){
+                $._posValidatorInfo[validationID].currentEpoch = currentEpoch;
+                $._posValidatorInfo[validationID].prevEpochUptimeSeconds = $._posValidatorInfo[validationID].uptimeSeconds;
+            }
+            $._posValidatorInfo[validationID].uptimeSeconds = uptime;
+            emit UptimeUpdated(validationID, uptime, 0);
 
-    //         Validator memory validator = getValidator(validationID);
-    //         address owner = $._posValidatorInfo[validationID].owner;
-    //         uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
+            Validator memory validator = getValidator(validationID);
+            address owner = $._posValidatorInfo[validationID].owner;
+            uint64 previousEpochUptime = $._posValidatorInfo[validationID].prevEpochUptimeSeconds;
 
-    //         // Update balance trackers for all active delegators
-    //         {
-    //         uint256 totalDelegatorFeeWeight = _updateDelegatorBalances($, validationID, uptime, previousEpochUptime);
+            // Update balance trackers for all active delegators
+            uint256 totalDelegatorFeeWeight = _updateDelegatorBalances($, validationID, uptime, previousEpochUptime);
+            if (owner != address(0)) {
+                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
+                    validator.startingWeight, 
+                    uptime,
+                    previousEpochUptime
+            );
+                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
+            }
 
-    //         if (owner != address(0)) {
-    //             uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
-    //                 validator.startingWeight, 
-    //                 uptime,
-    //                 previousEpochUptime
-    //         );
-    //             $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
-    //         }
-    //         }
+            // Update NFT balance trackers for all active delegators
+            uint256 totalNFTDelegatorFeeWeight = _updateDelegatorNFTBalances($, validationID, uptime, previousEpochUptime);
+            if (owner != address(0)) {
+                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
+                    validator.startingWeight, 
+                    uptime,
+                    previousEpochUptime
+            );
+                $._balanceTrackerNFT.balanceTrackerHook(owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
+            }
+        } else {
+            uptime = $._posValidatorInfo[validationID].uptimeSeconds;
+        }
 
-    //         // Update balance trackers for all active delegators
-    //         {
-    //         uint256 totalNFTDelegatorFeeWeight = _updateDelegatorNFTBalances($, validationID, uptime, previousEpochUptime);($, validationID, uptime, previousEpochUptime);
-
-    //         if (owner != address(0)) {
-    //             uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
-    //                 validator.startingWeight, 
-    //                 uptime,
-    //                 previousEpochUptime
-    //         );
-    //             $._balanceTrackerNFT.balanceTrackerHook(owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
-    //         }
-    //         }
-    //     } else {
-    //         uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
-    //     }
-
-    //     return uptime;
-    // }
+        return uptime;
+    }
 }

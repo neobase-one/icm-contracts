@@ -83,6 +83,8 @@ struct PoSValidatorInfo {
     uint16 delegationFeeBips;
     uint64 minStakeDuration;
     uint64 uptimeSeconds;
+    uint64 currentEpoch;
+    uint64 prevEpochUptimeSeconds;
 }
 
 struct ValidatorNFT {
