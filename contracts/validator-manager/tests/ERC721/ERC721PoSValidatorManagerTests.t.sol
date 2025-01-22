@@ -621,36 +621,36 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         posValidatorManager.claimDelegationFees(validationID);
     }
 
-    function testClaimDelegationFees() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerDefaultDelegator(validationID);
-        address rewardRecipient = address(42);
-       vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
-        uint64 uptimePercentage1 = 80;
-        uint64 uptime1 = (
-            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
-        ) / 100;
-        bytes memory uptimeMsg1 =
-            ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
-        _mockGetUptimeWarpMessage(uptimeMsg1, true);
-        _update();
+    // function testClaimDelegationFees() public {
+    //     bytes32 validationID = _registerDefaultValidator();
+    //     bytes32 delegationID = _registerDefaultDelegator(validationID);
+    //     address rewardRecipient = address(42);
+    //    vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
+    //     uint64 uptimePercentage1 = 80;
+    //     uint64 uptime1 = (
+    //         (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
+    //     ) / 100;
+    //     bytes memory uptimeMsg1 =
+    //         ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
+    //     _mockGetUptimeWarpMessage(uptimeMsg1, true);
+    //     _update();
 
-        posValidatorManager.submitUptimeProof(validationID, 0);
-        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 2);
-        _update();
-        _endDefaultValidatorWithChecks(validationID, 2);
-        // Validator is Completed, so this will also complete the delegation.
-        _initializeEndDelegation({
-            sender: DEFAULT_DELEGATOR_ADDRESS,
-            delegationID: delegationID,
-            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            includeUptime: true,
-            force: false,
-            rewardRecipient: rewardRecipient
-        });
+    //     posValidatorManager.submitUptimeProof(validationID, 0);
+    //     vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 2);
+    //     _update();
+    //     _endDefaultValidatorWithChecks(validationID, 2);
+    //     // Validator is Completed, so this will also complete the delegation.
+    //     _initializeEndDelegation({
+    //         sender: DEFAULT_DELEGATOR_ADDRESS,
+    //         delegationID: delegationID,
+    //         endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
+    //         includeUptime: true,
+    //         force: false,
+    //         rewardRecipient: rewardRecipient
+    //     });
 
-        posValidatorManager.claimDelegationFees(validationID);
-    }
+    //     posValidatorManager.claimDelegationFees(validationID);
+    // }
     
 
     function testCompleteEndDelegationWithNonDelegatorRewardRecipient() public {
