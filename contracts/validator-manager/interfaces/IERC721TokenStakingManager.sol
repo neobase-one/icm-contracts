@@ -19,14 +19,14 @@ interface IERC721TokenStakingManager is IPoSValidatorManager {
      * @param registrationInput The inputs for a validator registration.
      * @param delegationFeeBips The fee that delegators must pay to delegate to this validator.
      * @param minStakeDuration The minimum amount of time this validator must be staked for in seconds.
-     * @param tokenId The ID of the NFT to stake.
+     * @param tokenIds The ID of the NFT to stake.
      */
     function initializeValidatorRegistration(
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 tokenId
-    ) external returns (bytes32 validationID);
+        uint256[] memory tokenIds
+    ) external payable returns (bytes32 validationID);
 
     /**
      * @notice Begins the delegator registration process. Locks the specified ERC721 token in the contract as the stake.

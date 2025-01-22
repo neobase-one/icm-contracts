@@ -151,10 +151,10 @@ contract ERC721TokenStakingManager is
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
-        uint256 tokenId
-    ) external nonReentrant returns (bytes32 validationID) {
+        uint256[] memory tokenIds
+    ) external payable nonReentrant returns (bytes32 validationID) {
         return _initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, tokenId
+            registrationInput, delegationFeeBips, minStakeDuration, msg.value, tokenIds
         );
     }
 
@@ -317,7 +317,7 @@ contract ERC721TokenStakingManager is
         uint256 lockedValue = _lock(stakeAmount);
 
         // Lock NFTs in the contract
-        _lockNFTs(nftTokenIDs);
+        lockedValue += _lockNFTs(nftTokenIDs);
 
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);

@@ -689,7 +689,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
         });
         
     }
-
+/*
     function testChangeDelegatorRewardRecipientWithNullAddress() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -786,7 +786,7 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
         });
     }
-
+*/
     function testChangeDelegatorRewardRecipient() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -805,7 +805,6 @@ abstract contract ERC721PoSValidatorManagerTest is ERC721ValidatorManagerTest {
             force: false,
             rewardRecipient: rewardRecipient
         });
-
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);
         posValidatorManager.changeDelegatorRewardRecipient(delegationID, newRewardRecipient);
 

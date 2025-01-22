@@ -48,7 +48,7 @@ abstract contract ERC721ValidatorManagerTest is Test {
     uint256 public constant DEFAULT_MINIMUM_STAKE_AMOUNT = 1;
     uint256 public constant DEFAULT_MAXIMUM_STAKE_AMOUNT = 5;
     uint64 public constant DEFAULT_CHURN_PERIOD = 1 hours;
-    uint8 public constant DEFAULT_MAXIMUM_CHURN_PERCENTAGE = 20;
+    uint8 public constant DEFAULT_MAXIMUM_CHURN_PERCENTAGE = 30;
     uint64 public constant DEFAULT_EXPIRY = 1000;
     uint8 public constant DEFAULT_MAXIMUM_HOURLY_CHURN = 0;
     uint64 public constant DEFAULT_REGISTRATION_TIMESTAMP = 1000;

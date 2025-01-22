@@ -178,8 +178,10 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
                 DEFAULT_MINIMUM_STAKE_DURATION - 1
             )
         );
+        uint256[] memory nftTokenIDs = new uint256[](1);
+        nftTokenIDs[0] = TEST_TOKEN_ID;
         app.initializeValidatorRegistration(
-            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, TEST_TOKEN_ID
+            input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION - 1, nftTokenIDs
         );
     }
 
@@ -196,8 +198,10 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         uint64 minStakeDuration,
         uint256 tokenId
     ) internal virtual override returns (bytes32) {
+         uint256[] memory nftTokenIDs = new uint256[](1);
+        nftTokenIDs[0] = tokenId;
         return app.initializeValidatorRegistration(
-            registrationInput, delegationFeeBips, minStakeDuration, tokenId
+            registrationInput, delegationFeeBips, minStakeDuration, nftTokenIDs
         );
     }
 
@@ -205,12 +209,13 @@ contract ERC721TokenStakingManagerTest is ERC721PoSValidatorManagerTest, IERC721
         ValidatorRegistrationInput memory input,
         uint64 weight
     ) internal virtual override returns (bytes32) {
-      
+        uint256[] memory nftTokenIDs = new uint256[](1);
+        nftTokenIDs[0] = weight;
         return app.initializeValidatorRegistration(
             input,
             DEFAULT_DELEGATION_FEE_BIPS,
             DEFAULT_MINIMUM_STAKE_DURATION,
-            weight
+            nftTokenIDs
         );
     }
 
