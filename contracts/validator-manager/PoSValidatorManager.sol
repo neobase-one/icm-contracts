@@ -5,6 +5,8 @@
 pragma solidity 0.8.25;
 
 import {ValidatorManager} from "./ValidatorManager.sol";
+import {console} from "forge-std/console.sol";
+
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {
     Delegator,
@@ -362,14 +364,14 @@ abstract contract PoSValidatorManager is
         bool includeUptimeProof,
         uint32 messageIndex,
         address rewardRecipient
-    ) internal {
+    ) internal returns (bool) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         Validator memory validator = _initializeEndValidation(validationID);
 
         // Non-PoS validators are required to boostrap the network, but are not eligible for rewards.
         if (!_isPoSValidator(validationID)) {
-            return ;
+            return true;
         }
 
         // PoS validations can only be ended by their owners.
@@ -393,14 +395,23 @@ abstract contract PoSValidatorManager is
             uptimeSeconds = $._posValidatorInfo[validationID].uptimeSeconds;
         }
 
-        
+        uint256 reward = $._rewardCalculator.calculateReward({
+             stakeAmount: weightToValue(validator.startingWeight),
+             validatorStartTime: validator.startedAt,
+             stakingStartTime: validator.startedAt,
+             stakingEndTime: validator.endedAt,
+             uptimeSeconds: uptimeSeconds
+        }); 
 
         if (rewardRecipient == address(0)) {
             rewardRecipient = $._posValidatorInfo[validationID].owner;
         }
 
+        $._redeemableValidatorRewards[validationID] += reward;
+
         $._rewardRecipients[validationID] = rewardRecipient;
 
+        return (reward > 0);
     }
 
     /**
@@ -513,7 +524,7 @@ abstract contract PoSValidatorManager is
      * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
      * If the uptime is greater than the stored uptime, update the stored uptime.
      */
-    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal virtual returns (uint64) {
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) virtual internal returns (uint64) {
         (WarpMessage memory warpMessage, bool valid) =
             WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
         if (!valid) {
@@ -541,36 +552,16 @@ abstract contract PoSValidatorManager is
             revert InvalidValidationID(validationID);
         }
 
-        uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
-        uint64 currentEpochUptime = $._validatorEpochUptime[validationID][currentEpoch];
-
-        if (uptime > currentEpochUptime) {
-            $._validatorEpochUptime[validationID][currentEpoch] = uptime;
-            emit UptimeUpdated(validationID, uptime, currentEpoch);
-
-            Validator memory validator = getValidator(validationID);
-            address owner = $._posValidatorInfo[validationID].owner;
-            uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
-
-            // Update balance trackers for all active delegators
-            uint256 totalDelegatorFeeWeight = _updateDelegatorBalances($, validationID, uptime, previousEpochUptime);
-
-            if (owner != address(0)) {
-                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
-                    validator.startingWeight, 
-                    uptime,
-                    previousEpochUptime
-            );
-                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
-            }
-
-            
+        if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
+            $._posValidatorInfo[validationID].uptimeSeconds = uptime;
+            emit UptimeUpdated(validationID, uptime, 0);
         } else {
-            uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
+            uptime = $._posValidatorInfo[validationID].uptimeSeconds;
         }
 
         return uptime;
     }
+
 
     function _updateDelegatorBalances(PoSValidatorManagerStorage storage $, bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
         bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
@@ -961,49 +952,49 @@ abstract contract PoSValidatorManager is
         _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
     }
 
-    function initializeRedelegation(
-        bytes32 delegationID,
-        uint32 messageIndex,
-        bytes32 nextValidationID
-    ) external returns (bytes32) {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        Delegator memory delegator = $._delegatorStakes[delegationID];
+    // function initializeRedelegation(
+    //     bytes32 delegationID,
+    //     uint32 messageIndex,
+    //     bytes32 nextValidationID
+    // ) external returns (bytes32) {
+    //     PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+    //     Delegator memory delegator = $._delegatorStakes[delegationID];
 
-        if (delegator.owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
+    //     if (delegator.owner != _msgSender()) {
+    //         revert UnauthorizedOwner(_msgSender());
+    //     }
 
-        // Ensure the delegator is pending removed.
-        if (delegator.status != DelegatorStatus.PendingRemoved) {
-            revert InvalidDelegatorStatus(delegator.status);
-        }
+    //     // Ensure the delegator is pending removed.
+    //     if (delegator.status != DelegatorStatus.PendingRemoved) {
+    //         revert InvalidDelegatorStatus(delegator.status);
+    //     }
 
-        if (getValidator(delegator.validationID).status != ValidatorStatus.Completed) {
-            // Unpack the Warp message
-            WarpMessage memory warpMessage = _getPChainWarpMessage(messageIndex);
-            (bytes32 validationID, uint64 nonce,) =
-                ValidatorMessages.unpackL1ValidatorWeightMessage(warpMessage.payload);
+    //     if (getValidator(delegator.validationID).status != ValidatorStatus.Completed) {
+    //         // Unpack the Warp message
+    //         WarpMessage memory warpMessage = _getPChainWarpMessage(messageIndex);
+    //         (bytes32 validationID, uint64 nonce,) =
+    //             ValidatorMessages.unpackL1ValidatorWeightMessage(warpMessage.payload);
 
-            if (delegator.validationID != validationID) {
-                revert InvalidValidationID(validationID);
-            }
+    //         if (delegator.validationID != validationID) {
+    //             revert InvalidValidationID(validationID);
+    //         }
 
-            // The received nonce should be at least as high as the delegation's ending nonce. This allows a weight
-            // update using a higher nonce (which implicitly includes the delegation's weight update) to be used to
-            // complete delisting for an earlier delegation. This is necessary because the P-Chain is only willing
-            // to sign the latest weight update.
-            if (delegator.endingNonce > nonce) {
-                revert InvalidNonce(nonce);
-            }
-        }
-        _completeEndDelegationRedelegation(delegationID, true);
-        return _initializeDelegatorRegistrationRedelegation(
-            nextValidationID,
-            delegator.owner,
-            weightToValue(delegator.weight),
-            true
-        );
-    }
+    //         // The received nonce should be at least as high as the delegation's ending nonce. This allows a weight
+    //         // update using a higher nonce (which implicitly includes the delegation's weight update) to be used to
+    //         // complete delisting for an earlier delegation. This is necessary because the P-Chain is only willing
+    //         // to sign the latest weight update.
+    //         if (delegator.endingNonce > nonce) {
+    //             revert InvalidNonce(nonce);
+    //         }
+    //     }
+    //     _completeEndDelegationRedelegation(delegationID, true);
+    //     return _initializeDelegatorRegistrationRedelegation(
+    //         nextValidationID,
+    //         delegator.owner,
+    //         weightToValue(delegator.weight),
+            // true
+        // );
+    // }
 
     /**
      * @dev Helper function that initializes the end of a PoS delegation period.
@@ -1146,11 +1137,7 @@ abstract contract PoSValidatorManager is
         _completeEndDelegation(delegationID);
     }
 
-    function _completeEndDelegation(bytes32 delegationID) internal {
-       _completeEndDelegationRedelegation(delegationID, false); 
-    }
-
-    function _completeEndDelegationRedelegation(bytes32 delegationID, bool redelegation) internal {
+     function _completeEndDelegation(bytes32 delegationID) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         Delegator memory delegator = $._delegatorStakes[delegationID];
@@ -1162,6 +1149,9 @@ abstract contract PoSValidatorManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
+        // Once this function completes, the delegation is completed so we can clear it from state now.
+        delete $._delegatorStakes[delegationID];
+
         address rewardRecipient = $._delegatorRewardRecipients[delegationID];
         delete $._delegatorRewardRecipients[delegationID];
 
@@ -1171,20 +1161,12 @@ abstract contract PoSValidatorManager is
 
         (uint256 delegationRewards, uint256 validatorFees) =
             _withdrawDelegationRewards(rewardRecipient, delegationID, validationID);
-        
-        _removeDelegationFromValidator(validationID, delegationID);
 
         // Unlock the delegator's stake.
-        // if(!redelegation){
-            // _unlock(delegator.owner, delegationID, false);
-        // }
-        // Once this function completes, the delegation is completed so we can clear it from state now.
-        delete $._delegatorStakes[delegationID];
-        _deleteDelegatorNft(delegationID);
+        _unlock(delegator.owner, weightToValue(delegator.weight));
 
         emit DelegationEnded(delegationID, validationID, delegationRewards, validatorFees);
     }
-
     /**
      * @dev This function must be implemented to mint rewards to validators and delegators.
      */
@@ -1230,8 +1212,10 @@ abstract contract PoSValidatorManager is
 
             // Reward the remaining tokens to the delegator.
             delegationRewards = rewards - validatorFees;
-            //_reward(rewardRecipient, delegationRewards);
+            _reward(rewardRecipient, delegationRewards);
         }
+
+        console.log(delegationRewards, validatorFees);
 
         return (delegationRewards, validatorFees);
     }
