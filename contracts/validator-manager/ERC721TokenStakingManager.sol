@@ -331,6 +331,8 @@ contract ERC721TokenStakingManager is
         $._delegatorNFTStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorNFTStakes[delegationID].startedAt = uint64(block.timestamp);
 
+        _addNFTDelegationToValidator(validationID, delegationID);
+
         emit DelegatorAddedNFT({
             delegationID: delegationID,
             validationID: validationID,
@@ -394,7 +396,7 @@ contract ERC721TokenStakingManager is
                 revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
             }
 
-            _removeDelegationFromValidator(validationID, delegationID);
+            _removeNFTDelegationFromValidator(validationID, delegationID);
 
             // Unlock the delegator's stake.
             _unlock(delegator.owner, delegationID, false);
@@ -443,9 +445,8 @@ contract ERC721TokenStakingManager is
         }
 
         uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
-        uint64 currentEpochUptime = $._validatorEpochUptime[validationID][currentEpoch];
 
-        if (uptime > currentEpochUptime) {
+        if (uptime > $._validatorEpochUptime[validationID][currentEpoch]) {
             $._validatorEpochUptime[validationID][currentEpoch] = uptime;
             emit UptimeUpdated(validationID, uptime, currentEpoch);
 
@@ -454,6 +455,7 @@ contract ERC721TokenStakingManager is
             uint64 previousEpochUptime = currentEpoch > 0 ? $._validatorEpochUptime[validationID][currentEpoch - 1] : 0;
 
             // Update balance trackers for all active delegators
+            {
             uint256 totalDelegatorFeeWeight = _updateDelegatorBalances($, validationID, uptime, previousEpochUptime);
 
             if (owner != address(0)) {
@@ -464,8 +466,21 @@ contract ERC721TokenStakingManager is
             );
                 $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
             }
+            }
 
-            
+            // Update balance trackers for all active delegators
+            {
+            uint256 totalNFTDelegatorFeeWeight = _updateDelegatorNFTBalances($, validationID, uptime, previousEpochUptime);($, validationID, uptime, previousEpochUptime);
+
+            if (owner != address(0)) {
+                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
+                    validator.startingWeight, 
+                    uptime,
+                    previousEpochUptime
+            );
+                $._balanceTrackerNFT.balanceTrackerHook(owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
+            }
+            }
         } else {
             uptime = $._validatorEpochUptime[validationID][currentEpoch]; 
         }

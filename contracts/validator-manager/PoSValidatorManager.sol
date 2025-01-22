@@ -483,6 +483,34 @@ abstract contract PoSValidatorManager is
     }
 
     /**
+     * @dev Returns array of active delegation IDs for a validator
+     * @param validationID The validator's ID
+     * @return Array of active delegation IDs
+     */
+    function _getActiveNFTDelegations(bytes32 validationID) internal view returns (bytes32[] memory) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        bytes32[] memory allDelegations = $._validatorNFTDelegations[validationID];
+
+        // First pass to count active delegations
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorNFTStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeCount++;
+            }
+        }
+        // Second pass to fill active delegations array
+        bytes32[] memory activeDelegations = new bytes32[](activeCount);
+        uint256 activeIndex = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorNFTStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeDelegations[activeIndex] = allDelegations[i];
+                activeIndex++;
+            }
+        }
+        return activeDelegations;
+    }
+
+    /**
      * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
      * If the uptime is greater than the stored uptime, update the stored uptime.
      */
@@ -571,6 +599,26 @@ abstract contract PoSValidatorManager is
                 / BIPS_CONVERSION_FACTOR;
                     totalDelegatorFeeWeight += delegatorFeeWeight;
                     $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
+                }
+            }
+    }
+
+    function _updateDelegatorNFTBalances(PoSValidatorManagerStorage storage $, bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+        bytes32[] memory activeDelegations = _getActiveNFTDelegations(validationID);
+        uint256 totalDelegatorFeeWeight;
+            for (uint256 i = 0; i < activeDelegations.length; i++) {
+                Delegator memory delegator = $._delegatorNFTStakes[activeDelegations[i]];
+
+                if (delegator.owner != address(0)) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        uptime,
+                        previousEpochUptime
+                    );
+                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                    totalDelegatorFeeWeight += delegatorFeeWeight;
+                    $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
                 }
             }
     }
@@ -699,6 +747,36 @@ abstract contract PoSValidatorManager is
      function _removeDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
          PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
          bytes32[] storage delegations = $._validatorDelegations[validationID];
+
+         // Find and remove the delegation ID
+         for (uint256 i = 0; i < delegations.length; i++) {
+             if (delegations[i] == delegationID) {
+                 // Move the last element to this position and pop
+                 delegations[i] = delegations[delegations.length - 1];
+                 delegations.pop();
+                 break;
+             }
+         }
+     }
+
+     /**
+      * @dev Adds a delegation ID to a validator's delegation list
+      * @param validationID The validator's ID
+      * @param delegationID The delegation ID to add
+      */
+     function _addNFTDelegationToValidator(bytes32 validationID, bytes32 delegationID) internal {
+         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+         $._validatorNFTDelegations[validationID].push(delegationID);
+     }
+
+    /**
+      * @dev Removes a delegation ID from a validator's delegation list
+      * @param validationID The validator's ID
+      * @param delegationID The delegation ID to remove
+      */
+     function _removeNFTDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
+         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+         bytes32[] storage delegations = $._validatorNFTDelegations[validationID];
 
          // Find and remove the delegation ID
          for (uint256 i = 0; i < delegations.length; i++) {
