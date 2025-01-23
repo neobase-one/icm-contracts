@@ -235,7 +235,7 @@ contract ERC721TokenStakingManager is
      * @notice See {PoSValidatorManager-_unlock}
      * Note: Must be guarded with reentrancy guard for safe transfer.
      */
-    function _lockNFTs(uint256[] memory tokenIDs) internal virtual returns (uint256) {
+    function _lockNFTs(uint256[] memory tokenIDs) internal returns (uint256) {
         for (uint256 i = 0; i < tokenIDs.length; i++) {
             _getERC721StakingManagerStorage()._token.safeTransferFrom(_msgSender(), address(this), tokenIDs[i]);
         }
@@ -265,7 +265,7 @@ contract ERC721TokenStakingManager is
         uint16 delegationFeeBips,
         uint64 minStakeDuration,
         uint256 stakeAmount,
-        uint256[] memory nftTokenIDs
+        uint256[] memory tokenIDs
     ) internal virtual returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         // Validate and save the validator requirements
@@ -284,14 +284,14 @@ contract ERC721TokenStakingManager is
         if (stakeAmount < $._minimumStakeAmount || stakeAmount > $._maximumStakeAmount) {
             revert InvalidStakeAmount(stakeAmount);
         }
-        if (nftTokenIDs.length < $._minimumNFTAmount || nftTokenIDs.length > $._maximumNFTAmount) {
-            revert InvalidNFTAmount(nftTokenIDs.length);
+        if (tokenIDs.length < $._minimumNFTAmount || tokenIDs.length > $._maximumNFTAmount) {
+            revert InvalidNFTAmount(tokenIDs.length);
         }
         // Lock the stake in the contract.
         uint256 lockedValue = _lock(stakeAmount);
 
         // Lock NFTs in the contract
-        _lockNFTs(nftTokenIDs);
+        uint64 nftWeight = uint64(_lockNFTs(tokenIDs));
 
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
@@ -302,6 +302,8 @@ contract ERC721TokenStakingManager is
         $._posValidatorInfo[validationID].delegationFeeBips = delegationFeeBips;
         $._posValidatorInfo[validationID].minStakeDuration = minStakeDuration;
         $._posValidatorInfo[validationID].uptimeSeconds = 0;
+        $._posValidatorInfo[validationID].tokenIDs = tokenIDs;
+        $._posValidatorInfo[validationID].nftWeight = nftWeight;
         $._rewardRecipients[validationID] = owner;
 
         return validationID;
@@ -313,7 +315,7 @@ contract ERC721TokenStakingManager is
         uint256[] memory tokenIDs
     ) internal returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        uint64 weight = valueToWeight(tokenIDs.length);
+        uint64 weight = uint64(tokenIDs.length);
 
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
@@ -443,38 +445,38 @@ contract ERC721TokenStakingManager is
 
         uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
 
-        if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
-            if(currentEpoch > $._posValidatorInfo[validationID].currentEpoch){
-                $._posValidatorInfo[validationID].currentEpoch = currentEpoch;
-                $._posValidatorInfo[validationID].prevEpochUptimeSeconds = $._posValidatorInfo[validationID].uptimeSeconds;
+        PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
+
+        if (uptime > validatorInfo.uptimeSeconds) {
+            if(currentEpoch > validatorInfo.currentEpoch){
+                validatorInfo.currentEpoch = currentEpoch;
+                validatorInfo.prevEpochUptimeSeconds = validatorInfo.uptimeSeconds;
             }
-            $._posValidatorInfo[validationID].uptimeSeconds = uptime;
+            validatorInfo.uptimeSeconds = uptime;
             emit UptimeUpdated(validationID, uptime, 0);
 
             Validator memory validator = getValidator(validationID);
-            address owner = $._posValidatorInfo[validationID].owner;
-            uint64 previousEpochUptime = $._posValidatorInfo[validationID].prevEpochUptimeSeconds;
 
             // Update balance trackers for all active delegators
-            uint256 totalDelegatorFeeWeight = _updateDelegatorBalances($, validationID, uptime, previousEpochUptime);
-            if (owner != address(0)) {
+            uint256 totalDelegatorFeeWeight = _updateDelegatorBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
+            if (validatorInfo.owner != address(0)) {
                 uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
                     validator.startingWeight, 
                     uptime,
-                    previousEpochUptime
+                    validatorInfo.prevEpochUptimeSeconds
                 );
-                $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
+                $._balanceTracker.balanceTrackerHook(validatorInfo.owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
             }
 
             // Update NFT balance trackers for all active delegators
-            uint256 totalNFTDelegatorFeeWeight = _updateDelegatorNFTBalances($, validationID, uptime, previousEpochUptime);
-            if (owner != address(0)) {
+            uint256 totalNFTDelegatorFeeWeight = _updateDelegatorNFTBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
+            if (validatorInfo.owner != address(0)) {
                 uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
-                    validator.startingWeight, 
+                    validatorInfo.nftWeight, 
                     uptime,
-                    previousEpochUptime
+                    validatorInfo.prevEpochUptimeSeconds
                 ); 
-                $._balanceTrackerNFT.balanceTrackerHook(owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
+                $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
             }
         } else {
             uptime = $._posValidatorInfo[validationID].uptimeSeconds;
@@ -559,7 +561,8 @@ contract ERC721TokenStakingManager is
         return activeDelegations;
     }
 
-    function _updateDelegatorBalances(PoSValidatorManagerStorage storage $, bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+    function _updateDelegatorBalances(bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
         uint256 totalDelegatorFeeWeight;
             for (uint256 i = 0; i < activeDelegations.length; i++) {
@@ -579,7 +582,8 @@ contract ERC721TokenStakingManager is
             }
     }
 
-    function _updateDelegatorNFTBalances(PoSValidatorManagerStorage storage $, bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+    function _updateDelegatorNFTBalances(bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         bytes32[] memory activeDelegations = _getActiveNFTDelegations(validationID);
         uint256 totalDelegatorFeeWeight;
             for (uint256 i = 0; i < activeDelegations.length; i++) {
