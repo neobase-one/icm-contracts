@@ -115,6 +115,14 @@ contract ERC721TokenStakingManager is
         __ERC721TokenStakingManager_init(settings, stakingToken);
     }
 
+    /**
+    * @notice Initializes both the PoS validator manager and the ERC721 token staking manager.
+    * @dev This function initializes the parent contract (`PoSValidatorManager`) and then calls 
+    *      the unchained initializer to set the ERC721 staking token. It ensures that the staking token 
+    *      is properly initialized and ready for use in staking.
+    * @param settings The settings for the PoS validator manager.
+    * @param stakingToken The ERC721 token to be used for staking in the contract.
+    */
     // solhint-disable-next-line func-name-mixedcase
     function __ERC721TokenStakingManager_init(
         PoSValidatorManagerSettings calldata settings,
@@ -124,16 +132,26 @@ contract ERC721TokenStakingManager is
         __ERC721TokenStakingManager_init_unchained(stakingToken);
     }
 
+    /**
+    * @notice Initializes the ERC721 token staking manager with the provided staking token.
+    * @dev This function is called during the initialization of the contract to set the ERC721 token
+    *      that will be used for staking. It ensures that the provided staking token address is valid
+    *      and stores it in the contract's storage.
+    * @param stakingToken The ERC721 token to be used for staking in the contract.
+    *
+    * Reverts if:
+    * - The provided token address is the zero address (`InvalidTokenAddress`).
+    */
     // solhint-disable-next-line func-name-mixedcase
     function __ERC721TokenStakingManager_init_unchained(
         IERC721 stakingToken
     ) internal onlyInitializing {
         ERC721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
-        
+
         if (address(stakingToken) == address(0)) {
             revert InvalidTokenAddress(address(stakingToken));
         }
-        
+
         $._token = stakingToken;
     }
 
@@ -204,6 +222,17 @@ contract ERC721TokenStakingManager is
         _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
     }
 
+    /**
+    * @notice Registers an NFT delegation for a specified validator and delegator.
+    * @dev This function locks the specified NFTs by transferring them to the contract and then registers the delegation 
+    *      with the given validator. The NFTs are transferred from the delegator's address to the contract, and the delegation 
+    *      is recorded for the specified validator.
+    * @param validationID The unique identifier of the validator to which the NFT delegation is being registered.
+    * @param delegatorAddress The address of the delegator registering the NFT delegation.
+    * @param tokenIDs An array of token IDs representing the NFTs to be locked and delegated.
+    * @return delegationID A unique identifier for the newly registered NFT delegation.
+    *
+    */
     function registerNFTDelegation(
         bytes32 validationID,
         address delegatorAddress,
@@ -213,6 +242,18 @@ contract ERC721TokenStakingManager is
         return _registerNFTDelegation(validationID, delegatorAddress, tokenIDs);
     }
 
+    /**
+    * @notice Ends an NFT delegation and unlocks the associated NFTs.
+    * @dev This function checks if the unlock duration for the delegation has passed. If the duration has passed, 
+    *      it ends the NFT delegation and unlocks the NFTs by transferring them back to the delegator's address.
+    *      Optionally, it can include an uptime proof for the validator during the delegation termination process.
+    * @param delegationID The unique identifier of the NFT delegation to be ended.
+    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the delegation termination process.
+    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
+    *
+    * Reverts if:
+    * - The unlock duration has not yet passed (`UnlockDelegateDurationNotPassed`).
+    */
     function endNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
@@ -229,6 +270,19 @@ contract ERC721TokenStakingManager is
         _unlockNFTs(delegator.owner, tokenIDs);
     }
 
+    /**
+    * @notice Redelegates an NFT delegation from one validator to another.
+    * @dev This function ends the current NFT delegation, optionally including an uptime proof,
+    *      and registers the NFT delegation with a new validator. The NFTs are transferred from the current delegation
+    *      to the new validator as part of the redelegation process.
+    * @param delegationID The unique identifier of the NFT delegation to be redelegated.
+    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the redelegation process.
+    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
+    * @param nextValidationID The unique identifier of the new validator to which the NFTs will be redelegated.
+    *
+    * Reverts if:
+    * - The current delegation cannot be ended or the redelegation cannot be registered.
+    */
     function redelegateNFT(
         bytes32 delegationID,
         bool includeUptimeProof,
@@ -293,6 +347,24 @@ contract ERC721TokenStakingManager is
     function _reward(address account, uint256 amount) internal virtual override {
     }
 
+    /**
+    * @notice Initializes a new validator registration with the provided input parameters.
+    * @dev This function validates and stores the information for a new PoS validator, including requirements for
+    *      delegation fees, stake amount, NFT amounts, and other configurations. The stake and NFTs are locked in
+    *      the contract, and the validator's state is initialized.
+    * @param registrationInput A struct containing the details for the validator registration (e.g., validator name, network details).
+    * @param delegationFeeBips The delegation fee in basis points (bps) for the validator (must be within allowed limits).
+    * @param minStakeDuration The minimum stake duration (in seconds) before delegations can be removed (must meet minimum requirement).
+    * @param stakeAmount The amount of stake to be locked for the validator (must be within allowed range).
+    * @param tokenIDs An array of token IDs representing the NFTs locked for the validator's staking (must meet minimum/maximum limits).
+    * @return validationID A unique identifier for the newly registered validator.
+    *
+    * Reverts if:
+    * - The delegation fee is not within the allowed range (`InvalidDelegationFee`).
+    * - The minimum stake duration is too short (`InvalidMinStakeDuration`).
+    * - The stake amount is outside the valid range (`InvalidStakeAmount`).
+    * - The number of NFTs is not within the allowed range (`InvalidNFTAmount`).
+    */
     function _initializeValidatorRegistration(
         ValidatorRegistrationInput calldata registrationInput,
         uint16 delegationFeeBips,
@@ -342,6 +414,23 @@ contract ERC721TokenStakingManager is
         return validationID;
     }
 
+    /**
+    * @notice Registers a new NFT-based delegation for a specified validator and delegator.
+    * @dev This function validates the input parameters, ensures the validator is active and a PoS validator,
+    *      and creates a new NFT delegation. It assigns the delegation a unique ID and updates the validator's state.
+    *      The delegation is marked as active and associated with the provided token IDs.
+    * @param validationID The unique identifier of the validator for which the NFT delegation is being registered.
+    * @param delegatorAddress The address of the delegator registering the NFT delegation.
+    * @param tokenIDs An array of token IDs representing the NFT delegation's weight.
+    * @return delegationID A unique identifier for the newly created NFT delegation.
+    *
+    * Reverts if:
+    * - The specified validator is not a PoS validator (`ValidatorNotPoS`).
+    * - The validator is not in an active state (`InvalidValidatorStatus`).
+    *
+    * Emits:
+    * - `DelegatorAddedNFT` when the NFT delegation is successfully registered, providing details about the delegation.
+    */
     function _registerNFTDelegation(
         bytes32 validationID,
         address delegatorAddress,
@@ -383,9 +472,25 @@ contract ERC721TokenStakingManager is
         return delegationID;
     }
 
-   /**
-     * @notice See {IPoSValidatorManager-completeEndDelegation}.
-     */
+    /**
+    * @notice Ends an NFT-based delegation for a given delegation ID, optionally including an uptime proof.
+    * @dev This function terminates an active NFT delegation, verifies the conditions for ending the delegation,
+    *      and updates the validator's state. The delegation can only be ended by the delegation owner or the parent validator.
+    *      If specified, an uptime proof is also included before ending the delegation.
+    * @param delegationID The unique identifier of the NFT delegation to be ended.
+    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the delegation termination process.
+    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
+    * @return tokenIDs An array of token IDs associated with the NFT delegation that is being terminated.
+    *
+    * Reverts if:
+    * - The delegation is not active (`InvalidDelegatorStatus`).
+    * - The caller is not authorized to end the delegation (`UnauthorizedOwner`).
+    * - The minimum stake duration has not passed for the validator or the delegator (`MinStakeDurationNotPassed`).
+    * - The validator is not in a valid state to end the delegation (`InvalidValidatorStatus`).
+    *
+    * Emits:
+    * - `DelegationEnded` when the delegation is successfully ended.
+    */
     function _endNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
@@ -445,9 +550,23 @@ contract ERC721TokenStakingManager is
     }
 
     /**
-     * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
-     * If the uptime is greater than the stored uptime, update the stored uptime.
-     */
+    * @notice Updates the uptime of a validator based on a verified ValidationUptimeMessage received via Warp.
+    * @dev This function extracts the uptime from a Warp message, validates its authenticity, and updates the
+    *      stored uptime for the specified validator if the provided uptime is greater than the currently stored uptime.
+    *      It also updates the validator's epoch information and balance trackers for both standard and NFT delegations.
+    * @param validationID The unique identifier of the validator whose uptime is being updated.
+    * @param messageIndex The index of the Warp message in the Warp messenger to validate and process.
+    * @return The updated uptime for the specified validator, or the current uptime if no update is performed.
+    *
+    * Reverts if:
+    * - The Warp message is invalid.
+    * - The source chain ID in the Warp message does not match the expected uptime blockchain ID.
+    * - The origin sender address in the Warp message is not the zero address.
+    * - The `validationID` in the Warp message payload does not match the provided `validationID`.
+    *
+    * Emits:
+    * - `UptimeUpdated` event when the uptime is successfully updated for a validator.
+    */
     function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
         (WarpMessage memory warpMessage, bool valid) =
             WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
@@ -518,6 +637,16 @@ contract ERC721TokenStakingManager is
         return uptime;
     }
 
+    /**
+    * @notice Calculates the effective weight of a delegator's stake based on the change in uptime over an epoch.
+    * @dev This function computes the effective weight by considering the delegator's stake (`weight`) and the
+    *      difference between the current uptime and the previous epoch's uptime, normalized by the epoch duration.
+    *      If the current uptime is zero or less than the previous uptime, the effective weight is zero.
+    * @param weight The original weight of the delegator's stake.
+    * @param currentUptime The validator's current uptime for the epoch.
+    * @param previousUptime The validator's uptime for the previous epoch.
+    * @return effectiveWeight The effective weight of the delegator's stake based on uptime and epoch duration.
+    */
     function _calculateEffectiveWeight(
          uint256 weight,
          uint64 currentUptime,
@@ -530,6 +659,14 @@ contract ERC721TokenStakingManager is
         return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
     }
 
+    /**
+    * @notice Calculates the fee weight for a delegator based on the validator's delegation fee rate.
+    * @dev This function computes the fee weight by multiplying the delegator's effective weight with the validator's
+    *      delegation fee (in basis points) and dividing by the conversion factor for basis points.
+    * @param validationID The unique identifier of the validator for which the fee weight is being calculated.
+    * @param delegateEffectiveWeight The effective weight of the delegator's stake, adjusted for uptime and other factors.
+    * @return delegatorFeeWeight The fee weight corresponding to the delegator's effective weight, as determined by the validator's fee rate.
+    */
     function _calculateDelegatorFeeWeight(
         bytes32 validationID,
         uint256 delegateEffectiveWeight
@@ -594,6 +731,15 @@ contract ERC721TokenStakingManager is
         return activeDelegations;
     }
 
+    /**
+    * @notice Updates the balances of delegators for a given validator based on uptime and previous epoch uptime.
+    * @dev This function processes all active delegations for a validator, calculates their effective weights,
+    *      and deducts the delegation fee. The remaining weight is used to update the delegator's balance.
+    * @param validationID The unique identifier of the validator for which delegator balances are being updated.
+    * @param uptime The current uptime for the validator.
+    * @param previousEpochUptime The uptime of the validator in the previous epoch.
+    * @return totalDelegatorFeeWeight The total weight corresponding to the delegation fees collected from all delegators.
+    */
     function _updateDelegatorBalances(bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
@@ -615,6 +761,15 @@ contract ERC721TokenStakingManager is
             }
     }
 
+    /**
+    * @notice Updates the balances of NFT-based delegators for a given validator based on uptime and previous epoch uptime.
+    * @dev This function processes all active NFT delegations for a validator, calculates their effective weights,
+    *      and deducts the delegation fee. The remaining weight is used to update the NFT delegator's balance.
+    * @param validationID The unique identifier of the validator for which NFT delegator balances are being updated.
+    * @param uptime The current uptime for the validator.
+    * @param previousEpochUptime The uptime of the validator in the previous epoch.
+    * @return totalDelegatorFeeWeight The total weight corresponding to the delegation fees collected from all NFT delegators.
+    */
     function _updateDelegatorNFTBalances(bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         bytes32[] memory activeDelegations = _getActiveNFTDelegations(validationID);
