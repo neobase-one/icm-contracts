@@ -485,4 +485,140 @@ contract ERC721TokenStakingManager is
 
         return uptime;
     }
+
+    function _calculateEffectiveWeight(
+         uint256 weight,
+         uint64 currentUptime,
+         uint64 previousUptime
+    ) internal view returns (uint256) {
+        if(previousUptime > currentUptime || currentUptime == 0) {
+            return 0;
+        }
+        // Calculate effective weight based on both weight and time period
+        return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
+    }
+
+    function _calculateDelegatorFeeWeight(
+        bytes32 validationID,
+        uint256 delegateEffectiveWeight
+    ) internal view returns (uint256) {
+        return (delegateEffectiveWeight * _getPoSValidatorManagerStorage()._posValidatorInfo[validationID].delegationFeeBips)
+            / BIPS_CONVERSION_FACTOR;
+    }
+
+    /**
+     * @dev Returns array of active delegation IDs for a validator
+     * @param validationID The validator's ID
+     * @return Array of active delegation IDs
+     */
+    function _getActiveDelegations(bytes32 validationID) internal view returns (bytes32[] memory) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        bytes32[] memory allDelegations = $._validatorDelegations[validationID];
+
+        // First pass to count active delegations
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeCount++;
+            }
+        }
+        // Second pass to fill active delegations array
+        bytes32[] memory activeDelegations = new bytes32[](activeCount);
+        uint256 activeIndex = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeDelegations[activeIndex] = allDelegations[i];
+                activeIndex++;
+            }
+        }
+        return activeDelegations;
+    }
+
+    /**
+     * @dev Returns array of active delegation IDs for a validator
+     * @param validationID The validator's ID
+     * @return Array of active delegation IDs
+     */
+    function _getActiveNFTDelegations(bytes32 validationID) internal view returns (bytes32[] memory) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        bytes32[] memory allDelegations = $._validatorNFTDelegations[validationID];
+
+        // First pass to count active delegations
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorNFTStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeCount++;
+            }
+        }
+        // Second pass to fill active delegations array
+        bytes32[] memory activeDelegations = new bytes32[](activeCount);
+        uint256 activeIndex = 0;
+        for (uint256 i = 0; i < allDelegations.length; i++) {
+            if ($._delegatorNFTStakes[allDelegations[i]].status == DelegatorStatus.Active) {
+                activeDelegations[activeIndex] = allDelegations[i];
+                activeIndex++;
+            }
+        }
+        return activeDelegations;
+    }
+
+    function _updateDelegatorBalances(PoSValidatorManagerStorage storage $, bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+        bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
+        uint256 totalDelegatorFeeWeight;
+            for (uint256 i = 0; i < activeDelegations.length; i++) {
+                Delegator memory delegator = $._delegatorStakes[activeDelegations[i]];
+
+                if (delegator.owner != address(0)) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        uptime,
+                        previousEpochUptime
+                    );
+                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                    totalDelegatorFeeWeight += delegatorFeeWeight;
+                    $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
+                }
+            }
+    }
+
+    function _updateDelegatorNFTBalances(PoSValidatorManagerStorage storage $, bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
+        bytes32[] memory activeDelegations = _getActiveNFTDelegations(validationID);
+        uint256 totalDelegatorFeeWeight;
+            for (uint256 i = 0; i < activeDelegations.length; i++) {
+                DelegatorNFT memory delegator = $._delegatorNFTStakes[activeDelegations[i]];
+
+                if (delegator.owner != address(0)) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        uptime,
+                        previousEpochUptime
+                    );
+                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                    totalDelegatorFeeWeight += delegatorFeeWeight;
+                    $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
+                }
+            }
+    }
+
+    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal virtual {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        $._validatorNFTs[validationID].nftIds.push(tokenId);
+    }
+
+    function _deleteValidatorNft(
+        bytes32 validationID
+    ) internal virtual {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        delete $._validatorNFTs[validationID];
+    }
+
+    function getValidatorNfts(
+        bytes32 validationID
+    ) public view returns (uint256[] memory) {
+        return _getPoSValidatorManagerStorage()._validatorNFTs[validationID].nftIds;
+    }
+
+
 }
