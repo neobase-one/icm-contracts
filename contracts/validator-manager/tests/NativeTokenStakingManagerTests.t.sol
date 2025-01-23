@@ -16,9 +16,14 @@ import {INativeMinter} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/INativeMinter.sol";
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
 import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializable.sol";
+import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
+import {ITrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/interfaces/IRewardStreams.sol";
+import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
 
 contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
     NativeTokenStakingManager public app;
+    ITrackingRewardStreams public balanceTracker;
+    EthereumVaultConnector public evc;
 
     function setUp() public override {
         ValidatorManagerTest.setUp();
@@ -182,6 +187,16 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.rewardCalculator = rewardCalculator;
+         evc = new EthereumVaultConnector();
+        balanceTracker = new TrackingRewardStreams(address(evc), DEFAULT_EPOCH_DURATION);
+        defaultPoSSettings.balanceTracker = balanceTracker;
+        uint128 rewardAmount = 50e18;
+        rewardToken.approve(address(balanceTracker), rewardAmount);
+        uint128[] memory amounts = new uint128[](1);
+        amounts[0] = rewardAmount;
+
+        balanceTracker.registerReward(address(app), address(rewardToken), 0, amounts);
+        balanceTracker.enableReward(address(app), address(rewardToken));
         app.initialize(defaultPoSSettings);
 
         validatorManager = app;
@@ -191,6 +206,21 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
 
     function _getStakeAssetBalance(address account) internal view override returns (uint256) {
         return account.balance;
+    }
+    function _getReward() internal view override returns(uint256) {
+        return balanceTracker.earnedReward(address(this),address(app),address(rewardToken), false);
+    }
+
+    function _getDelegatorReward() internal view override returns(uint256) {
+        return balanceTracker.earnedReward(DEFAULT_DELEGATOR_ADDRESS,address(app),address(rewardToken), false);
+    }
+
+    function _update() internal override {
+        balanceTracker.updateReward(address(app),address(rewardToken),address(0));
+    }
+
+    function _claim(address rewardRecipient) internal override {
+        balanceTracker.claimReward(address(app), address(rewardToken), rewardRecipient, false);
     }
 }
 
