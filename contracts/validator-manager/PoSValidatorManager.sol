@@ -91,8 +91,6 @@ abstract contract PoSValidatorManager is
         mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => bytes32[]) _validatorNFTDelegations;
-        /// @notice Maps validation ID and epoch number to uptime in seconds for that epoch
-        mapping(bytes32 validationID => mapping(uint64 epoch => uint64 uptimeSeconds)) _validatorEpochUptime;
     }
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.PoSValidatorManager")) - 1)) & ~bytes32(uint256(0xff));
