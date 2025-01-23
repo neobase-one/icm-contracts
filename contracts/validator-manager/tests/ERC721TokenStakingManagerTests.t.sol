@@ -33,7 +33,6 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     ERC721TokenStakingManager public app;
 
     IERC721 public stakingToken;
-    IERC20 public rewardToken;
     EthereumVaultConnector public evc;
     ITrackingRewardStreams public balanceTracker;
     ITrackingRewardStreams public balanceTrackerNFT;
