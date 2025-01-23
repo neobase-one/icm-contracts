@@ -46,7 +46,7 @@ import {WarpMessage} from
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {console2} from "forge-std/console2.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-
+import {console2} from "forge-std/console2.sol";
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
  *
@@ -210,6 +210,8 @@ contract ERC721TokenStakingManager is
         uint256[] memory tokenIDs
     ) external nonReentrant returns (bytes32) {
         _lockNFTs(tokenIDs);
+        console2.log("delegator address", delegatorAddress);
+        console2.logAddress(delegatorAddress);
         return _registerNFTDelegation(validationID, delegatorAddress, tokenIDs);
     }
 
@@ -220,7 +222,9 @@ contract ERC721TokenStakingManager is
     ) external nonReentrant {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
-
+        console2.log("block.timestamp", block.timestamp);
+        console2.log("delegator.endedAt", delegator.endedAt);
+        console2.log("delegator.endedAt + $._unlockDelegateDuration", delegator.endedAt + $._unlockDelegateDuration);
         if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
@@ -364,6 +368,8 @@ contract ERC721TokenStakingManager is
 
         // Update the delegation status
         bytes32 delegationID = keccak256(abi.encodePacked(validationID, nonce));
+        console2.log("delegationID");
+        console2.logBytes32(delegationID);
         $._delegatorNFTStakes[delegationID].owner = delegatorAddress;
         $._delegatorNFTStakes[delegationID].validationID = validationID;
         $._delegatorNFTStakes[delegationID].weight = weight;
@@ -396,7 +402,11 @@ contract ERC721TokenStakingManager is
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
         bytes32 validationID = delegator.validationID;
         Validator memory validator = getValidator(validationID);
-
+        console2.log("validationID");
+        console2.logBytes32(validationID);
+        console2.log("delegator");
+        console2.logBytes32(delegationID);
+        console2.log("delegator.status");
         // Ensure the delegator is active
         if (delegator.status != DelegatorStatus.Active) {
             revert InvalidDelegatorStatus(delegator.status);
@@ -449,8 +459,10 @@ contract ERC721TokenStakingManager is
      * If the uptime is greater than the stored uptime, update the stored uptime.
      */
     function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
+        console2.log("inside uptime update");
         (WarpMessage memory warpMessage, bool valid) =
             WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
+        console2.log("warp message called");    
         if (!valid) {
             revert InvalidWarpMessage();
         }

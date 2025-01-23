@@ -151,6 +151,12 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
         );
     }
 
+    function _initializeDelegatorRegistrationNFT(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint64 weight
+    ) internal virtual override returns (bytes32) {}
+
     function _initializeDelegatorRegistration(
         bytes32 validationID,
         address delegatorAddress,

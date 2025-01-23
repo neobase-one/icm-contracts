@@ -204,6 +204,12 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         return delegationID;
     }
 
+    function _initializeDelegatorRegistrationNFT(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint64 weight
+    ) internal virtual override returns (bytes32) {}
+
     function _beforeSend(uint256 amount, address spender) internal override {
         token.safeIncreaseAllowance(spender, amount);
         token.safeTransfer(spender, amount);

@@ -25,7 +25,8 @@ import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC
 import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
 import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
 import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
-
+import {ValidatorMessages} from "../ValidatorMessages.sol";
+import {console2} from "@forge-std/Console2.sol";
 
 contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiver {
     using SafeERC20 for IERC20;
@@ -200,9 +201,32 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         return app.initializeDelegatorRegistration{value: value}(validationID);
     }
 
+    function _initializeDelegatorRegistrationNFT(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint64 weight
+    ) internal virtual override returns (bytes32) {
+        vm.prank(delegatorAddress);
+        uint256[] memory tokens = new uint256[](1);
+        tokens[0] = weight;
+        return app.registerNFTDelegation(validationID, delegatorAddress, tokens);
+    }
+
     // solhint-disable no-empty-blocks
     function _beforeSend(uint256 amount, address spender) internal override {
         // Native tokens no need pre approve
+    }
+    function _beforeSendNFT(uint256 tokenId, address spender) internal {
+       
+        stakingToken.approve(spender, tokenId);
+        ExampleERC721(address(stakingToken)).transferFrom(address(this), spender, tokenId);
+        
+        
+        vm.startPrank(spender);
+
+        stakingToken.approve(address(app), tokenId);
+        vm.stopPrank();
+        
     }
     // solhint-enable no-empty-blocks
 
@@ -217,6 +241,72 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         // vm.mockCall(nativeMinter, callData, "");
         // vm.expectCall(nativeMinter, callData);
     }
+
+    function testClaimNFTDelegationFees() public {
+        bytes32 validationID = _registerDefaultValidator();
+        _beforeSendNFT(DEFAULT_DELEGATOR_NFT, DEFAULT_DELEGATOR_ADDRESS);
+        bytes32 delegationID = _registerDefaultDelegatorNFT(validationID);
+        address rewardRecipient = address(42);
+         vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
+        uint64 uptimePercentage1 = 80;
+        uint64 uptime1 = (
+            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
+        ) / 100;
+        bytes memory uptimeMsg1 =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
+        _mockGetUptimeWarpMessage(uptimeMsg1, true);
+        _update();
+
+        posValidatorManager.submitUptimeProof(validationID, 0);
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 2);
+        _update();
+        _endDefaultValidatorWithChecks(validationID, 2);
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
+        // Validator is Completed, so this will also complete the delegation.
+        _initializeEndDelegationNFT({
+            sender: DEFAULT_DELEGATOR_ADDRESS,
+            delegationID: delegationID,
+            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
+            includeUptime: true,
+            force: false,
+            rewardRecipient: rewardRecipient
+        });
+        _update();
+
+       _claimDelFees(address(this));
+
+       _claimReward(DEFAULT_DELEGATOR_ADDRESS);
+    } 
+
+    function _update() internal override {
+        balanceTracker.updateReward(address(app),address(rewardToken),address(0));
+        balanceTrackerNFT.updateReward(address(app),address(rewardToken),address(0));
+    }
+    function _claimDelFees(address validator) internal {
+        balanceTrackerNFT.claimReward(address(app),address(rewardToken), validator, false);
+    }
+
+    function _claimReward(address delegatorAddress) internal {
+        balanceTrackerNFT.claimReward(address(app),address(rewardToken), delegatorAddress, false);
+    }
+
+    function _initializeEndDelegationNFT(
+        address sender,
+        bytes32 delegationID,
+        uint64 endDelegationTimestamp,
+        bool includeUptime,
+        bool force,
+        address rewardRecipient
+    ) internal {
+        //vm.warp(endDelegationTimestamp);
+        console2.log("sender");
+        console2.logAddress(sender);
+        vm.prank(sender);
+            app.endNFTDelegation(
+                delegationID, false, 0
+            );
+    }
+    
 
     function _setUp() internal override returns (IValidatorManager) {
         // Construct the object under test

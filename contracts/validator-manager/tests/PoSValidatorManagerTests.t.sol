@@ -29,6 +29,8 @@ import {console} from "forge-std/console.sol";
 abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
     uint64 public constant DEFAULT_DELEGATOR_WEIGHT = uint64(1e5);
+    uint64 public constant DEFAULT_DELEGATOR_NFT = 2;
+    uint64 public constant DEFAULT_NFT_WEIGHT = 1;
     uint64 public constant DEFAULT_UNLOCK_DELEGATE_DURATION = 21 days;
     uint64 public constant DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP =
         DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EXPIRY;
@@ -73,6 +75,15 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint64 delegatorWeight,
         bytes32 setWeightMessageID
     );
+
+    event DelegatorAddedNFT(
+        bytes32 indexed delegationID,
+        bytes32 indexed validationID,
+        address indexed delegatorAddress,
+        uint64 nonce,
+        uint64 delegatorWeight,
+        uint256[] tokenIDs
+    ); 
 
     event DelegatorRegistered(
         bytes32 indexed delegationID, bytes32 indexed validationID, uint256 startTime
@@ -2020,6 +2031,12 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint64 weight
     ) internal virtual returns (bytes32);
 
+    function _initializeDelegatorRegistrationNFT(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint64 weight
+    ) internal virtual returns (bytes32);
+
     //
     // Delegation setup utilities
     //
@@ -2051,6 +2068,37 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         });
 
         return _initializeDelegatorRegistration(validationID, delegatorAddress, weight);
+    }
+
+     function _setUpInitializeDelegatorRegistrationNFT(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint64 weight,
+        uint64 registrationTimestamp,
+        uint64 expectedValidatorWeight,
+        uint64 expectedNonce
+    ) internal returns (bytes32) {
+        bytes memory setValidatorWeightPayload = ValidatorMessages.packL1ValidatorWeightMessage(
+            validationID, expectedNonce, expectedValidatorWeight
+        );
+        _mockSendWarpMessage(setValidatorWeightPayload, bytes32(0));
+        vm.warp(registrationTimestamp);
+
+        _beforeSend(_weightToValue(weight), delegatorAddress);
+        uint256[] memory tokenIDs = new uint256[](1);
+        tokenIDs[0] = weight;
+        vm.expectEmit(true, true, true, true, address(posValidatorManager));
+        
+        emit DelegatorAddedNFT({
+            delegationID: keccak256(abi.encodePacked(validationID, expectedNonce)),
+            validationID: validationID,
+            delegatorAddress: delegatorAddress,
+            nonce: expectedNonce,
+            delegatorWeight: DEFAULT_NFT_WEIGHT,
+            tokenIDs: tokenIDs
+        });
+
+        return _initializeDelegatorRegistrationNFT(validationID, delegatorAddress, weight);
     }
 
     function _setUpCompleteDelegatorRegistration(
@@ -2096,6 +2144,22 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
             completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
+            expectedNonce: 1
+        });
+    }
+
+
+    function _registerDefaultDelegatorNFT(bytes32 validationID)
+        internal
+        returns (bytes32 delegationID)
+    {
+        return _registerDelegatorNFT({
+            validationID: validationID,
+            delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
+            weight: DEFAULT_DELEGATOR_NFT,
+            initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
+            completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
+            expectedValidatorWeight: DEFAULT_NFT_WEIGHT + DEFAULT_WEIGHT,
             expectedNonce: 1
         });
     }
@@ -2182,6 +2246,27 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         _setUpCompleteDelegatorRegistration(
             delegationID, completeRegistrationTimestamp, setValidatorWeightPayload
         );
+        return delegationID;
+    }
+
+    function _registerDelegatorNFT(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint64 weight,
+        uint64 initRegistrationTimestamp,
+        uint64 completeRegistrationTimestamp,
+        uint64 expectedValidatorWeight,
+        uint64 expectedNonce
+    ) internal returns (bytes32) {
+        bytes32 delegationID = _setUpInitializeDelegatorRegistrationNFT({
+            validationID: validationID,
+            delegatorAddress: delegatorAddress,
+            weight: weight,
+            registrationTimestamp: initRegistrationTimestamp,
+            expectedValidatorWeight: expectedValidatorWeight,
+            expectedNonce: expectedNonce
+        });
+       
         return delegationID;
     }
 
