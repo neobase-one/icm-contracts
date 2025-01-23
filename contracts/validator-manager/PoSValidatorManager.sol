@@ -10,7 +10,6 @@ import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {
     Delegator,
     DelegatorNFT,
-    ValidatorNFT,
     DelegatorStatus,
     IPoSValidatorManager,
     PoSValidatorInfo,
@@ -78,8 +77,6 @@ abstract contract PoSValidatorManager is
         bytes32 _uptimeBlockchainID;
         /// @notice Maps the validation ID to its requirements.
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
-        /// @notice Maps the validationID to the validator NFT information.
-        mapping(bytes32 validationID => ValidatorNFT) _validatorNFTs;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
         /// @notice Maps the delegation ID to the delegator information.
@@ -592,36 +589,6 @@ abstract contract PoSValidatorManager is
         }
     }
 
-    /**
-     * @dev Adds a delegation ID to a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to add
-     */
-    function _addNFTDelegationToValidator(bytes32 validationID, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._validatorNFTDelegations[validationID].push(delegationID);
-    }
-
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    function _removeNFTDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] storage delegations = $._validatorNFTDelegations[validationID];
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i] == delegationID) {
-                // Move the last element to this position and pop
-                delegations[i] = delegations[delegations.length - 1];
-                delegations.pop();
-                break;
-            }
-        }
-    }
-
     function _initializeDelegatorRegistration(
         bytes32 validationID,
         address delegatorAddress,
@@ -947,6 +914,7 @@ abstract contract PoSValidatorManager is
             // the complete step, even if the delivered nonce is greater than the nonce used to
             // initialize the removal.
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
+
             ($._delegatorStakes[delegationID].endingNonce,) =
                 _setValidatorWeight(validationID, validator.weight - delegator.weight);
 
@@ -1117,6 +1085,7 @@ abstract contract PoSValidatorManager is
 
         emit DelegationEnded(delegationID, validationID, delegationRewards, validatorFees);
     }
+
     /**
      * @dev This function must be implemented to mint rewards to validators and delegators.
      */

@@ -85,10 +85,8 @@ struct PoSValidatorInfo {
     uint64 uptimeSeconds;
     uint64 currentEpoch;
     uint64 prevEpochUptimeSeconds;
-}
-
-struct ValidatorNFT {
-    uint256[] nftIds;
+    uint256[] tokenIDs;
+    uint256 nftWeight;
 }
 
 /**

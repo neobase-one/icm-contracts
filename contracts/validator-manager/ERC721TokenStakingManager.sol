@@ -22,7 +22,6 @@ import {
 import {
     Delegator,
     DelegatorNFT,
-    ValidatorNFT,
     DelegatorStatus,
     IPoSValidatorManager,
     PoSValidatorInfo,
@@ -297,8 +296,6 @@ contract ERC721TokenStakingManager is
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
 
-        _addValidatorNft(validationID, stakeAmount);
-
         address owner = _msgSender();
 
         $._posValidatorInfo[validationID].owner = owner;
@@ -465,7 +462,7 @@ contract ERC721TokenStakingManager is
                     validator.startingWeight, 
                     uptime,
                     previousEpochUptime
-            );
+                );
                 $._balanceTracker.balanceTrackerHook(owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
             }
 
@@ -476,7 +473,7 @@ contract ERC721TokenStakingManager is
                     validator.startingWeight, 
                     uptime,
                     previousEpochUptime
-            );
+                ); 
                 $._balanceTrackerNFT.balanceTrackerHook(owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
             }
         } else {
@@ -602,23 +599,33 @@ contract ERC721TokenStakingManager is
             }
     }
 
-    function _addValidatorNft(bytes32 validationID, uint256 tokenId) internal virtual {
+    /**
+     * @dev Adds a delegation ID to a validator's delegation list
+     * @param validationID The validator's ID
+     * @param delegationID The delegation ID to add
+     */
+    function _addNFTDelegationToValidator(bytes32 validationID, bytes32 delegationID) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._validatorNFTs[validationID].nftIds.push(tokenId);
+        $._validatorNFTDelegations[validationID].push(delegationID);
     }
 
-    function _deleteValidatorNft(
-        bytes32 validationID
-    ) internal virtual {
+    /**
+     * @dev Removes a delegation ID from a validator's delegation list
+     * @param validationID The validator's ID
+     * @param delegationID The delegation ID to remove
+     */
+    function _removeNFTDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        delete $._validatorNFTs[validationID];
+        bytes32[] storage delegations = $._validatorNFTDelegations[validationID];
+
+        // Find and remove the delegation ID
+        for (uint256 i = 0; i < delegations.length; i++) {
+            if (delegations[i] == delegationID) {
+                // Move the last element to this position and pop
+                delegations[i] = delegations[delegations.length - 1];
+                delegations.pop();
+                break;
+            }
+        }
     }
-
-    function getValidatorNfts(
-        bytes32 validationID
-    ) public view returns (uint256[] memory) {
-        return _getPoSValidatorManagerStorage()._validatorNFTs[validationID].nftIds;
-    }
-
-
 }
