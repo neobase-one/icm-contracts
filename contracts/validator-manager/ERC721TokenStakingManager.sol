@@ -16,7 +16,8 @@ import {
 import {
     Validator,
     ValidatorRegistrationInput,
-    ValidatorStatus
+    ValidatorStatus,
+    IValidatorManager
 } from "./interfaces/IValidatorManager.sol";
 
 import {
@@ -169,6 +170,38 @@ contract ERC721TokenStakingManager is
         returns (bytes32)
     {
         return _initializeDelegatorRegistration(validationID, _msgSender(), msg.value);
+    }
+
+    /**
+     * @notice See {IValidatorManager-completeEndValidation}.
+     */
+    function completeEndValidation(uint32 messageIndex) external override (PoSValidatorManager, IValidatorManager) nonReentrant {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+
+        (bytes32 validationID, Validator memory validator) = _completeEndValidation(messageIndex);
+        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
+        // or the validator was part of the initial validator set.
+        if (!_isPoSValidator(validationID)) {
+            return;
+        }
+
+        address owner = $._posValidatorInfo[validationID].owner;
+        address rewardRecipient = $._rewardRecipients[validationID];
+        delete $._rewardRecipients[validationID];
+
+        // the reward-recipient should always be set, but just in case it isn't, we won't burn the reward
+        if (rewardRecipient == address(0)) {
+            rewardRecipient = owner;
+        }
+
+        // The validator can either be Completed or Invalidated here. We only grant rewards for Completed.
+        if (validator.status == ValidatorStatus.Completed) {
+            _withdrawValidationRewards(rewardRecipient, validationID);
+        }
+        // The stake is unlocked whether the validation period is completed or invalidated.
+        _unlock(owner, weightToValue(validator.startingWeight));
+
+        _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
     }
 
     function registerNFTDelegation(

@@ -416,7 +416,7 @@ abstract contract PoSValidatorManager is
     /**
      * @notice See {IValidatorManager-completeEndValidation}.
      */
-    function completeEndValidation(uint32 messageIndex) external nonReentrant {
+    function completeEndValidation(uint32 messageIndex) external virtual nonReentrant {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         (bytes32 validationID, Validator memory validator) = _completeEndValidation(messageIndex);
