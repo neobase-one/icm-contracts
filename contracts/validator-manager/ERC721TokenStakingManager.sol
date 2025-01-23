@@ -285,6 +285,14 @@ contract ERC721TokenStakingManager is
         }
     }
 
+    /**
+     * @notice Converts a token value to a weight.
+     * @param value Token value to convert.
+     */
+    function valueToWeightNFT(uint256 value) public view returns (uint64) {
+        return uint64(value * (10**6));
+    }
+
 
     /**
      * @notice See {PoSValidatorManager-_reward}
@@ -324,7 +332,7 @@ contract ERC721TokenStakingManager is
         uint256 lockedValue = _lock(stakeAmount);
 
         // Lock NFTs in the contract
-        uint64 nftWeight = uint64(_lockNFTs(tokenIDs));
+        uint64 nftWeight = valueToWeightNFT(_lockNFTs(tokenIDs));
 
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
@@ -348,7 +356,7 @@ contract ERC721TokenStakingManager is
         uint256[] memory tokenIDs
     ) internal returns (bytes32) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        uint64 weight = uint64(tokenIDs.length);
+        uint64 weight = valueToWeightNFT(tokenIDs.length);
 
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
@@ -509,6 +517,10 @@ contract ERC721TokenStakingManager is
                     uptime,
                     validatorInfo.prevEpochUptimeSeconds
                 ); 
+                console2.log("totalNFTDelegatorFeeWeight");
+                console2.log(totalNFTDelegatorFeeWeight);
+                console2.log("validatorEffectiveWeight");
+                console2.log(validatorEffectiveWeight);
                 $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
             }
         } else {
@@ -613,6 +625,7 @@ contract ERC721TokenStakingManager is
                     $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
                 }
             }
+        return totalDelegatorFeeWeight;
     }
 
     function _updateDelegatorNFTBalances(bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
@@ -621,7 +634,6 @@ contract ERC721TokenStakingManager is
         uint256 totalDelegatorFeeWeight;
             for (uint256 i = 0; i < activeDelegations.length; i++) {
                 DelegatorNFT memory delegator = $._delegatorNFTStakes[activeDelegations[i]];
-
                 if (delegator.owner != address(0)) {
                     uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
                         delegator.weight,
@@ -630,10 +642,15 @@ contract ERC721TokenStakingManager is
                     );
                     uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
                 / BIPS_CONVERSION_FACTOR;
+                    console2.log("delegateEffectiveWeight");
+                    console2.log(delegateEffectiveWeight);
+                    console2.log("delegatorFeeWeight");
+                    console2.log(delegatorFeeWeight);
                     totalDelegatorFeeWeight += delegatorFeeWeight;
                     $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
                 }
             }
+            return totalDelegatorFeeWeight;
     }
 
     /**

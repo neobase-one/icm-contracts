@@ -25,6 +25,7 @@ import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC
 import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
 import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
 import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
+import {console} from "forge-std/console.sol";
 import {ValidatorMessages} from "../ValidatorMessages.sol";
 
 
@@ -243,7 +244,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     function testClaimNFTDelegationFees() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
-
+        
         address rewardRecipient = address(42);
         vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
 
@@ -254,12 +255,12 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         bytes memory uptimeMsg1 =
             ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
-        _update();
+        // _update();
 
         app.submitUptimeProof(validationID, 0);
 
         vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 2);
-        _update();
+        // _update();
 
         _endDefaultValidatorWithChecks(validationID, 2);
 
@@ -273,11 +274,14 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
             force: false,
             rewardRecipient: rewardRecipient
         });
-        _update();
-
-       _claimDelFees(address(this));
-
-       _claimReward(DEFAULT_DELEGATOR_ADDRESS);
+        // _update();
+        console.log("NFT reward");
+        console.log(_getRewardNFT());
+        console.log("NFT delegator reward");
+        console.log(_getDelegatorReward());
+        _claimNFTReward();
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        _claimNFTReward();
     } 
 
     function _update() internal {
@@ -285,11 +289,34 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         balanceTrackerNFT.updateReward(address(app),address(rewardToken),address(0));
     }
     function _claimDelFees(address validator) internal {
-        balanceTrackerNFT.claimReward(address(app),address(rewardToken), validator, false);
+        uint256 reward = balanceTrackerNFT.claimReward(address(app),address(rewardToken), validator, false);
+        console.log(reward);
     }
 
     function _claimReward(address delegatorAddress) internal {
-        balanceTrackerNFT.claimReward(address(app),address(rewardToken), delegatorAddress, false);
+        uint256 reward = balanceTrackerNFT.claimReward(address(app),address(rewardToken), delegatorAddress, false);
+        console.log(reward);
+    }
+
+    function _getReward() internal view returns(uint256) {
+        return balanceTracker.earnedReward(address(this),address(app),address(rewardToken), false);
+    }
+
+    function _getRewardNFT() internal view returns(uint256) {
+        return balanceTrackerNFT.earnedReward(address(this),address(app),address(rewardToken), false);
+    }
+
+    function _getDelegatorReward() internal view returns(uint256) {
+        return balanceTrackerNFT.earnedReward(DEFAULT_DELEGATOR_ADDRESS,address(app),address(rewardToken), false);
+    }
+
+    function _claim(address rewardRecipient) internal {
+        balanceTracker.claimReward(address(app), address(rewardToken), rewardRecipient, false);
+    }
+
+    function _claimNFTReward() internal {
+        uint256 reward = balanceTrackerNFT.claimReward(address(app), address(rewardToken), address(this), false);
+
     }
 
     function _initializeEndDelegationNFT(
@@ -345,6 +372,11 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
 
         balanceTrackerNFT.registerReward(address(app), address(rewardToken), 0, amounts);
         balanceTrackerNFT.enableReward(address(app), address(rewardToken));
+
+        vm.startPrank(DEFAULT_DELEGATOR_ADDRESS);
+        balanceTracker.enableReward(address(app), address(rewardToken));
+        balanceTrackerNFT.enableReward(address(app), address(rewardToken));
+        vm.stopPrank();
 
         app.initialize(defaultPoSSettings, stakingToken);
 
