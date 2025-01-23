@@ -19,6 +19,8 @@ import {
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ExampleERC20} from "@mocks/ExampleERC20.sol";
+import {console2} from "forge-std/console2.sol";
+
 
 // TODO: Remove this once all unit tests implemented
 // solhint-disable no-empty-blocks
@@ -534,6 +536,7 @@ abstract contract ValidatorManagerTest is Test {
             abi.encode(IWarpMessenger.sendWarpMessage.selector),
             abi.encode(expectedMessageID)
         );
+        console2.log("Hello");
         vm.expectCall(
             WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.sendWarpMessage, payload)
         );

@@ -201,14 +201,16 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         return app.initializeDelegatorRegistration{value: value}(validationID);
     }
 
-    function _initializeDelegatorRegistrationNFT(
+    function _registerNFTDelegation(
         bytes32 validationID,
-        address delegatorAddress,
-        uint64 weight
-    ) internal virtual override returns (bytes32) {
-        vm.prank(delegatorAddress);
+        address delegatorAddress
+    ) internal virtual returns (bytes32) {
         uint256[] memory tokens = new uint256[](1);
-        tokens[0] = weight;
+        tokens[0] = ++testTokenID;
+
+        _beforeSendNFT(tokens[0], delegatorAddress);
+
+        vm.prank(delegatorAddress);
         return app.registerNFTDelegation(validationID, delegatorAddress, tokens);
     }
 
@@ -217,16 +219,10 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         // Native tokens no need pre approve
     }
     function _beforeSendNFT(uint256 tokenId, address spender) internal {
-       
-        stakingToken.approve(spender, tokenId);
-        ExampleERC721(address(stakingToken)).transferFrom(address(this), spender, tokenId);
+        stakingToken.transferFrom(address(this), spender, tokenId);
         
-        
-        vm.startPrank(spender);
-
+        vm.prank(spender);
         stakingToken.approve(address(app), tokenId);
-        vm.stopPrank();
-        
     }
     // solhint-enable no-empty-blocks
 
@@ -244,10 +240,11 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
 
     function testClaimNFTDelegationFees() public {
         bytes32 validationID = _registerDefaultValidator();
-        _beforeSendNFT(DEFAULT_DELEGATOR_NFT, DEFAULT_DELEGATOR_ADDRESS);
-        bytes32 delegationID = _registerDefaultDelegatorNFT(validationID);
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+        
         address rewardRecipient = address(42);
-         vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
+
         uint64 uptimePercentage1 = 80;
         uint64 uptime1 = (
             (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
@@ -257,10 +254,13 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
         _update();
 
-        posValidatorManager.submitUptimeProof(validationID, 0);
+        app.submitUptimeProof(validationID, 0);
+
         vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 2);
         _update();
+
         _endDefaultValidatorWithChecks(validationID, 2);
+
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         // Validator is Completed, so this will also complete the delegation.
         _initializeEndDelegationNFT({
@@ -305,6 +305,13 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
             app.endNFTDelegation(
                 delegationID, false, 0
             );
+    }
+
+    function _registerDelegatorNFT(bytes32 validationID)
+        internal
+        returns (bytes32 delegationID)
+    {
+        
     }
     
 

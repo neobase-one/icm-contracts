@@ -19,6 +19,8 @@ import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializ
 import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
 import {ITrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/interfaces/IRewardStreams.sol";
 import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
+import {console2} from "forge-std/console2.sol";
+
 
 contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
     NativeTokenStakingManager public app;
@@ -150,12 +152,6 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
             input, DEFAULT_DELEGATION_FEE_BIPS, DEFAULT_MINIMUM_STAKE_DURATION
         );
     }
-
-    function _initializeDelegatorRegistrationNFT(
-        bytes32 validationID,
-        address delegatorAddress,
-        uint64 weight
-    ) internal virtual override returns (bytes32) {}
 
     function _initializeDelegatorRegistration(
         bytes32 validationID,
