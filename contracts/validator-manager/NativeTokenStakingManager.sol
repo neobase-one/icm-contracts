@@ -93,9 +93,7 @@ contract NativeTokenStakingManager is
     /**
      * @notice See {PoSValidatorManager-_unlock}
      */
-    function _unlock(address to, bytes32 id, bool isValidator) internal virtual override {
-        uint64 weight = isValidator ? getValidator(id).startingWeight : getDelegator(id).weight;
-        uint256 value = weightToValue(weight);
+    function _unlock(address to, uint256 value) internal virtual override {
         payable(to).sendValue(value);
     }
 

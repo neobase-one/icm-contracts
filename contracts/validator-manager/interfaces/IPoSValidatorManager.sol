@@ -37,6 +37,8 @@ struct PoSValidatorManagerSettings {
     ValidatorManagerSettings baseSettings;
     uint256 minimumStakeAmount;
     uint256 maximumStakeAmount;
+    uint256 minimumNFTAmount;
+    uint256 maximumNFTAmount;
     uint64 minimumStakeDuration;
     uint64 unlockDelegateDuration;
     uint16 minimumDelegationFeeBips;
@@ -44,6 +46,7 @@ struct PoSValidatorManagerSettings {
     uint256 weightToValueFactor;
     IRewardCalculator rewardCalculator;
     IBalanceTracker balanceTracker;
+    IBalanceTracker balanceTrackerNFT;
     uint64 epochDuration;
     bytes32 uptimeBlockchainID;
 }
@@ -63,7 +66,13 @@ struct Delegator {
 }
 
 struct DelegatorNFT {
-    uint256[] nftIds;
+    DelegatorStatus status;
+    address owner;
+    bytes32 validationID;
+    uint64 weight;
+    uint64 startedAt;
+    uint64 endedAt;
+    uint256[] tokenIDs;
 }
 
 /**
@@ -74,10 +83,10 @@ struct PoSValidatorInfo {
     uint16 delegationFeeBips;
     uint64 minStakeDuration;
     uint64 uptimeSeconds;
-}
-
-struct ValidatorNFT {
-    uint256[] nftIds;
+    uint64 currentEpoch;
+    uint64 prevEpochUptimeSeconds;
+    uint256[] tokenIDs;
+    uint64 nftWeight;
 }
 
 /**
@@ -102,6 +111,15 @@ interface IPoSValidatorManager is IValidatorManager {
         uint64 validatorWeight,
         uint64 delegatorWeight,
         bytes32 setWeightMessageID
+    );
+
+    event DelegatorAddedNFT(
+        bytes32 indexed delegationID,
+        bytes32 indexed validationID,
+        address indexed delegatorAddress,
+        uint64 nonce,
+        uint64 delegatorWeight,
+        uint256[] tokenIDs
     );
 
     /**

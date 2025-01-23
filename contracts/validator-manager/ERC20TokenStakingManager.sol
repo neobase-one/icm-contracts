@@ -138,9 +138,7 @@ contract ERC20TokenStakingManager is
      * @notice See {PoSValidatorManager-_unlock}
      * Note: Must be guarded with reentrancy guard for safe transfer.
      */
-    function _unlock(address to, bytes32 id, bool isValidator) internal virtual override {
-        uint64 weight = isValidator ? getValidator(id).startingWeight : getDelegator(id).weight;
-        uint256 value = weightToValue(weight);
+    function _unlock(address to, uint256 value) internal virtual override {
         _getERC20StakingManagerStorage()._token.safeTransfer(to, value);
     }
 

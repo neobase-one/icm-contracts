@@ -19,7 +19,7 @@ contract ExampleRewardCalculatorTest is Test {
     uint64 public constant DEFAULT_REWARD_BASIS_POINTS = 42;
 
     function setUp() public {
-        exampleRewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_BASIS_POINTS,0);
+        exampleRewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_BASIS_POINTS);
     }
 
     function testRewardCalculation() public view {
