@@ -425,31 +425,28 @@ contract ERC721TokenStakingManager is
             }
         }
 
-        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed) {
-            // Check that minimum stake duration has passed.
-            if (block.timestamp < delegator.startedAt + $._minimumStakeDuration) {
-                revert MinStakeDurationNotPassed(uint64(block.timestamp));
-            }
-
-            if (includeUptimeProof) {
-                // Uptime proofs include the absolute number of seconds the validator has been active.
-                _updateUptime(validationID, messageIndex);
-            }
-
-            $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
-
-            tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
-
-            _removeNFTDelegationFromValidator(validationID, delegationID);
-            _removeDelegationFromAccount(delegator.owner, delegationID);
-
-            // Once this function completes, the delegation is completed so we can clear it from state now.
-            delete $._delegatorNFTStakes[delegationID];
-
-            emit DelegationEnded(delegationID, validationID, 0, 0); 
-        } else {
+        
+        if (validator.status != ValidatorStatus.Active && validator.status != ValidatorStatus.Completed) {
             revert InvalidValidatorStatus(validator.status);
         }
+
+        if (validator.status == ValidatorStatus.Active && 
+            block.timestamp < delegator.startedAt + $._minimumStakeDuration) {
+            revert MinStakeDurationNotPassed(uint64(block.timestamp));
+        }
+
+        if (includeUptimeProof) {
+            _updateUptime(validationID, messageIndex);
+        }
+
+        tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
+        
+        _removeNFTDelegationFromValidator(validationID, delegationID);
+        _removeNFTDelegationFromAccount(delegator.owner, delegationID);
+        
+        delete $._delegatorNFTStakes[delegationID];
+        
+        emit DelegationEnded(delegationID, validationID, 0, 0);
     }
 
     /**
