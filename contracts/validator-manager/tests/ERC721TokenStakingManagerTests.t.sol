@@ -240,6 +240,73 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
 
+
+    function testRevertEndDelegationNFTBeforeUnlock() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+       
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PoSValidatorManager.InvalidDelegatorStatus.selector, 2
+            )
+        );
+        _completeEndNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+       
+    }
+
+    function testRevertEndDelegationNFTBeforeInitialize() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+        vm.warp(block.timestamp + DEFAULT_MINIMUM_STAKE_DURATION + 1);
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+        uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        _initializeEndNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+       
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PoSValidatorManager.UnlockDelegateDurationNotPassed.selector, block.timestamp
+            )
+        );
+        _completeEndNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+       
+    }
     function testEndNFTDelegationRevertBeforeMinStakeDuration() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
@@ -465,6 +532,15 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     ) internal virtual returns (bytes32) {
         vm.prank(delegatorAddress);
         app.initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+    }
+    function _completeEndNFTDelegation(
+        address delegatorAddress,
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) internal virtual returns (bytes32) {
+        vm.prank(delegatorAddress);
+        app.completeEndNFTDelegation(delegationID);
     }
     function _endNFTDelegationNonOwner(
         address delegatorAddress,

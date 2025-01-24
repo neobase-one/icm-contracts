@@ -194,10 +194,7 @@ contract ERC721TokenStakingManager is
             return;
         }
 
-        if(block.timestamp < validator.endedAt + $._unlockDelegateDuration) {
-            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
-        }
-
+       
         address owner = $._posValidatorInfo[validationID].owner;
         address rewardRecipient = $._rewardRecipients[validationID];
         delete $._rewardRecipients[validationID];
