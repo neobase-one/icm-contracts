@@ -310,6 +310,8 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         );
     }
 
+    
+
      function testRevertEndDelgationForNonOwner() public {
        bytes32 validationID = _registerDefaultValidator();
        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
@@ -356,7 +358,8 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
             0
         );
     }
-
+    
+    
     function testGetNFTStakingToken() public {
         address token = address(app.erc721());
         assertEq(token, address(stakingToken));

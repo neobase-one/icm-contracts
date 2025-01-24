@@ -45,7 +45,7 @@ import {WarpMessage} from
 
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-
+import {console2} from "forge-std/console2.sol";
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
  *
@@ -285,6 +285,7 @@ contract ERC721TokenStakingManager is
      * @param value Token value to convert.
      */
     function valueToWeightNFT(uint256 value) public view returns (uint64) {
+        console2.log(value);
         return uint64(value * (10**6));
     }
 
@@ -325,9 +326,12 @@ contract ERC721TokenStakingManager is
         }
         // Lock the stake in the contract.
         uint256 lockedValue = _lock(stakeAmount);
-
+        console2.log("calling valueToWeightNFT");
         // Lock NFTs in the contract
         uint64 nftWeight = valueToWeightNFT(_lockNFTs(tokenIDs));
+        console2.log("called valueToWeightNFT");
+
+        console2.log(nftWeight);
 
         uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
@@ -425,10 +429,6 @@ contract ERC721TokenStakingManager is
             }
         }
 
-        
-        if (validator.status != ValidatorStatus.Active && validator.status != ValidatorStatus.Completed) {
-            revert InvalidValidatorStatus(validator.status);
-        }
 
         if (validator.status == ValidatorStatus.Active && 
             block.timestamp < delegator.startedAt + $._minimumStakeDuration) {
