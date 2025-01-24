@@ -261,7 +261,7 @@ contract ERC721TokenStakingManager is
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
 
-        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
+        if(block.timestamp < delegator.startedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 
@@ -542,7 +542,6 @@ contract ERC721TokenStakingManager is
             }
 
             $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
-            $._delegatorNFTStakes[delegationID].endedAt = uint64(block.timestamp);
 
             tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
 

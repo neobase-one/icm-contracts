@@ -10,6 +10,7 @@ import {IPoSValidatorManager} from "./IPoSValidatorManager.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+// TODO; complete interface
 /**
  * Proof of Stake Validator Manager that stakes ERC721 tokens.
  */

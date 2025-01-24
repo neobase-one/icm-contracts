@@ -24,8 +24,6 @@ import {
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
-import {console} from "forge-std/console.sol";
-
 abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
     uint64 public constant DEFAULT_DELEGATOR_WEIGHT = uint64(1e5);
@@ -2368,7 +2366,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         emit DelegationEnded(
             delegationID, validationID, expectedDelegatorReward, expectedValidatorFees
         );
-
         uint256 balanceBefore = _getStakeAssetBalance(delegator);
         uint256 rewardRecipientBalanceBefore = _getStakeAssetBalance(rewardRecipient);
 
@@ -2401,7 +2398,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         bytes memory weightUpdateMessage
     ) internal {
         _mockGetPChainWarpMessage(weightUpdateMessage, true);
-
         posValidatorManager.completeEndDelegation(delegationID, 0);
     }
 
