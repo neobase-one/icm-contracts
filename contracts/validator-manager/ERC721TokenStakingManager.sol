@@ -227,14 +227,7 @@ contract ERC721TokenStakingManager is
     }
 
     /**
-    * @notice Registers an NFT delegation for a specified validator and delegator.
-    * @dev This function locks the specified NFTs by transferring them to the contract and then registers the delegation 
-    *      with the given validator. The NFTs are transferred from the delegator's address to the contract, and the delegation 
-    *      is recorded for the specified validator.
-    * @param validationID The unique identifier of the validator to which the NFT delegation is being registered.
-    * @param delegatorAddress The address of the delegator registering the NFT delegation.
-    * @param tokenIDs An array of token IDs representing the NFTs to be locked and delegated.
-    * @return delegationID A unique identifier for the newly registered NFT delegation.
+    * @notice See {IERC721TokenStakingManager-registerNFTDelegation}.
     *
     */
     function registerNFTDelegation(
@@ -279,17 +272,7 @@ contract ERC721TokenStakingManager is
     }
 
     /**
-    * @notice Redelegates an NFT delegation from one validator to another.
-    * @dev This function ends the current NFT delegation, optionally including an uptime proof,
-    *      and registers the NFT delegation with a new validator. The NFTs are transferred from the current delegation
-    *      to the new validator as part of the redelegation process.
-    * @param delegationID The unique identifier of the NFT delegation to be redelegated.
-    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the redelegation process.
-    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
-    * @param nextValidationID The unique identifier of the new validator to which the NFTs will be redelegated.
-    *
-    * Reverts if:
-    * - The current delegation cannot be ended or the redelegation cannot be registered.
+    * @notice See {IERC721TokenStakingManager-registerNFTRedelegation}.
     */
     function registerNFTRedelegation(
         bytes32 delegationID,
@@ -306,7 +289,7 @@ contract ERC721TokenStakingManager is
     }
 
     /**
-     * @notice Returns the ERC721 token being staked
+     * @notice See {IERC721TokenStakingManager-erc721}.
      */
     function erc721() external view returns (IERC721) {
         return _getERC721StakingManagerStorage()._token;

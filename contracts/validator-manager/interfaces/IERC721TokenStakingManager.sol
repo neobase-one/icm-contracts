@@ -33,4 +33,59 @@ interface IERC721TokenStakingManager is IPoSValidatorManager {
      * @notice Returns the ERC721 token contract used for staking
      */
     function erc721() external view returns (IERC721);
+
+    /**
+    * @notice Registers an NFT delegation for a specified validator and delegator.
+    * @dev This function locks the specified NFTs by transferring them to the contract and then registers the delegation 
+    *      with the given validator. The NFTs are transferred from the delegator's address to the contract, and the delegation 
+    *      is recorded for the specified validator.
+    * @param validationID The unique identifier of the validator to which the NFT delegation is being registered.
+    * @param delegatorAddress The address of the delegator registering the NFT delegation.
+    * @param tokenIDs An array of token IDs representing the NFTs to be locked and delegated.
+    * @return delegationID A unique identifier for the newly registered NFT delegation.
+    *
+    */
+    function registerNFTDelegation(
+        bytes32 validationID,
+        address delegatorAddress,
+        uint256[] memory tokenIDs
+    ) external returns (bytes32);
+
+    /**
+    * @notice Ends an NFT delegation and unlocks the associated NFTs.
+    * @dev This function checks if the unlock duration for the delegation has passed. If the duration has passed, 
+    *      it ends the NFT delegation and unlocks the NFTs by transferring them back to the delegator's address.
+    *      Optionally, it can include an uptime proof for the validator during the delegation termination process.
+    * @param delegationID The unique identifier of the NFT delegation to be ended.
+    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the delegation termination process.
+    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
+    *
+    * Reverts if:
+    * - The unlock duration has not yet passed (`UnlockDelegateDurationNotPassed`).
+    */
+    function endNFTDelegation(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) external;
+
+    /**
+    * @notice Redelegates an NFT delegation from one validator to another.
+    * @dev This function ends the current NFT delegation, optionally including an uptime proof,
+    *      and registers the NFT delegation with a new validator. The NFTs are transferred from the current delegation
+    *      to the new validator as part of the redelegation process.
+    * @param delegationID The unique identifier of the NFT delegation to be redelegated.
+    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the redelegation process.
+    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
+    * @param nextValidationID The unique identifier of the new validator to which the NFTs will be redelegated.
+    *
+    * Reverts if:
+    * - The current delegation cannot be ended or the redelegation cannot be registered.
+    */
+    function registerNFTRedelegation(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex,
+        bytes32 nextValidationID
+    ) external;
 }
