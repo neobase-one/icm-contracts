@@ -199,7 +199,6 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
 
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
-
         assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.1e18);
         assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
@@ -239,6 +238,45 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.1e18);
         assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
+
+    function testDelegationRewardsForSameValidatorAndDelegator() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, address(this));
+        uint256 balanceBeforeValidationEnd = stakingToken.balanceOf(address(this));
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+        _expectNFTStakeUnlock(address(this), balanceBeforeValidationEnd + 1);
+
+        uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+        uint256 balanceBeforeDelegationEnd = stakingToken.balanceOf(address(this));
+
+        _endNFTDelegation(
+            address(this),
+            delegationID,
+            true,
+            0
+        );
+        _expectNFTStakeUnlock(address(this), balanceBeforeDelegationEnd + 1);
+        
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+
+        (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+            1e6, 1e6, DEFAULT_DELEGATION_FEE_BIPS);
+
+        assertApproxEqRel(validatorReward + delegatorReward, _claimReward(address(this)), 0.1e18);
+    }
+
+   
 
 
     function testRevertEndDelegationNFTBeforeUnlock() public {
