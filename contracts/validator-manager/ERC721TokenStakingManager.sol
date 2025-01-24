@@ -59,7 +59,6 @@ contract ERC721TokenStakingManager is
     IERC721Receiver
 {
     using Address for address payable;
-    using SafeERC20 for IERC20;
 
     // solhint-disable private-vars-leading-underscore
     /// @custom:storage-location erc7201:avalanche-icm.storage.ERC721TokenStakingManager
@@ -348,7 +347,6 @@ contract ERC721TokenStakingManager is
         return uint64(value * (10**6));
     }
 
-
     /**
      * @notice See {PoSValidatorManager-_reward}
      * @dev Distributes ERC20 rewards to stakers
@@ -402,24 +400,18 @@ contract ERC721TokenStakingManager is
             revert InvalidNFTAmount(tokenIDs.length);
         }
         // Lock the stake in the contract.
-        uint256 lockedValue = _lock(stakeAmount);
-
-        // Lock NFTs in the contract
+        uint64 weight = valueToWeight(_lock(stakeAmount));
         uint64 nftWeight = valueToWeightNFT(_lockNFTs(tokenIDs));
 
-        uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
 
         address owner = _msgSender();
-
         $._posValidatorInfo[validationID].owner = owner;
         $._posValidatorInfo[validationID].delegationFeeBips = delegationFeeBips;
         $._posValidatorInfo[validationID].minStakeDuration = minStakeDuration;
-        $._posValidatorInfo[validationID].uptimeSeconds = 0;
+        $._posValidatorInfo[validationID].weight = weight;
         $._posValidatorInfo[validationID].tokenIDs = tokenIDs;
         $._posValidatorInfo[validationID].nftWeight = nftWeight;
-        $._posValidatorInfo[validationID].weight = weight;
-        $._rewardRecipients[validationID] = owner;
 
         $._accountValidations[owner].push(validationID);
 
@@ -453,7 +445,6 @@ contract ERC721TokenStakingManager is
 
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
-        // Check that the validation ID is a PoS validator
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
         }
@@ -543,11 +534,8 @@ contract ERC721TokenStakingManager is
             }
 
             if (includeUptimeProof) {
-                // Uptime proofs include the absolute number of seconds the validator has been active.
                 _updateUptime(validationID, messageIndex);
             }
-
-            $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
 
             tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
 
@@ -599,9 +587,6 @@ contract ERC721TokenStakingManager is
         if (warpMessage.originSenderAddress != address(0)) {
             revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
         }
-        if (warpMessage.originSenderAddress != address(0)) {
-            revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
-        }
 
         (bytes32 uptimeValidationID, uint64 uptime) =
             ValidatorMessages.unpackValidationUptimeMessage(warpMessage.payload);
@@ -619,7 +604,7 @@ contract ERC721TokenStakingManager is
                 validatorInfo.prevEpochUptimeSeconds = validatorInfo.uptimeSeconds;
             }
             validatorInfo.uptimeSeconds = uptime;
-            emit UptimeUpdated(validationID, uptime, 0);
+            emit UptimeUpdated(validationID, uptime, currentEpoch);
 
             if (validatorInfo.owner != address(0)) {
                 (uint256 valWeight, uint256 valNftWeight) = _calculateAccountWeight(validatorInfo.owner);
