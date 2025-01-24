@@ -41,7 +41,6 @@ abstract contract PoSValidatorManager is
     ValidatorManager,
     ReentrancyGuardUpgradeable
 {
-    using SafeERC20 for IERC20;
     // solhint-disable private-vars-leading-underscore
     /// @custom:storage-location erc7201:avalanche-icm.storage.PoSValidatorManager
     struct PoSValidatorManagerStorage {

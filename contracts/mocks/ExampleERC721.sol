@@ -16,5 +16,4 @@ contract ExampleERC721 is ERC721 {
     function mint(address to, uint256 tokenId) external {
         _mint(to, tokenId);
     }
-
 }
