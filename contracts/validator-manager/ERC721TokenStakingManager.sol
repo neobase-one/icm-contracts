@@ -176,7 +176,7 @@ contract ERC721TokenStakingManager is
             return;
         }
 
-        if(block.timestamp < validator.startedAt + $._unlockDelegateDuration) {
+        if(block.timestamp < validator.endedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 
@@ -449,6 +449,7 @@ contract ERC721TokenStakingManager is
             }
 
             $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
+            $._delegatorNFTStakes[delegationID].endedAt = uint64(block.timestamp);
         } else {
             revert InvalidValidatorStatus(validator.status);
         }

@@ -900,6 +900,7 @@ abstract contract PoSValidatorManager is
             // the complete step, even if the delivered nonce is greater than the nonce used to
             // initialize the removal.
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
+            $._delegatorStakes[delegationID].endedAt = uint64(block.timestamp);
 
             ($._delegatorStakes[delegationID].endingNonce,) =
                 _setValidatorWeight(validationID, validator.weight - delegator.weight);
