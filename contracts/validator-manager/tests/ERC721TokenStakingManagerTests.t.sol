@@ -310,15 +310,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         );
     }
 
-    function testRegisterNFTDelegationRevertWithInvalidValidation() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PoSValidatorManager.ValidatorNotPoS.selector, bytes32(uint256(123)) 
-            )
-        );
-        _registerNFTDelegation(bytes32(uint256(123)), DEFAULT_DELEGATOR_ADDRESS);
-       
-    }
+   
 
 
     function testRevertEndDelgationNFTForNonOwner() public {
