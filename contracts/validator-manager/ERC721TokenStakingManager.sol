@@ -8,7 +8,6 @@ pragma solidity 0.8.25;
 import {PoSValidatorManager} from "./PoSValidatorManager.sol";
 import {
     PoSValidatorManagerSettings
-    // PoSValidatorManagerStorage
 } from "./interfaces/IPoSValidatorManager.sol";
 import {
     PoSValidatorManager
