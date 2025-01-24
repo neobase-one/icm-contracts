@@ -114,7 +114,15 @@ interface IPoSValidatorManager is IValidatorManager {
         bytes32 setWeightMessageID
     );
 
-    // TODO: add natspec comment
+     /**
+     * @notice Event emitted when a NFT delegator is added 
+     * @param delegationID The ID of the delegation
+     * @param validationID The ID of the validation period being delegated to
+     * @param delegatorAddress The address of the delegator
+     * @param nonce The message nonce used to update the validator weight
+     * @param delegatorWeight The weight of the delegator
+     * @param tokenIDs The list of tokenIDs delegated
+     */
     event DelegatorAddedNFT(
         bytes32 indexed delegationID,
         bytes32 indexed validationID,

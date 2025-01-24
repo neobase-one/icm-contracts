@@ -527,6 +527,7 @@ contract ERC721TokenStakingManager is
 
             $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
             $._delegatorNFTStakes[delegationID].endedAt = uint64(block.timestamp);
+            emit DelegatorRemovalInitialized(delegationID, validationID);
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
