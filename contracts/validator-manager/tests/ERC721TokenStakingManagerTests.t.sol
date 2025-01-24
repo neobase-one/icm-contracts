@@ -25,7 +25,6 @@ import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC
 import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
 import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
 import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
-import {console} from "forge-std/console.sol";
 import {ValidatorMessages} from "../ValidatorMessages.sol";
 
 
@@ -37,8 +36,11 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     IERC721 public stakingToken;
     IERC20 public rewardToken;
     EthereumVaultConnector public evc;
-    ITrackingRewardStreams public balanceTracker;
-    ITrackingRewardStreams public balanceTrackerNFT;
+    TrackingRewardStreams public balanceTracker;
+    TrackingRewardStreams public balanceTrackerNFT;
+
+    uint128 public constant REWARD_PER_EPOCH = 100e18;
+
 
     uint256 testTokenID = 0;
 
@@ -167,7 +169,90 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         app.initialize(defaultPoSSettings, stakingToken);
     }
 
+    function testDelegationRewards() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerDefaultDelegator(validationID);
+ 
+        address rewardRecipient = address(42);
+        
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        // Validator is Completed, so this will also complete the delegation.
+        _initializeEndDelegation({
+            sender: DEFAULT_DELEGATOR_ADDRESS,
+            delegationID: delegationID,
+            endDelegationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION + 1,
+            includeUptime: true,
+            force: true,
+            rewardRecipient: rewardRecipient
+        });
+
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+
+        (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+            DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
+
+        assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.01e18);
+        assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.01e18);
+    }
+
+    function testNFTDelegationRewards() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+        
+        address rewardRecipient = address(42);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        _endNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+        _expectNFTStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, 1);
+        
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+
+        (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+            1e6, 1e6, DEFAULT_DELEGATION_FEE_BIPS);
+
+        assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.01e18);
+        assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.01e18);
+    }
+
     // Helpers
+    function _calculateExpectedRewards(
+        uint256 validatorStake,
+        uint256 delegatorStake,
+        uint256 delegationFeeBips
+    ) internal returns (uint256 validatorReward, uint256 delegatorReward) {
+        uint256 feeWeight = delegatorStake * delegationFeeBips / 10000;
+        delegatorReward = (REWARD_PER_EPOCH * (delegatorStake - feeWeight)) / (delegatorStake + validatorStake);
+        validatorReward = (REWARD_PER_EPOCH * (validatorStake + feeWeight)) / (delegatorStake + validatorStake);
+    }
+
     function _initializeValidatorRegistration(
         ValidatorRegistrationInput memory registrationInput,
         uint16 delegationFeeBips,
@@ -216,11 +301,20 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         return app.registerNFTDelegation(validationID, delegatorAddress, tokens);
     }
 
+    function _endNFTDelegation(
+        address delegatorAddress,
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) internal virtual returns (bytes32) {
+        vm.prank(delegatorAddress);
+        app.endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+    }
+
     // solhint-disable no-empty-blocks
     function _beforeSend(uint256 amount, address spender) internal override {
         // Native tokens no need pre approve
     }
-    // solhint-enable no-empty-blocks
 
     function _beforeSendNFT(uint256 tokenId, address spender) internal {
         stakingToken.transferFrom(address(this), spender, tokenId);
@@ -234,111 +328,21 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         vm.expectCall(account, amount, "");
     }
 
+    function _expectNFTStakeUnlock(address account, uint256 amount) internal {
+        assertEq(stakingToken.balanceOf(account), amount);
+    }
+
     function _expectRewardIssuance(address account, uint256 amount) internal override {
-        // address nativeMinter = address(app.NATIVE_MINTER());
-        // bytes memory callData = abi.encodeCall(INativeMinter.mintNativeCoin, (account, amount));
-        // vm.mockCall(nativeMinter, callData, "");
-        // vm.expectCall(nativeMinter, callData);
     }
 
-    function testClaimNFTDelegationFees() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
-        
-        address rewardRecipient = address(42);
-        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 1);
-
-        uint64 uptimePercentage1 = 80;
-        uint64 uptime1 = (
-            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
-        ) / 100;
-        bytes memory uptimeMsg1 =
-            ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
-        _mockGetUptimeWarpMessage(uptimeMsg1, true);
-        // _update();
-
-        app.submitUptimeProof(validationID, 0);
-
-        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION * 2);
-        // _update();
-
-        _endDefaultValidatorWithChecks(validationID, 2);
-
-        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
-        // Validator is Completed, so this will also complete the delegation.
-        _initializeEndDelegationNFT({
-            sender: DEFAULT_DELEGATOR_ADDRESS,
-            delegationID: delegationID,
-            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            includeUptime: true,
-            force: false,
-            rewardRecipient: rewardRecipient
-        });
-        // _update();
-        console.log("NFT reward");
-        console.log(_getRewardNFT());
-        console.log("NFT delegator reward");
-        console.log(_getDelegatorReward());
-        _claimNFTReward();
-        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
-        _claimNFTReward();
-    } 
-
-    function _update() internal {
-        balanceTracker.updateReward(address(app),address(rewardToken),address(0));
-        balanceTrackerNFT.updateReward(address(app),address(rewardToken),address(0));
-    }
-    function _claimDelFees(address validator) internal {
-        uint256 reward = balanceTrackerNFT.claimReward(address(app),address(rewardToken), validator, false);
-        console.log(reward);
+    function _claimReward(address account) internal returns(uint256) {
+        vm.prank(account);
+        return balanceTracker.claimReward(address(app), address(rewardToken), account, false);
     }
 
-    function _claimReward(address delegatorAddress) internal {
-        uint256 reward = balanceTrackerNFT.claimReward(address(app),address(rewardToken), delegatorAddress, false);
-        console.log(reward);
-    }
-
-    function _getReward() internal view returns(uint256) {
-        return balanceTracker.earnedReward(address(this),address(app),address(rewardToken), false);
-    }
-
-    function _getRewardNFT() internal view returns(uint256) {
-        return balanceTrackerNFT.earnedReward(address(this),address(app),address(rewardToken), false);
-    }
-
-    function _getDelegatorReward() internal view returns(uint256) {
-        return balanceTrackerNFT.earnedReward(DEFAULT_DELEGATOR_ADDRESS,address(app),address(rewardToken), false);
-    }
-
-    function _claim(address rewardRecipient) internal {
-        balanceTracker.claimReward(address(app), address(rewardToken), rewardRecipient, false);
-    }
-
-    function _claimNFTReward() internal {
-        uint256 reward = balanceTrackerNFT.claimReward(address(app), address(rewardToken), address(this), false);
-
-    }
-
-    function _initializeEndDelegationNFT(
-        address sender,
-        bytes32 delegationID,
-        uint64 endDelegationTimestamp,
-        bool includeUptime,
-        bool force,
-        address rewardRecipient
-    ) internal {
-        //vm.warp(endDelegationTimestamp);
-        vm.prank(sender);
-            app.endNFTDelegation(
-                delegationID, false, 0
-            );
-    }
-
-    function _registerDelegatorNFT(bytes32 validationID)
-        internal
-        returns (bytes32 delegationID)
-    {
-
+    function _claimRewardNFT(address account) internal returns(uint256) {
+        vm.prank(account);
+        return balanceTrackerNFT.claimReward(address(app), address(rewardToken), account, false);
     }
 
     function _setUp() internal override returns (IValidatorManager) {
@@ -360,12 +364,12 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         defaultPoSSettings.balanceTracker = balanceTracker;
         defaultPoSSettings.balanceTrackerNFT = balanceTrackerNFT;
 
-        uint128 rewardAmount = 50e18;
-        rewardToken.approve(address(balanceTracker), rewardAmount * 2);
-        rewardToken.approve(address(balanceTrackerNFT), rewardAmount * 2);
-        uint128[] memory amounts = new uint128[](2);
-        amounts[0] = rewardAmount;
-        amounts[1] = rewardAmount;
+        rewardToken.approve(address(balanceTracker), REWARD_PER_EPOCH * 3);
+        rewardToken.approve(address(balanceTrackerNFT), REWARD_PER_EPOCH * 3);
+        uint128[] memory amounts = new uint128[](3);
+        amounts[0] = REWARD_PER_EPOCH;
+        amounts[1] = REWARD_PER_EPOCH;
+        amounts[1] = REWARD_PER_EPOCH;
 
         balanceTracker.registerReward(address(app), address(rewardToken), 0, amounts);
         balanceTracker.enableReward(address(app), address(rewardToken));
