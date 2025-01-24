@@ -176,9 +176,9 @@ abstract contract PoSValidatorManager is
         IBalanceTracker balanceTracker,
         IBalanceTracker balanceTrackerNFT,
         uint64 epochDuration,
-        bytes32 uptimeBlockchainID,
         uint256 minimumNFTAmount,
-        uint256 maximumNFTAmount
+        uint256 maximumNFTAmount,
+        bytes32 uptimeBlockchainID
     ) internal onlyInitializing {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -420,6 +420,7 @@ abstract contract PoSValidatorManager is
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         (bytes32 validationID, Validator memory validator) = _completeEndValidation(messageIndex);
+
         // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
         // or the validator was part of the initial validator set.
         if (!_isPoSValidator(validationID)) {
@@ -439,6 +440,7 @@ abstract contract PoSValidatorManager is
         if (validator.status == ValidatorStatus.Completed) {
             _withdrawValidationRewards(rewardRecipient, validationID);
         }
+
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock(owner, weightToValue(validator.startingWeight));
     }
@@ -508,6 +510,7 @@ abstract contract PoSValidatorManager is
         if (stakeAmount < $._minimumStakeAmount || stakeAmount > $._maximumStakeAmount) {
             revert InvalidStakeAmount(stakeAmount);
         }
+
         // Lock the stake in the contract.
         uint256 lockedValue = _lock(stakeAmount);
 
@@ -626,8 +629,6 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].startedAt = 0;
         $._delegatorStakes[delegationID].startingNonce = nonce;
         $._delegatorStakes[delegationID].endingNonce = 0;
-
-        _addDelegationToValidator(validationID, delegationID);
 
         emit DelegatorAdded({
             delegationID: delegationID,
@@ -848,8 +849,6 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].startingNonce = nonce;
         $._delegatorStakes[delegationID].endingNonce = 0;
 
-        _addDelegationToValidator(validationID, delegationID);
-
         emit DelegatorAdded({
             delegationID: delegationID,
             validationID: validationID,
@@ -1049,7 +1048,7 @@ abstract contract PoSValidatorManager is
                 revert InvalidNonce(nonce);
             }
         }
-        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
+        if(block.timestamp < delegator.startedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 

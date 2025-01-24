@@ -60,7 +60,6 @@ struct Delegator {
     bytes32 validationID;
     uint64 weight;
     uint64 startedAt;
-    uint64 endedAt;
     uint64 startingNonce;
     uint64 endingNonce;
 }
@@ -71,7 +70,6 @@ struct DelegatorNFT {
     bytes32 validationID;
     uint64 weight;
     uint64 startedAt;
-    uint64 endedAt;
     uint256[] tokenIDs;
 }
 
@@ -113,6 +111,7 @@ interface IPoSValidatorManager is IValidatorManager {
         bytes32 setWeightMessageID
     );
 
+    // TODO: add natspec comment
     event DelegatorAddedNFT(
         bytes32 indexed delegationID,
         bytes32 indexed validationID,
