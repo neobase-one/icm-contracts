@@ -15,6 +15,8 @@ import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Address} from "@openzeppelin/contracts@5.0.2/utils/Address.sol";
 import {Initializable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
+import {console} from "forge-std/console.sol";
+
 
 /**
  * @dev Implementation of the {INativeTokenStakingManager} interface.

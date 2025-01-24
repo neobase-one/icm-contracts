@@ -266,6 +266,26 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         );
     }
 
+    function testNFTRedelegation() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+        
+        address rewardRecipient = address(42);
+
+        bytes32 nextValidationID = _registerValidator({
+            nodeID: _newNodeID(),
+            l1ID: DEFAULT_L1_ID,
+            weight: DEFAULT_WEIGHT,
+            registrationExpiry: DEFAULT_EXPIRY,
+            blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
+            registrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP
+        });
+
+        vm.warp(block.timestamp + DEFAULT_MINIMUM_STAKE_DURATION + 1);
+
+        app.registerNFTRedelegation(delegationID, false, 0, nextValidationID);
+    }
+
     function _initializeValidatorRegistration(
         ValidatorRegistrationInput memory input,
         uint64 weight

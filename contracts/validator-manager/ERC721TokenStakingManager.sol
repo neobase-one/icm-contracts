@@ -282,7 +282,7 @@ contract ERC721TokenStakingManager is
     * Reverts if:
     * - The current delegation cannot be ended or the redelegation cannot be registered.
     */
-    function redelegateNFT(
+    function registerNFTRedelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex,
