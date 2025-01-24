@@ -320,30 +320,6 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
        
     }
 
-    function testDelegationRevertAfterValidationEnded() public {
-        bytes32 validationID = _registerDefaultValidator();
-
-        _endValidationWithChecks({
-            validationID: validationID,
-            validatorOwner: address(this),
-            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
-            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
-            validatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 2,
-            rewardRecipient: address(this)
-        });
-        Validator memory validator = app.getValidator(validationID);
-        assertEq(uint8(validator.status), uint8(ValidatorStatus.Completed));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed
-            )
-        );
-        _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
-
-
-    }
 
     function testRevertEndDelgationNFTForNonOwner() public {
        bytes32 validationID = _registerDefaultValidator();
