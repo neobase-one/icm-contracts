@@ -509,7 +509,7 @@ abstract contract PoSValidatorManager is
             revert InvalidMinStakeDuration(minStakeDuration);
         }
 
-        // Ensure the weight is within the valid range.
+        // Ensure the stake amount is within the valid range.
         if (stakeAmount < $._minimumStakeAmount || stakeAmount > $._maximumStakeAmount) {
             revert InvalidStakeAmount(stakeAmount);
         }
