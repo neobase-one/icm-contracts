@@ -463,8 +463,8 @@ contract ERC721TokenStakingManager is
         Delegator memory delegator = $._delegatorStakes[delegationID];
         bytes32 validationID = delegator.validationID;
 
-        _removeDelegationFromValidator(validationID, delegationID);
-        _removeDelegationFromAccount(delegator.owner, delegationID);
+        _removeNFTDelegationFromValidator(validationID, delegationID);
+        _removeNFTDelegationFromAccount(delegator.owner, delegationID);
 
         tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
 
