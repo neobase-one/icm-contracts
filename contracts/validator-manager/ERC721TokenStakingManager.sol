@@ -200,6 +200,10 @@ contract ERC721TokenStakingManager is
             return;
         }
 
+        if(block.timestamp < validator.startedAt + $._unlockDelegateDuration) {
+            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
+        }
+
         address owner = $._posValidatorInfo[validationID].owner;
         address rewardRecipient = $._rewardRecipients[validationID];
         delete $._rewardRecipients[validationID];
@@ -213,12 +217,13 @@ contract ERC721TokenStakingManager is
         if (validator.status == ValidatorStatus.Completed) {
             _withdrawValidationRewards(rewardRecipient, validationID);
         }
-        // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock(owner, weightToValue(validator.startingWeight));
-
-        _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
 
         _removeValidationFromAccount(owner, validationID);
+
+        // The stake is unlocked whether the validation period is completed or invalidated.
+        _unlock(owner, weightToValue(validator.startingWeight));
+        _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
+
     }
 
     /**
