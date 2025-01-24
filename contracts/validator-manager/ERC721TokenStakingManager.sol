@@ -201,6 +201,8 @@ contract ERC721TokenStakingManager is
         _unlock(owner, weightToValue(validator.startingWeight));
 
         _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
+
+        _removeValidationFromAccount(owner, validationID);
     }
 
     function registerNFTDelegation(
@@ -344,7 +346,10 @@ contract ERC721TokenStakingManager is
         $._posValidatorInfo[validationID].uptimeSeconds = 0;
         $._posValidatorInfo[validationID].tokenIDs = tokenIDs;
         $._posValidatorInfo[validationID].nftWeight = nftWeight;
+        $._posValidatorInfo[validationID].weight = weight;
         $._rewardRecipients[validationID] = owner;
+
+        $._accountValidations[owner].push(validationID);
 
         return validationID;
     }
@@ -378,7 +383,8 @@ contract ERC721TokenStakingManager is
         $._delegatorNFTStakes[delegationID].startedAt = uint64(block.timestamp);
         $._delegatorNFTStakes[delegationID].tokenIDs = tokenIDs;
 
-        _addNFTDelegationToValidator(validationID, delegationID);
+        $._accountNFTDelegations[delegatorAddress].push(delegationID);
+        $._validatorNFTDelegations[validationID].push(delegationID);
 
         emit DelegatorAddedNFT({
             delegationID: delegationID,
@@ -441,6 +447,7 @@ contract ERC721TokenStakingManager is
             tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
 
             _removeNFTDelegationFromValidator(validationID, delegationID);
+            _removeDelegationFromAccount(delegator.owner, delegationID);
 
             // Once this function completes, the delegation is completed so we can clear it from state now.
             delete $._delegatorNFTStakes[delegationID];
@@ -495,34 +502,119 @@ contract ERC721TokenStakingManager is
             validatorInfo.uptimeSeconds = uptime;
             emit UptimeUpdated(validationID, uptime, 0);
 
-            Validator memory validator = getValidator(validationID);
-
-            // Update balance trackers for all active delegators
             if (validatorInfo.owner != address(0)) {
-                uint256 totalDelegatorFeeWeight = _updateDelegatorBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
-                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
-                    validator.startingWeight, 
-                    uptime,
-                    validatorInfo.prevEpochUptimeSeconds
-                );
-                $._balanceTracker.balanceTrackerHook(validatorInfo.owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
-            }
+                (uint256 valWeight, uint256 valNftWeight) = _calculateAccountWeight(validatorInfo.owner);
+                $._balanceTracker.balanceTrackerHook(validatorInfo.owner, valWeight, false);
+                $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, valNftWeight, false);
 
-            // Update NFT balance trackers for all active delegators
-            if (validatorInfo.owner != address(0)) {
-                uint256 totalDelegatorFeeWeight = _updateDelegatorNFTBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
-                uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
-                    validatorInfo.nftWeight, 
-                    uptime,
-                    validatorInfo.prevEpochUptimeSeconds
-                ); 
-                $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
+                bytes32[] memory delegations = $._validatorDelegations[validationID];
+                for (uint256 j = 0; j < delegations.length; j++) {
+                    Delegator memory delegator = $._delegatorStakes[delegations[j]];
+                    if (delegator.owner != address(0)) {
+                        (uint256 weight, uint256 nftWeight) = _calculateAccountWeight(delegator.owner);
+                        $._balanceTracker.balanceTrackerHook(delegator.owner, weight, false);
+                    }
+                }
+
+                bytes32[] memory nftDelegations = $._validatorNFTDelegations[validationID];
+                for (uint256 j = 0; j < nftDelegations.length; j++) {
+                    DelegatorNFT memory delegator = $._delegatorNFTStakes[nftDelegations[j]];
+                    if (delegator.owner != address(0)) {
+                        (uint256 weight, uint256 nftWeight) = _calculateAccountWeight(delegator.owner);
+                        $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, nftWeight, false);
+                    }
+                }
             }
         } else {
             uptime = $._posValidatorInfo[validationID].uptimeSeconds;
         }
-
         return uptime;
+    }
+
+    function _calculateAccountWeight(
+        address account
+    ) internal view returns (uint256, uint256) {
+        uint256 weight;
+        uint256 nftWeight;
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+
+        // sum weights as validator
+        for (uint256 i = 0; i < $._accountValidations[account].length; i++) {
+            bytes32 validationID = $._accountValidations[account][i];
+            weight += _calculateEffectiveWeight(
+                $._posValidatorInfo[validationID].weight,
+                $._posValidatorInfo[validationID].uptimeSeconds,
+                $._posValidatorInfo[validationID].prevEpochUptimeSeconds
+            );
+            nftWeight += _calculateEffectiveWeight(
+                $._posValidatorInfo[validationID].nftWeight,
+                $._posValidatorInfo[validationID].uptimeSeconds,
+                $._posValidatorInfo[validationID].prevEpochUptimeSeconds
+            );
+            // add the weight of all active delegation fees
+            bytes32[] memory delegations = $._validatorDelegations[validationID];
+            for (uint256 j = 0; j < delegations.length; j++) {
+                Delegator memory delegator = $._delegatorStakes[delegations[j]];
+                if (delegator.status == DelegatorStatus.Active) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        $._posValidatorInfo[validationID].uptimeSeconds,
+                        $._posValidatorInfo[validationID].prevEpochUptimeSeconds
+                    );
+                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                    weight += delegatorFeeWeight;
+                }
+            }
+            // add the weight of all active NFT delegation fees
+            bytes32[] memory nftDelegations = $._validatorNFTDelegations[validationID];
+            for (uint256 j = 0; j < nftDelegations.length; j++) {
+                DelegatorNFT memory delegator = $._delegatorNFTStakes[nftDelegations[j]];
+                if (delegator.status == DelegatorStatus.Active) {
+                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                        delegator.weight,
+                        $._posValidatorInfo[validationID].uptimeSeconds,
+                        $._posValidatorInfo[validationID].prevEpochUptimeSeconds
+                    );
+                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                    nftWeight += delegatorFeeWeight;
+                }
+            }
+        }
+
+        // sum weights as delegator
+        for (uint256 i = 0; i < $._accountDelegations[account].length; i++) {
+            bytes32 delegationID = $._accountDelegations[account][i];
+            Delegator memory delegator = $._delegatorStakes[delegationID];
+            if (delegator.owner != address(0)) {
+                uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                    delegator.weight,
+                    $._posValidatorInfo[delegator.validationID].uptimeSeconds,
+                    $._posValidatorInfo[delegator.validationID].prevEpochUptimeSeconds
+                );
+                uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[delegator.validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                weight += delegateEffectiveWeight - delegatorFeeWeight;
+            }   
+        }
+
+        // sum weights as NFT delegator
+        for (uint256 i = 0; i < $._accountNFTDelegations[account].length; i++) {
+            bytes32 delegationID = $._accountNFTDelegations[account][i];
+            DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
+            if (delegator.owner != address(0)) {
+                uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                    delegator.weight,
+                    $._posValidatorInfo[delegator.validationID].uptimeSeconds,
+                    $._posValidatorInfo[delegator.validationID].prevEpochUptimeSeconds
+                );
+                uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[delegator.validationID].delegationFeeBips)
+                / BIPS_CONVERSION_FACTOR;
+                nftWeight += delegateEffectiveWeight - delegatorFeeWeight;
+            }   
+        }
+        return (weight, nftWeight);
     }
 
     function _calculateEffectiveWeight(
@@ -537,121 +629,24 @@ contract ERC721TokenStakingManager is
         return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
     }
 
-    function _calculateDelegatorFeeWeight(
-        bytes32 validationID,
-        uint256 delegateEffectiveWeight
-    ) internal view returns (uint256) {
-        return (delegateEffectiveWeight * _getPoSValidatorManagerStorage()._posValidatorInfo[validationID].delegationFeeBips)
-            / BIPS_CONVERSION_FACTOR;
-    }
-
     /**
-     * @dev Returns array of active delegation IDs for a validator
-     * @param validationID The validator's ID
-     * @return Array of active delegation IDs
+     * @dev Removes a delegation ID from a validator's delegation list
+     * @param account The validator's ID
+     * @param delegationID The delegation ID to remove
      */
-    function _getActiveDelegations(bytes32 validationID) internal view returns (bytes32[] memory) {
+    function _removeNFTDelegationFromAccount(address account, bytes32 delegationID) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] memory allDelegations = $._validatorDelegations[validationID];
+        bytes32[] storage delegations = $._accountNFTDelegations[account];
 
-        // First pass to count active delegations
-        uint256 activeCount = 0;
-        for (uint256 i = 0; i < allDelegations.length; i++) {
-            if ($._delegatorStakes[allDelegations[i]].status == DelegatorStatus.Active) {
-                activeCount++;
+        // Find and remove the delegation ID
+        for (uint256 i = 0; i < delegations.length; i++) {
+            if (delegations[i] == delegationID) {
+                // Move the last element to this position and pop
+                delegations[i] = delegations[delegations.length - 1];
+                delegations.pop();
+                break;
             }
         }
-        // Second pass to fill active delegations array
-        bytes32[] memory activeDelegations = new bytes32[](activeCount);
-        uint256 activeIndex = 0;
-        for (uint256 i = 0; i < allDelegations.length; i++) {
-            if ($._delegatorStakes[allDelegations[i]].status == DelegatorStatus.Active) {
-                activeDelegations[activeIndex] = allDelegations[i];
-                activeIndex++;
-            }
-        }
-        return activeDelegations;
-    }
-
-    /**
-     * @dev Returns array of active delegation IDs for a validator
-     * @param validationID The validator's ID
-     * @return Array of active delegation IDs
-     */
-    function _getActiveNFTDelegations(bytes32 validationID) internal view returns (bytes32[] memory) {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] memory allDelegations = $._validatorNFTDelegations[validationID];
-
-        // First pass to count active delegations
-        uint256 activeCount = 0;
-        for (uint256 i = 0; i < allDelegations.length; i++) {
-            if ($._delegatorNFTStakes[allDelegations[i]].status == DelegatorStatus.Active) {
-                activeCount++;
-            }
-        }
-        // Second pass to fill active delegations array
-        bytes32[] memory activeDelegations = new bytes32[](activeCount);
-        uint256 activeIndex = 0;
-        for (uint256 i = 0; i < allDelegations.length; i++) {
-            if ($._delegatorNFTStakes[allDelegations[i]].status == DelegatorStatus.Active) {
-                activeDelegations[activeIndex] = allDelegations[i];
-                activeIndex++;
-            }
-        }
-        return activeDelegations;
-    }
-
-    function _updateDelegatorBalances(bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] memory activeDelegations = _getActiveDelegations(validationID);
-        uint256 totalDelegatorFeeWeight;
-            for (uint256 i = 0; i < activeDelegations.length; i++) {
-                Delegator memory delegator = $._delegatorStakes[activeDelegations[i]];
-
-                if (delegator.owner != address(0)) {
-                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                        delegator.weight,
-                        uptime,
-                        previousEpochUptime
-                    );
-                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-                    totalDelegatorFeeWeight += delegatorFeeWeight;
-                    $._balanceTracker.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
-                }
-            }
-        return totalDelegatorFeeWeight;
-    }
-
-    function _updateDelegatorNFTBalances(bytes32 validationID, uint64 uptime, uint64 previousEpochUptime) internal returns(uint256){
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] memory activeDelegations = _getActiveNFTDelegations(validationID);
-        uint256 totalDelegatorFeeWeight;
-            for (uint256 i = 0; i < activeDelegations.length; i++) {
-                DelegatorNFT memory delegator = $._delegatorNFTStakes[activeDelegations[i]];
-                if (delegator.owner != address(0)) {
-                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                        delegator.weight,
-                        uptime,
-                        previousEpochUptime
-                    );
-                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-                    totalDelegatorFeeWeight += delegatorFeeWeight;
-                    $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
-                }
-            }
-            return totalDelegatorFeeWeight;
-    }
-
-    /**
-     * @dev Adds a delegation ID to a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to add
-     */
-    function _addNFTDelegationToValidator(bytes32 validationID, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._validatorNFTDelegations[validationID].push(delegationID);
     }
 
     /**
