@@ -440,7 +440,7 @@ contract ERC721TokenStakingManager is
 
         if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed) {
             // Check that minimum stake duration has passed.
-            if (block.timestamp < delegator.startedAt + $._minimumStakeDuration) {
+            if (validator.status != ValidatorStatus.Completed && block.timestamp < delegator.startedAt + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
             }
 
