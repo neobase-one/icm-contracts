@@ -270,7 +270,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
             DEFAULT_MINIMUM_STAKE_AMOUNT);
     }
 
-    function testRevertEndDelgationForNonActive() public {
+    function testRevertEndDelgationNFTForNonActive() public {
        bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
 
@@ -310,9 +310,42 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         );
     }
 
-    
+    function testRegisterNFTDelegationRevertWithInvalidValidation() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PoSValidatorManager.ValidatorNotPoS.selector, bytes32(uint256(123)) 
+            )
+        );
+        _registerNFTDelegation(bytes32(uint256(123)), DEFAULT_DELEGATOR_ADDRESS);
+       
+    }
 
-     function testRevertEndDelgationForNonOwner() public {
+    function testDelegationRevertAfterValidationEnded() public {
+        bytes32 validationID = _registerDefaultValidator();
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+        Validator memory validator = app.getValidator(validationID);
+        assertEq(uint8(validator.status), uint8(ValidatorStatus.Completed));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed
+            )
+        );
+        _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+
+    }
+
+    function testRevertEndDelgationNFTForNonOwner() public {
        bytes32 validationID = _registerDefaultValidator();
        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
 
