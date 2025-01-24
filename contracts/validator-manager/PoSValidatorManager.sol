@@ -28,6 +28,7 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
+
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
  *
@@ -92,6 +93,7 @@ abstract contract PoSValidatorManager is
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => bytes32[]) _validatorNFTDelegations;
     }
+    // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.PoSValidatorManager")) - 1)) & ~bytes32(uint256(0xff));
     bytes32 public constant POS_VALIDATOR_MANAGER_STORAGE_LOCATION =
@@ -157,9 +159,9 @@ abstract contract PoSValidatorManager is
             balanceTracker: settings.balanceTracker,
             balanceTrackerNFT: settings.balanceTrackerNFT,
             epochDuration: settings.epochDuration,
-            uptimeBlockchainID: settings.uptimeBlockchainID,
             minimumNFTAmount: settings.minimumNFTAmount,
-            maximumNFTAmount: settings.maximumNFTAmount
+            maximumNFTAmount: settings.maximumNFTAmount,
+            uptimeBlockchainID: settings.uptimeBlockchainID
         });
     }
 
@@ -647,6 +649,7 @@ abstract contract PoSValidatorManager is
      */
     function completeDelegatorRegistration(bytes32 delegationID, uint32 messageIndex) external {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+
         Delegator memory delegator = $._delegatorStakes[delegationID];
         bytes32 validationID = delegator.validationID;
         Validator memory validator = getValidator(validationID);
