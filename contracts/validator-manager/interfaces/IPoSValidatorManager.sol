@@ -83,6 +83,7 @@ struct PoSValidatorInfo {
     uint64 uptimeSeconds;
     uint64 currentEpoch;
     uint64 prevEpochUptimeSeconds;
+    uint64 weight;
     uint256[] tokenIDs;
     uint64 nftWeight;
 }
