@@ -236,9 +236,6 @@ contract ERC721TokenStakingManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external nonReentrant {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
-
         _initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
     }
 
@@ -331,7 +328,7 @@ contract ERC721TokenStakingManager is
      * @notice Converts a token value to a weight.
      * @param value Token value to convert.
      */
-    function valueToWeightNFT(uint256 value) public view returns (uint64) {
+    function valueToWeightNFT(uint256 value) public pure returns (uint64) {
         return uint64(value * (10**6));
     }
 

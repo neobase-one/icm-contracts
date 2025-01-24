@@ -454,7 +454,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     }
     
     
-    function testGetNFTStakingToken() public {
+    function testGetNFTStakingToken() public view {
         address token = address(app.erc721());
         assertEq(token, address(stakingToken));
     }
@@ -465,7 +465,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         uint256 validatorStake,
         uint256 delegatorStake,
         uint256 delegationFeeBips
-    ) internal returns (uint256 validatorReward, uint256 delegatorReward) {
+    ) internal pure returns (uint256 validatorReward, uint256 delegatorReward) {
         uint256 feeWeight = delegatorStake * delegationFeeBips / 10000;
         delegatorReward = (REWARD_PER_EPOCH * (delegatorStake - feeWeight)) / (delegatorStake + validatorStake);
         validatorReward = (REWARD_PER_EPOCH * (validatorStake + feeWeight)) / (delegatorStake + validatorStake);
@@ -607,7 +607,7 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         vm.expectCall(account, amount, "");
     }
 
-    function _expectNFTStakeUnlock(address account, uint256 amount) internal {
+    function _expectNFTStakeUnlock(address account, uint256 amount) internal view {
         assertEq(stakingToken.balanceOf(account), amount);
     }
 
