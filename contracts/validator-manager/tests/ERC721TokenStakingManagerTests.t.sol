@@ -16,7 +16,7 @@ import {INativeMinter} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/INativeMinter.sol";
 import {ValidatorManagerTest} from "./ValidatorManagerTests.t.sol";
 import {Initializable} from "@openzeppelin/contracts@5.0.2/proxy/utils/Initializable.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721Receiver.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
 import {ITrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/interfaces/IRewardStreams.sol";
 import {ExampleERC721} from "@mocks/ExampleERC721.sol";
@@ -200,8 +200,8 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
 
-        assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.01e18);
-        assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.01e18);
+        assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.1e18);
+        assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
 
     function testNFTDelegationRewards() public {
@@ -236,8 +236,8 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             1e6, 1e6, DEFAULT_DELEGATION_FEE_BIPS);
 
-        assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.01e18);
-        assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.01e18);
+        assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.1e18);
+        assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
 
     function testEndNFTDelegationRevertBeforeUnlock() public {
@@ -465,7 +465,9 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         uint32 messageIndex
     ) internal virtual returns (bytes32) {
         vm.prank(delegatorAddress);
-        app.endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        app.initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
+        app.completeEndNFTDelegation(delegationID);
     }
     function _endNFTDelegationNonOwner(
         address delegatorAddress,

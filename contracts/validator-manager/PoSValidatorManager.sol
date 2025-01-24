@@ -28,8 +28,6 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
-import {console} from "forge-std/console.sol";
-
 
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
@@ -571,16 +569,6 @@ abstract contract PoSValidatorManager is
     function _unlock(address to, uint256 value) internal virtual;
 
     /**
-     * @dev Adds a delegation ID to a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to add
-     */
-    function _addDelegationToValidator(bytes32 validationID, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._validatorDelegations[validationID].push(delegationID);
-    }
-
-    /**
      * @dev Removes a delegation ID from a validator's delegation list
      * @param validationID The validator's ID
      * @param delegationID The delegation ID to remove
@@ -817,12 +805,8 @@ abstract contract PoSValidatorManager is
 
         emit DelegationEnded(delegationID, delegator.validationID, 0, 0);
 
-        // initialize another delegation
-
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
-
-        // Check that the validation ID is a PoS validator
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
         }
@@ -1050,7 +1034,7 @@ abstract contract PoSValidatorManager is
                 revert InvalidNonce(nonce);
             }
         }
-        if(block.timestamp < delegator.startedAt + $._unlockDelegateDuration) {
+        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 

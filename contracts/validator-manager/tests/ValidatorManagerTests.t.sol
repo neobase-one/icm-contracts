@@ -54,6 +54,8 @@ abstract contract ValidatorManagerTest is Test {
     uint256 public constant DEFAULT_STARTING_TOTAL_WEIGHT = 1e10 + DEFAULT_WEIGHT;
     uint64 public constant DEFAULT_MINIMUM_VALIDATION_DURATION = 24 hours;
     uint64 public constant DEFAULT_COMPLETION_TIMESTAMP = 100_000;
+    uint64 public constant DEFAULT_UNLOCK_DELEGATE_DURATION = 1 days;
+
     // solhint-disable-next-line var-name-mixedcase
     PChainOwner public DEFAULT_P_CHAIN_OWNER;
 
@@ -282,6 +284,7 @@ abstract contract ValidatorManagerTest is Test {
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit ValidationPeriodEnded(validationID, ValidatorStatus.Invalidated);
 
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         validatorManager.completeEndValidation(0);
     }
 

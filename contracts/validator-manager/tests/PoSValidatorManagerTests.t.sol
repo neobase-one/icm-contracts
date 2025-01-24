@@ -29,7 +29,6 @@ import {console} from "forge-std/console.sol";
 abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
     uint64 public constant DEFAULT_DELEGATOR_WEIGHT = uint64(1e5);
-    uint64 public constant DEFAULT_UNLOCK_DELEGATE_DURATION = 21 days;
     uint64 public constant DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP =
         DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EXPIRY;
     uint64 public constant DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP =
@@ -2407,6 +2406,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
     function _completeEndValidation(bytes memory l1ValidatorRegistrationMessage) internal {
         _mockGetPChainWarpMessage(l1ValidatorRegistrationMessage, true);
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         posValidatorManager.completeEndValidation(0);
     }
 

@@ -60,6 +60,7 @@ struct Delegator {
     bytes32 validationID;
     uint64 weight;
     uint64 startedAt;
+    uint64 endedAt;
     uint64 startingNonce;
     uint64 endingNonce;
 }
@@ -70,6 +71,7 @@ struct DelegatorNFT {
     bytes32 validationID;
     uint64 weight;
     uint64 startedAt;
+    uint64 endedAt;
     uint256[] tokenIDs;
 }
 

@@ -8,7 +8,6 @@ pragma solidity 0.8.25;
 import {PoSValidatorManager} from "./PoSValidatorManager.sol";
 import {
     PoSValidatorManagerSettings
-    // PoSValidatorManagerStorage
 } from "./interfaces/IPoSValidatorManager.sol";
 import {
     PoSValidatorManager
@@ -32,10 +31,10 @@ import {
     ValidatorRegistrationInput
 } from "./interfaces/IValidatorManager.sol";
 import {IERC721TokenStakingManager} from "./interfaces/IERC721TokenStakingManager.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
+import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
 import {Address} from "@openzeppelin/contracts@5.0.2/utils/Address.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable@5.0.2/access/AccessControlUpgradeable.sol";
@@ -44,7 +43,8 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 
 import {ValidatorMessages} from "./ValidatorMessages.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721Receiver.sol";
+
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
  *
@@ -58,7 +58,6 @@ contract ERC721TokenStakingManager is
     IERC721Receiver
 {
     using Address for address payable;
-    using SafeERC20 for IERC20;
 
     // solhint-disable private-vars-leading-underscore
     /// @custom:storage-location erc7201:avalanche-icm.storage.ERC721TokenStakingManager
@@ -177,6 +176,10 @@ contract ERC721TokenStakingManager is
             return;
         }
 
+        if(block.timestamp < validator.startedAt + $._unlockDelegateDuration) {
+            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
+        }
+
         address owner = $._posValidatorInfo[validationID].owner;
         address rewardRecipient = $._rewardRecipients[validationID];
         delete $._rewardRecipients[validationID];
@@ -190,12 +193,13 @@ contract ERC721TokenStakingManager is
         if (validator.status == ValidatorStatus.Completed) {
             _withdrawValidationRewards(rewardRecipient, validationID);
         }
-        // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock(owner, weightToValue(validator.startingWeight));
-
-        _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
 
         _removeValidationFromAccount(owner, validationID);
+
+        // The stake is unlocked whether the validation period is completed or invalidated.
+        _unlock(owner, weightToValue(validator.startingWeight));
+        _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
+
     }
 
     function registerNFTDelegation(
@@ -207,7 +211,7 @@ contract ERC721TokenStakingManager is
         return _registerNFTDelegation(validationID, delegatorAddress, tokenIDs);
     }
 
-    function endNFTDelegation(
+    function initializeEndNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex
@@ -215,11 +219,27 @@ contract ERC721TokenStakingManager is
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
 
-        if(block.timestamp < delegator.startedAt + $._unlockDelegateDuration) {
+        _initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+    }
+
+    function completeEndNFTDelegation(
+        bytes32 delegationID
+    ) external nonReentrant {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
+
+        // Ensure the delegator is pending removed. Since anybody can call this function once
+        // end delegation has been initialized, we need to make sure that this function is only
+        // callable after that has been done.
+        if (delegator.status != DelegatorStatus.PendingRemoved) {
+            revert InvalidDelegatorStatus(delegator.status);
+        } 
+
+        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 
-        uint256[] memory tokenIDs = _endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        uint256[] memory tokenIDs = _completeEndNFTDelegation(delegationID);
         _unlockNFTs(delegator.owner, tokenIDs);
     }
 
@@ -232,7 +252,8 @@ contract ERC721TokenStakingManager is
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
 
-        uint256[] memory tokenIDs = _endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        _initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        uint256[] memory tokenIDs = _completeEndNFTDelegation(delegationID);
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
 
@@ -287,7 +308,6 @@ contract ERC721TokenStakingManager is
         return uint64(value * (10**6));
     }
 
-
     /**
      * @notice See {PoSValidatorManager-_reward}
      * @dev Distributes ERC20 rewards to stakers
@@ -323,24 +343,19 @@ contract ERC721TokenStakingManager is
             revert InvalidNFTAmount(tokenIDs.length);
         }
         // Lock the stake in the contract.
-        uint256 lockedValue = _lock(stakeAmount);
-        // Lock NFTs in the contract
+        
+        uint64 weight = valueToWeight(_lock(stakeAmount));
         uint64 nftWeight = valueToWeightNFT(_lockNFTs(tokenIDs));
 
-
-        uint64 weight = valueToWeight(lockedValue);
         bytes32 validationID = _initializeValidatorRegistration(registrationInput, weight);
 
         address owner = _msgSender();
-
         $._posValidatorInfo[validationID].owner = owner;
         $._posValidatorInfo[validationID].delegationFeeBips = delegationFeeBips;
         $._posValidatorInfo[validationID].minStakeDuration = minStakeDuration;
-        $._posValidatorInfo[validationID].uptimeSeconds = 0;
+        $._posValidatorInfo[validationID].weight = weight;
         $._posValidatorInfo[validationID].tokenIDs = tokenIDs;
         $._posValidatorInfo[validationID].nftWeight = nftWeight;
-        $._posValidatorInfo[validationID].weight = weight;
-        $._rewardRecipients[validationID] = owner;
 
         $._accountValidations[owner].push(validationID);
 
@@ -357,7 +372,6 @@ contract ERC721TokenStakingManager is
 
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
-        // Check that the validation ID is a PoS validator
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
         }
@@ -393,11 +407,11 @@ contract ERC721TokenStakingManager is
    /**
      * @notice See {IPoSValidatorManager-completeEndDelegation}.
      */
-    function _endNFTDelegation(
+    function _initializeEndNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex
-    ) internal returns (uint256[] memory tokenIDs) {
+    ) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
@@ -424,24 +438,40 @@ contract ERC721TokenStakingManager is
             }
         }
 
+        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed) {
+            // Check that minimum stake duration has passed.
+            if (block.timestamp < delegator.startedAt + $._minimumStakeDuration) {
+                revert MinStakeDurationNotPassed(uint64(block.timestamp));
+            }
 
-        if (validator.status == ValidatorStatus.Active && 
-            block.timestamp < delegator.startedAt + $._minimumStakeDuration) {
-            revert MinStakeDurationNotPassed(uint64(block.timestamp));
-        }
+            if (includeUptimeProof) {
+                _updateUptime(validationID, messageIndex);
+            }
 
-        if (includeUptimeProof) {
-            _updateUptime(validationID, messageIndex);
+            $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
+        } else {
+            revert InvalidValidatorStatus(validator.status);
         }
+    }
+
+    function _completeEndNFTDelegation(
+        bytes32 delegationID
+    ) internal returns (uint256[] memory tokenIDs) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+
+        Delegator memory delegator = $._delegatorStakes[delegationID];
+        bytes32 validationID = delegator.validationID;
+
+        _removeDelegationFromValidator(validationID, delegationID);
+        _removeDelegationFromAccount(delegator.owner, delegationID);
 
         tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
-        
-        _removeNFTDelegationFromValidator(validationID, delegationID);
-        _removeNFTDelegationFromAccount(delegator.owner, delegationID);
-        
-        delete $._delegatorNFTStakes[delegationID];
-        
+
+        // Once this function completes, the delegation is completed so we can clear it from state now.
+        delete $._delegatorStakes[delegationID];
         emit DelegationEnded(delegationID, validationID, 0, 0);
+
+        return tokenIDs;
     }
 
     /**
@@ -466,9 +496,6 @@ contract ERC721TokenStakingManager is
         if (warpMessage.originSenderAddress != address(0)) {
             revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
         }
-        if (warpMessage.originSenderAddress != address(0)) {
-            revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
-        }
 
         (bytes32 uptimeValidationID, uint64 uptime) =
             ValidatorMessages.unpackValidationUptimeMessage(warpMessage.payload);
@@ -486,7 +513,7 @@ contract ERC721TokenStakingManager is
                 validatorInfo.prevEpochUptimeSeconds = validatorInfo.uptimeSeconds;
             }
             validatorInfo.uptimeSeconds = uptime;
-            emit UptimeUpdated(validationID, uptime, 0);
+            emit UptimeUpdated(validationID, uptime, currentEpoch);
 
             if (validatorInfo.owner != address(0)) {
                 (uint256 valWeight, uint256 valNftWeight) = _calculateAccountWeight(validatorInfo.owner);
