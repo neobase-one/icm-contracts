@@ -37,7 +37,6 @@ import {Address} from "@openzeppelin/contracts@5.0.2/utils/Address.sol";
 import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable@5.0.2/access/AccessControlUpgradeable.sol";
 
 import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
@@ -52,7 +51,6 @@ import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC72
  */
 contract ERC721TokenStakingManager is
     Initializable,
-    AccessControlUpgradeable,
     PoSValidatorManager,
     IERC721TokenStakingManager,
     IERC721Receiver
@@ -89,7 +87,6 @@ contract ERC721TokenStakingManager is
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
-            _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         }
     }
 
