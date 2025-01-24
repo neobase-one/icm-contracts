@@ -9,7 +9,7 @@ import {Test} from "@forge-std/Test.sol";
 import {PoSValidatorManagerTest} from "./PoSValidatorManagerTests.t.sol";
 import {ERC721TokenStakingManager} from "../ERC721TokenStakingManager.sol";
 import {PoSValidatorManager, PoSValidatorManagerSettings} from "../PoSValidatorManager.sol";
-import {ValidatorRegistrationInput, IValidatorManager} from "../interfaces/IValidatorManager.sol";
+import {ValidatorRegistrationInput, IValidatorManager, ValidatorStatus, Validator} from "../interfaces/IValidatorManager.sol";
 import {ExampleRewardCalculator} from "../ExampleRewardCalculator.sol";
 import {ICMInitializable} from "../../utilities/ICMInitializable.sol";
 import {INativeMinter} from
@@ -26,7 +26,7 @@ import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
 import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
 import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
 import {ValidatorMessages} from "../ValidatorMessages.sol";
-
+import {ValidatorManager} from "../ValidatorManager.sol";
 
 contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiver {
     using SafeERC20 for IERC20;
@@ -207,8 +207,6 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     function testNFTDelegationRewards() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
-        
-        address rewardRecipient = address(42);
 
         _endValidationWithChecks({
             validationID: validationID,
@@ -242,6 +240,133 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
 
+    function testEndNFTDelegationRevertBeforeUnlock() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+       
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PoSValidatorManager.UnlockDelegateDurationNotPassed.selector, block.timestamp
+            )
+        );
+        _endNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+    }
+
+    function testValidationRegistrationWithInvalidNFTAmount() public {
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                ERC721TokenStakingManager.InvalidNFTAmount.selector, 0
+            )
+        );
+        _initializeValidatorRegistrationWithoutNFT( 
+            defaultRegistrationInput,
+            DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
+            DEFAULT_MINIMUM_STAKE_DURATION,
+            DEFAULT_MINIMUM_STAKE_AMOUNT);
+    }
+
+    function testRevertEndDelgationNFTForNonActive() public {
+       bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        _endNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                PoSValidatorManager.InvalidDelegatorStatus.selector, 0
+            )
+        );
+
+        _endNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+    }
+
+   
+
+
+    function testRevertEndDelgationNFTForNonOwner() public {
+       bytes32 validationID = _registerDefaultValidator();
+       bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                PoSValidatorManager.UnauthorizedOwner.selector, address(app)
+            )
+        );
+        _endNFTDelegationNonOwner(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+        
+    }
+
+    function testRevertEndDelegationNFTForInvalidWarpSourceChainID() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
+        
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ValidatorManager.InvalidWarpSourceChainID.selector, address(0)
+            )
+        );
+        _endNFTDelegation(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+    }
+    
+    
+    function testGetNFTStakingToken() public {
+        address token = address(app.erc721());
+        assertEq(token, address(stakingToken));
+    }
+
+
     // Helpers
     function _calculateExpectedRewards(
         uint256 validatorStake,
@@ -261,6 +386,18 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
     ) internal virtual override returns (bytes32) {
         uint256[] memory tokens = new uint256[](1);
         tokens[0] = ++testTokenID;
+        return app.initializeValidatorRegistration{value: stakeAmount}(
+            registrationInput, delegationFeeBips, minStakeDuration, tokens
+        );
+    }
+
+    function _initializeValidatorRegistrationWithoutNFT(
+        ValidatorRegistrationInput memory registrationInput,
+        uint16 delegationFeeBips,
+        uint64 minStakeDuration,
+        uint256 stakeAmount
+    ) internal returns (bytes32) {
+        uint256[] memory tokens = new uint256[](0);
         return app.initializeValidatorRegistration{value: stakeAmount}(
             registrationInput, delegationFeeBips, minStakeDuration, tokens
         );
@@ -331,6 +468,15 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         app.initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
         vm.warp(block.timestamp + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
         app.completeEndNFTDelegation(delegationID);
+    }
+    function _endNFTDelegationNonOwner(
+        address delegatorAddress,
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) internal virtual returns (bytes32) {
+        vm.prank(address(app));
+        app.endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
     }
 
     // solhint-disable no-empty-blocks

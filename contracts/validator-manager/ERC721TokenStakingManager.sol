@@ -85,12 +85,6 @@ contract ERC721TokenStakingManager is
         }
     }
 
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
-
-    modifier onlyOperator() {
-        require(hasRole(OPERATOR_ROLE, msg.sender), "ERC721TokenStakingManager: caller is not an operator");
-        _;
-    }
 
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
@@ -349,6 +343,7 @@ contract ERC721TokenStakingManager is
             revert InvalidNFTAmount(tokenIDs.length);
         }
         // Lock the stake in the contract.
+        
         uint64 weight = valueToWeight(_lock(stakeAmount));
         uint64 nftWeight = valueToWeightNFT(_lockNFTs(tokenIDs));
 

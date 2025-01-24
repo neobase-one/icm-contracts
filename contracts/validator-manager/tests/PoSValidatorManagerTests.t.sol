@@ -2283,6 +2283,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         }
     }
 
+
     function _initializeRedelegation(
         bytes32 validationID,
         bytes32 delegationID,
