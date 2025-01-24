@@ -569,16 +569,6 @@ abstract contract PoSValidatorManager is
     function _unlock(address to, uint256 value) internal virtual;
 
     /**
-     * @dev Adds a delegation ID to a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to add
-     */
-    function _addDelegationToValidator(bytes32 validationID, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        $._validatorDelegations[validationID].push(delegationID);
-    }
-
-    /**
      * @dev Removes a delegation ID from a validator's delegation list
      * @param validationID The validator's ID
      * @param delegationID The delegation ID to remove
@@ -815,12 +805,8 @@ abstract contract PoSValidatorManager is
 
         emit DelegationEnded(delegationID, delegator.validationID, 0, 0);
 
-        // initialize another delegation
-
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
-
-        // Check that the validation ID is a PoS validator
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
         }
