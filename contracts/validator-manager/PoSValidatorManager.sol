@@ -28,8 +28,6 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
-import {console} from "forge-std/console.sol";
-
 
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
