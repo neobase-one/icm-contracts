@@ -228,7 +228,7 @@ contract ERC721TokenStakingManager is
         _unlockNFTs(delegator.owner, tokenIDs);
     }
 
-    function redelegateNFT(
+    function registerNFTRedelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex,

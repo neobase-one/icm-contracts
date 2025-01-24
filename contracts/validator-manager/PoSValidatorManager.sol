@@ -28,6 +28,8 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
+import {console} from "forge-std/console.sol";
+
 
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
@@ -785,7 +787,7 @@ abstract contract PoSValidatorManager is
             WarpMessage memory warpMessage = _getPChainWarpMessage(messageIndex);
             (bytes32 unpackedValidationID, uint64 unPackednonce,) =
                 ValidatorMessages.unpackL1ValidatorWeightMessage(warpMessage.payload);
-
+            
             if (delegator.validationID != unpackedValidationID) {
                 revert InvalidValidationID(unpackedValidationID);
             }
@@ -807,22 +809,13 @@ abstract contract PoSValidatorManager is
 
         delete $._delegatorStakes[delegationID];
 
-        address rewardRecipient = $._delegatorRewardRecipients[delegationID];
-        delete $._delegatorRewardRecipients[delegationID];
-
-        if (rewardRecipient == address(0)) {
-            rewardRecipient = delegator.owner;
-        }
-
-        (uint256 delegationRewards, uint256 validatorFees) =
-            _withdrawDelegationRewards(rewardRecipient, delegationID, validationID);
-
-        emit DelegationEnded(delegationID, delegator.validationID, delegationRewards, validatorFees);
+        emit DelegationEnded(delegationID, delegator.validationID, 0, 0);
 
         // initialize another delegation
 
         // Ensure the validation period is active
         Validator memory validator = getValidator(validationID);
+
         // Check that the validation ID is a PoS validator
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
