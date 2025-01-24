@@ -239,6 +239,10 @@ contract ERC721TokenStakingManager is
         return _registerNFTDelegation(validationID, delegatorAddress, tokenIDs);
     }
 
+    /**
+    * @notice See {IERC721TokenStakingManager-initializeEndNFTDelegation}.
+    *
+    */
     function initializeEndNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
@@ -250,6 +254,10 @@ contract ERC721TokenStakingManager is
         _initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
     }
 
+    /**
+    * @notice See {IERC721TokenStakingManager-completeEndNFTDelegation}.
+    *
+    */
     function completeEndNFTDelegation(
         bytes32 delegationID
     ) external nonReentrant {
@@ -470,8 +478,20 @@ contract ERC721TokenStakingManager is
     }
 
    /**
-     * @notice See {IPoSValidatorManager-completeEndDelegation}.
-     */
+    * @notice Initiates the process of ending an NFT delegation for a given delegation ID.
+    * @dev This function ensures that the delegation is active and validates that the caller is authorized to end it.
+    *      If the validator status is valid, the delegation status is updated to `PendingRemoved`.
+    *      Optionally, an uptime proof can be included during the process.
+    * @param delegationID The unique identifier of the NFT delegation to be ended.
+    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the delegation termination process.
+    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
+    *
+    * Reverts if:
+    * - The delegation is not active (`InvalidDelegatorStatus`).
+    * - The caller is not authorized to end the delegation (`UnauthorizedOwner`).
+    * - The minimum stake duration has not passed for the validator or the delegator (`MinStakeDurationNotPassed`).
+    * - The validator is not in a valid state to end the delegation (`InvalidValidatorStatus`).
+    */
     function _initializeEndNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
@@ -519,6 +539,16 @@ contract ERC721TokenStakingManager is
         }
     }
 
+    /**
+    * @notice Completes the process of ending an NFT delegation and returns the associated token IDs.
+    * @dev This function removes the delegation from the validator and account, retrieves the associated NFTs,
+    *      and clears the delegation data from storage. It emits a `DelegationEnded` event upon completion.
+    * @param delegationID The unique identifier of the NFT delegation to be completed.
+    * @return tokenIDs An array of token IDs associated with the completed delegation.
+    *
+    * Emits:
+    * - `DelegationEnded` when the delegation is successfully completed and removed from storage.
+    */
     function _completeEndNFTDelegation(
         bytes32 delegationID
     ) internal returns (uint256[] memory tokenIDs) {
