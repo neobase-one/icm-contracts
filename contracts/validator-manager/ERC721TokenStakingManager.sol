@@ -44,7 +44,6 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 
 import {ValidatorMessages} from "./ValidatorMessages.sol";
-import {console2} from "forge-std/console2.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 /**
@@ -377,6 +376,7 @@ contract ERC721TokenStakingManager is
         $._delegatorNFTStakes[delegationID].weight = weight;
         $._delegatorNFTStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorNFTStakes[delegationID].startedAt = uint64(block.timestamp);
+        $._delegatorNFTStakes[delegationID].tokenIDs = tokenIDs;
 
         _addNFTDelegationToValidator(validationID, delegationID);
 
@@ -499,8 +499,8 @@ contract ERC721TokenStakingManager is
             Validator memory validator = getValidator(validationID);
 
             // Update balance trackers for all active delegators
-            uint256 totalDelegatorFeeWeight = _updateDelegatorBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
             if (validatorInfo.owner != address(0)) {
+                uint256 totalDelegatorFeeWeight = _updateDelegatorBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
                 uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
                     validator.startingWeight, 
                     uptime,
@@ -510,18 +510,14 @@ contract ERC721TokenStakingManager is
             }
 
             // Update NFT balance trackers for all active delegators
-            uint256 totalNFTDelegatorFeeWeight = _updateDelegatorNFTBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
             if (validatorInfo.owner != address(0)) {
+                uint256 totalDelegatorFeeWeight = _updateDelegatorNFTBalances(validationID, uptime, validatorInfo.prevEpochUptimeSeconds);
                 uint256 validatorEffectiveWeight = _calculateEffectiveWeight(
                     validatorInfo.nftWeight, 
                     uptime,
                     validatorInfo.prevEpochUptimeSeconds
                 ); 
-                console2.log("totalNFTDelegatorFeeWeight");
-                console2.log(totalNFTDelegatorFeeWeight);
-                console2.log("validatorEffectiveWeight");
-                console2.log(validatorEffectiveWeight);
-                $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, validatorEffectiveWeight + totalNFTDelegatorFeeWeight, false);
+                $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, validatorEffectiveWeight + totalDelegatorFeeWeight, false);
             }
         } else {
             uptime = $._posValidatorInfo[validationID].uptimeSeconds;
@@ -642,10 +638,6 @@ contract ERC721TokenStakingManager is
                     );
                     uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
                 / BIPS_CONVERSION_FACTOR;
-                    console2.log("delegateEffectiveWeight");
-                    console2.log(delegateEffectiveWeight);
-                    console2.log("delegatorFeeWeight");
-                    console2.log(delegatorFeeWeight);
                     totalDelegatorFeeWeight += delegatorFeeWeight;
                     $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, delegateEffectiveWeight - delegatorFeeWeight, false);
                 }

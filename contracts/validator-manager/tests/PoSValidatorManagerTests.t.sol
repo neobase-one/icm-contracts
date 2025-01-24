@@ -47,7 +47,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
     uint8 public constant DEFAULT_MAXIMUM_STAKE_MULTIPLIER = 4;
     uint256 public constant DEFAULT_WEIGHT_TO_VALUE_FACTOR = 1e12;
     uint256 public constant SECONDS_IN_YEAR = 31536000;
-    uint48 public constant DEFAULT_EPOCH_DURATION = 604800;
+    uint48 public constant DEFAULT_EPOCH_DURATION = 30 days;
     uint256 public constant DEFAULT_MINIMUM_NFT_AMOUNT = 1;
     uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 10;
 
@@ -612,7 +612,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         posValidatorManager.claimDelegationFees(validationID);
     }
 
-    function testClaimDelegationFees() public {
+    function testClaimDelegationFees() public virtual {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
         address rewardRecipient = address(42);

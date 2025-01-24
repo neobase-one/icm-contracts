@@ -519,6 +519,7 @@ abstract contract PoSValidatorManager is
         $._posValidatorInfo[validationID].owner = owner;
         $._posValidatorInfo[validationID].delegationFeeBips = delegationFeeBips;
         $._posValidatorInfo[validationID].minStakeDuration = minStakeDuration;
+        $._posValidatorInfo[validationID].uptimeSeconds = 0;
         $._rewardRecipients[validationID] = owner;
 
         return validationID;
@@ -681,6 +682,8 @@ abstract contract PoSValidatorManager is
         // Update the delegation status
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startedAt = uint64(block.timestamp);
+
+        _addDelegationToValidator(validationID, delegationID);
 
         emit DelegatorRegistered({
             delegationID: delegationID,
@@ -1065,6 +1068,7 @@ abstract contract PoSValidatorManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
+        _removeDelegationFromValidator(validationID, delegationID);
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
 
