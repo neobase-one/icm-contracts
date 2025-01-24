@@ -93,6 +93,12 @@ abstract contract PoSValidatorManager is
         mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => bytes32[]) _validatorNFTDelegations;
+        /// @notice Maps account to array of validationIDs
+        mapping(address => bytes32[]) _accountValidations;
+        /// @notice Maps account to array of delegationIDs
+        mapping(address => bytes32[]) _accountDelegations;
+        /// @notice Maps account to array of delegationIDs
+        mapping(address => bytes32[]) _accountNFTDelegations;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -688,7 +694,8 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startedAt = uint64(block.timestamp);
 
-        _addDelegationToValidator(validationID, delegationID);
+        $._accountDelegations[delegator.owner].push(delegationID);
+        $._validatorDelegations[validationID].push(delegationID);
 
         emit DelegatorRegistered({
             delegationID: delegationID,
@@ -1063,6 +1070,8 @@ abstract contract PoSValidatorManager is
         }
 
         _removeDelegationFromValidator(validationID, delegationID);
+        _removeDelegationFromAccount(delegator.owner, delegationID);
+
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
 
@@ -1131,5 +1140,45 @@ abstract contract PoSValidatorManager is
         }
 
         return (delegationRewards, validatorFees);
+    }
+
+    /**
+     * @dev Removes a delegation ID from a validator's delegation list
+     * @param validationID The validator's ID
+     * @param account The delegation ID to remove
+     */
+    function _removeValidationFromAccount(address account, bytes32 validationID) internal {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        bytes32[] storage validations = $._accountValidations[account];
+
+        // Find and remove the delegation ID
+        for (uint256 i = 0; i < validations.length; i++) {
+            if (validations[i] == validationID) {
+                // Move the last element to this position and pop
+                validations[i] = validations[validations.length - 1];
+                validations.pop();
+                break;
+            }
+        }
+    }
+
+    /**
+     * @dev Removes a delegation ID from a validator's delegation list
+     * @param account The validator's ID
+     * @param delegationID The delegation ID to remove
+     */
+    function _removeDelegationFromAccount(address account, bytes32 delegationID) internal {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        bytes32[] storage delegations = $._accountDelegations[account];
+
+        // Find and remove the delegation ID
+        for (uint256 i = 0; i < delegations.length; i++) {
+            if (delegations[i] == delegationID) {
+                // Move the last element to this position and pop
+                delegations[i] = delegations[delegations.length - 1];
+                delegations.pop();
+                break;
+            }
+        }
     }
 }
