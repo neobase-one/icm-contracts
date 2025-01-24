@@ -1034,7 +1034,7 @@ abstract contract PoSValidatorManager is
                 revert InvalidNonce(nonce);
             }
         }
-        if(block.timestamp < delegator.startedAt + $._unlockDelegateDuration) {
+        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 

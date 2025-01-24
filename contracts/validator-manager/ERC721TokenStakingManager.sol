@@ -217,7 +217,7 @@ contract ERC721TokenStakingManager is
         return _registerNFTDelegation(validationID, delegatorAddress, tokenIDs);
     }
 
-    function endNFTDelegation(
+    function initializeEndNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex
@@ -225,11 +225,27 @@ contract ERC721TokenStakingManager is
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
 
-        if(block.timestamp < delegator.startedAt + $._unlockDelegateDuration) {
+        _initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+    }
+
+    function completeEndNFTDelegation(
+        bytes32 delegationID
+    ) external nonReentrant {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
+
+        // Ensure the delegator is pending removed. Since anybody can call this function once
+        // end delegation has been initialized, we need to make sure that this function is only
+        // callable after that has been done.
+        if (delegator.status != DelegatorStatus.PendingRemoved) {
+            revert InvalidDelegatorStatus(delegator.status);
+        } 
+
+        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
             revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
         }
 
-        uint256[] memory tokenIDs = _endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        uint256[] memory tokenIDs = _completeEndNFTDelegation(delegationID);
         _unlockNFTs(delegator.owner, tokenIDs);
     }
 
@@ -242,7 +258,8 @@ contract ERC721TokenStakingManager is
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
 
-        uint256[] memory tokenIDs = _endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        _initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        uint256[] memory tokenIDs = _completeEndNFTDelegation(delegationID);
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
 
@@ -395,11 +412,11 @@ contract ERC721TokenStakingManager is
    /**
      * @notice See {IPoSValidatorManager-completeEndDelegation}.
      */
-    function _endNFTDelegation(
+    function _initializeEndNFTDelegation(
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex
-    ) internal returns (uint256[] memory tokenIDs) {
+    ) internal {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
         DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
@@ -436,18 +453,30 @@ contract ERC721TokenStakingManager is
                 _updateUptime(validationID, messageIndex);
             }
 
-            tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
-
-            _removeNFTDelegationFromValidator(validationID, delegationID);
-            _removeDelegationFromAccount(delegator.owner, delegationID);
-
-            // Once this function completes, the delegation is completed so we can clear it from state now.
-            delete $._delegatorNFTStakes[delegationID];
-
-            emit DelegationEnded(delegationID, validationID, 0, 0); 
+            $._delegatorNFTStakes[delegationID].status = DelegatorStatus.PendingRemoved;
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
+    }
+
+    function _completeEndNFTDelegation(
+        bytes32 delegationID
+    ) internal returns (uint256[] memory tokenIDs) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+
+        Delegator memory delegator = $._delegatorStakes[delegationID];
+        bytes32 validationID = delegator.validationID;
+
+        _removeDelegationFromValidator(validationID, delegationID);
+        _removeDelegationFromAccount(delegator.owner, delegationID);
+
+        tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
+
+        // Once this function completes, the delegation is completed so we can clear it from state now.
+        delete $._delegatorStakes[delegationID];
+        emit DelegationEnded(delegationID, validationID, 0, 0);
+
+        return tokenIDs;
     }
 
     /**

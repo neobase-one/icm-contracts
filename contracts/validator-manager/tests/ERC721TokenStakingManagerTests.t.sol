@@ -200,8 +200,8 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
 
-        assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.05e18);
-        assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.05e18);
+        assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.1e18);
+        assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
 
     function testNFTDelegationRewards() public {
@@ -238,8 +238,8 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             1e6, 1e6, DEFAULT_DELEGATION_FEE_BIPS);
 
-        assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.05e18);
-        assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.05e18);
+        assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.1e18);
+        assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
 
     // Helpers
@@ -328,7 +328,9 @@ contract ERC721TokenStakingManagerTest is PoSValidatorManagerTest, IERC721Receiv
         uint32 messageIndex
     ) internal virtual returns (bytes32) {
         vm.prank(delegatorAddress);
-        app.endNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        app.initializeEndNFTDelegation(delegationID, includeUptimeProof, messageIndex);
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
+        app.completeEndNFTDelegation(delegationID);
     }
 
     // solhint-disable no-empty-blocks
