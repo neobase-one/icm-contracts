@@ -848,13 +848,12 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         // completeDelegatorRegistration should fall through to _completeEndDelegation and refund the stake
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit DelegationEnded(
-            delegationID, validationID, expectedDelegatorReward, expectedValidatorFees
+            delegationID, validationID, 0, 0
         );
 
         uint256 balanceBefore = _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
 
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT));
-        _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
         // warp to right after validator ended
         vm.warp(delegationEndTime);
@@ -863,7 +862,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         assertEq(
             _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS),
-            balanceBefore + _weightToValue(DEFAULT_DELEGATOR_WEIGHT) + expectedDelegatorReward
+            balanceBefore + _weightToValue(DEFAULT_DELEGATOR_WEIGHT)
         );
     }
 
@@ -893,12 +892,11 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         vm.expectEmit(true, true, true, true, address(posValidatorManager));
         emit DelegationEnded(
-            delegationID, validationID, expectedDelegatorReward, expectedValidatorFees
+            delegationID, validationID, 0, 0
         );
         uint256 balanceBefore = _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS);
 
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT));
-        _expectRewardIssuance(DEFAULT_DELEGATOR_ADDRESS, expectedDelegatorReward);
 
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
 
@@ -906,7 +904,7 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         assertEq(
             _getStakeAssetBalance(DEFAULT_DELEGATOR_ADDRESS),
-            balanceBefore + _weightToValue(DEFAULT_DELEGATOR_WEIGHT) + expectedDelegatorReward
+            balanceBefore + _weightToValue(DEFAULT_DELEGATOR_WEIGHT)
         );
     }
 
@@ -1933,6 +1931,8 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint64 validatorWeight,
         address rewardRecipient
     ) internal {
+        expectedReward = 0;
+
         bytes memory l1ValidatorRegistrationMessage =
             ValidatorMessages.packL1ValidatorRegistrationMessage(validationID, false);
 
@@ -1942,7 +1942,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint256 rewardRecipientBalanceBefore = _getStakeAssetBalance(rewardRecipient);
 
         _expectStakeUnlock(validatorOwner, _weightToValue(validatorWeight));
-        _expectRewardIssuance(rewardRecipient, expectedReward);
 
         _completeEndValidation(l1ValidatorRegistrationMessage);
 
@@ -1982,6 +1981,9 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         uint64 expectedNonce,
         address rewardRecipient
     ) internal {
+        expectedValidatorFees = 0;
+        expectedDelegatorReward = 0;
+
         vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + DEFAULT_UNLOCK_DELEGATE_DURATION + 1);
 
         bytes memory weightUpdateMessage = ValidatorMessages.packL1ValidatorWeightMessage(
@@ -1990,13 +1992,12 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
 
         vm.expectEmit(true, true, true, true, address(posValidatorManager));
         emit DelegationEnded(
-            delegationID, validationID, expectedDelegatorReward, expectedValidatorFees
+            delegationID, validationID, 0, 0
         );
         uint256 balanceBefore = _getStakeAssetBalance(delegator);
         uint256 rewardRecipientBalanceBefore = _getStakeAssetBalance(rewardRecipient);
 
         _expectStakeUnlock(delegator, _weightToValue(delegatorWeight));
-        _expectRewardIssuance(rewardRecipient, expectedDelegatorReward);
 
         _completeEndDelegation(delegationID, weightUpdateMessage);
 

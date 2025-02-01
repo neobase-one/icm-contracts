@@ -184,18 +184,6 @@ contract ERC721TokenStakingManager is
 
        
         address owner = $._posValidatorInfo[validationID].owner;
-        address rewardRecipient = $._rewardRecipients[validationID];
-        delete $._rewardRecipients[validationID];
-
-        // the reward-recipient should always be set, but just in case it isn't, we won't burn the reward
-        if (rewardRecipient == address(0)) {
-            rewardRecipient = owner;
-        }
-
-        // The validator can either be Completed or Invalidated here. We only grant rewards for Completed.
-        if (validator.status == ValidatorStatus.Completed) {
-            _withdrawValidationRewards(rewardRecipient, validationID);
-        }
 
         _removeValidationFromAccount(owner, validationID);
 
