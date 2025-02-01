@@ -253,40 +253,6 @@ abstract contract PoSValidatorManager is
         _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex, address(0));
     }
 
-    function changeValidatorRewardRecipient(
-        bytes32 validationID,
-        address rewardRecipient
-    ) external {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
-        if (rewardRecipient == address(0)) {
-            revert InvalidRewardRecipient(rewardRecipient);
-        }
-
-        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
-
-        $._rewardRecipients[validationID] = rewardRecipient;
-    }
-
-    function changeDelegatorRewardRecipient(
-        bytes32 delegationID,
-        address rewardRecipient
-    ) external {
-        if (rewardRecipient == address(0)) {
-            revert InvalidRewardRecipient(rewardRecipient);
-        }
-
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
-        if ($._delegatorStakes[delegationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
-
-        $._delegatorRewardRecipients[delegationID] = rewardRecipient;
-    }
-
     /**
      * @dev Helper function that initializes the end of a PoS validation period.
      * Returns false if it is possible for the validator to claim rewards, but it is not eligible.
