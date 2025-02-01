@@ -628,66 +628,6 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         _completeDefaultDelegator(validationID, delegationID);
     }
 
-    function testClaimDelegationFeesInvalidValidatorStatus() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerDefaultDelegator(validationID);
-
-        _completeDefaultDelegator(validationID, delegationID);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.Active
-            )
-        );
-
-        posValidatorManager.claimDelegationFees(validationID);
-    }
-
-    function testClaimDelegationFeesInvalidSender() public {
-        bytes32 validationID = _registerDefaultValidator();
-        _registerDefaultDelegator(validationID);
-
-        _endDefaultValidatorWithChecks(validationID, 2);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(PoSValidatorManager.UnauthorizedOwner.selector, address(123))
-        );
-
-        vm.prank(address(123));
-        posValidatorManager.claimDelegationFees(validationID);
-    }
-
-    function testClaimDelegationFees() public virtual {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerDefaultDelegator(validationID);
-        address rewardRecipient = address(42);
-
-        _endDefaultValidatorWithChecks(validationID, 2);
-
-        // Validator is Completed, so this will also complete the delegation.
-        _initializeEndDelegation({
-            sender: DEFAULT_DELEGATOR_ADDRESS,
-            delegationID: delegationID,
-            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            includeUptime: true,
-            force: false,
-            rewardRecipient: rewardRecipient
-        });
-
-        uint256 expectedTotalReward = rewardCalculator.calculateReward({
-            stakeAmount: _weightToValue(DEFAULT_DELEGATOR_WEIGHT),
-            validatorStartTime: DEFAULT_REGISTRATION_TIMESTAMP,
-            stakingStartTime: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
-            stakingEndTime: DEFAULT_COMPLETION_TIMESTAMP,
-            uptimeSeconds: DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        });
-
-        _expectRewardIssuance(
-            address(this), expectedTotalReward * DEFAULT_DELEGATION_FEE_BIPS / 10000
-        );
-        posValidatorManager.claimDelegationFees(validationID);
-    }
-
     function testCompleteEndDelegationWithNonDelegatorRewardRecipient() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
