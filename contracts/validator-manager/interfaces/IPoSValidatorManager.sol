@@ -194,45 +194,6 @@ interface IPoSValidatorManager is IValidatorManager {
     ) external;
 
     /**
-     * @notice See {IPoSValidatorManager-initializeEndValidation} for details of the first three parameters
-     * @param recipientAddress The address to receive the rewards. If the 0-address is provided, the rewards will be sent to the validator.
-     */
-    function initializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
-    ) external;
-
-    /**
-     * @notice Begins the process of ending an active validation period, but does not revert if the latest known uptime
-     * is not sufficient to collect uptime-based rewards. This function is used to exit the validator set when rewards are
-     * not expected.
-     * The validation period must have been previously started by a successful call to {completeValidatorRegistration} with the given validationID.
-     * Any rewards for this validation period will stop accruing when this function is called.
-     * @param validationID The ID of the validation period being ended.
-     * @param includeUptimeProof Whether or not an uptime proof is provided for the validation period. If no uptime proof is provided,
-     * the latest known uptime will be used.
-     * @param messageIndex The index of the ICM message to be received providing the uptime proof.
-     */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external;
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndValidation} for details of the first three parameters
-     * @param recipientAddress Address to receive the rewards.
-     */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
-    ) external;
-
-    /**
      * @notice Completes the delegator registration process by submitting an acknowledgement of the registration of a
      * validationID from the P-Chain. After this function is called, the validator's weight is updated in the contract state.
      * Any P-Chain acknowledgement with a nonce greater than or equal to the nonce used to initialize registration of the
@@ -264,48 +225,6 @@ interface IPoSValidatorManager is IValidatorManager {
         bytes32 delegationID,
         bool includeUptimeProof,
         uint32 messageIndex
-    ) external;
-
-    /**
-     * @notice See {IPoSValidatorManager-initializeEndDelegation} for details of the first three parameters
-     * @param recipientAddress The address to receive the rewards. If the 0-address is provided, the rewards will be sent to the delegator.
-     */
-    function initializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
-    ) external;
-
-    /**
-     * @notice Begins the process of removing a delegator from a validation period, but does not revert if the delegation is not eligible for rewards.
-     * The delegator must have been previously registered with the given validationID. For the purposes of computing delegation rewards,
-     * the delegation period is considered ended when this function is called. Uses the supplied uptime proof to calculate rewards.
-     * If none is provided in the call, the latest known uptime will be used. Reverts if the uptime is not eligible for rewards.
-     * Note: This function can only be called by the address that registered the delegation.
-     * @param delegationID The ID of the delegation being removed.
-     * @param includeUptimeProof Whether or not an uptime proof is provided for the validation period.
-     * If the validator has completed its validation period, it has already provided an uptime proof, so {includeUptimeProof}
-     * will be ignored and can be set to false. If the validator has not completed its validation period and no uptime proof
-     * is provided, the latest known uptime will be used.
-     * @param messageIndex If {includeUptimeProof} is true, the index of the ICM message to be received providing the
-     * uptime proof.
-     */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external;
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndDelegation} for details of the first three parameters
-     * @param recipientAddress The address to receive the rewards.
-     */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
     ) external;
 
     /**

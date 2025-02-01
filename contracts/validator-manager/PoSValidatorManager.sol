@@ -250,63 +250,7 @@ abstract contract PoSValidatorManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initializeEndValidationWithCheck(
-            validationID, includeUptimeProof, messageIndex, address(0)
-        );
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-initializeEndValidation}.
-     */
-    function initializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        _initializeEndValidationWithCheck(
-            validationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
-    }
-
-    function _initializeEndValidationWithCheck(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal {
-        if (
-            !_initializeEndPoSValidation(
-                validationID, includeUptimeProof, messageIndex, rewardRecipient
-            )
-        ) {
-            revert ValidatorIneligibleForRewards(validationID);
-        }
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndValidation}.
-     */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external {
-        // Ignore the return value here to force end validation, regardless of possible missed rewards
         _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex, address(0));
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndValidation}.
-     */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        // Ignore the return value here to force end validation, regardless of possible missed rewards
-        _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex, rewardRecipient);
     }
 
     function changeValidatorRewardRecipient(
@@ -682,63 +626,7 @@ abstract contract PoSValidatorManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initializeEndDelegationWithCheck(
-            delegationID, includeUptimeProof, messageIndex, address(0)
-        );
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-initializeEndDelegation}.
-     */
-    function initializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        _initializeEndDelegationWithCheck(
-            delegationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
-    }
-
-    function _initializeEndDelegationWithCheck(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal {
-        if (
-            !_initializeEndDelegation(
-                delegationID, includeUptimeProof, messageIndex, rewardRecipient
-            )
-        ) {
-            revert DelegatorIneligibleForRewards(delegationID);
-        }
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndDelegation}.
-     */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external {
-        // Ignore the return value here to force end delegation, regardless of possible missed rewards
         _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, address(0));
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndDelegation}.
-     */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        // Ignore the return value here to force end delegation, regardless of possible missed rewards
-        _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
     }
 
     function initializeRedelegation(
