@@ -5,10 +5,6 @@
 
 pragma solidity 0.8.25;
 
-import {PoSValidatorManager} from "./PoSValidatorManager.sol";
-import {
-    PoSValidatorManagerSettings
-} from "./interfaces/IPoSValidatorManager.sol";
 import {
     PoSValidatorManager
 } from "./PoSValidatorManager.sol";
@@ -27,14 +23,9 @@ import {
     PoSValidatorInfo,
     PoSValidatorManagerSettings
 } from "./interfaces/IPoSValidatorManager.sol";
-import {
-    ValidatorRegistrationInput
-} from "./interfaces/IValidatorManager.sol";
 import {IERC721TokenStakingManager} from "./interfaces/IERC721TokenStakingManager.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
-import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
 import {Address} from "@openzeppelin/contracts@5.0.2/utils/Address.sol";
-import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
 
