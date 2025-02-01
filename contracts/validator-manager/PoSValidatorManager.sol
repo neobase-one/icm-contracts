@@ -28,6 +28,7 @@ import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
+import {PoSUtils } from "./PoSUtils.sol";
 
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
@@ -415,26 +416,6 @@ abstract contract PoSValidatorManager is
      */
     function _unlock(address to, uint256 value) internal virtual;
 
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    function _removeDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
-         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-         bytes32[] storage delegations = $._validatorDelegations[validationID];
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i] == delegationID) {
-                // Move the last element to this position and pop
-                delegations[i] = delegations[delegations.length - 1];
-                delegations.pop();
-                break;
-            }
-        }
-    }
-
     function _initializeDelegatorRegistration(
         bytes32 validationID,
         address delegatorAddress,
@@ -791,8 +772,8 @@ abstract contract PoSValidatorManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
-        _removeDelegationFromValidator(validationID, delegationID);
-        _removeDelegationFromAccount(delegator.owner, delegationID);
+        PoSUtils.removeFromBytes32Array($._validatorDelegations[validationID], delegationID);
+        PoSUtils.removeFromBytes32Array($._accountDelegations[delegator.owner], delegationID);
 
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
@@ -815,45 +796,5 @@ abstract contract PoSValidatorManager is
     function _isPoSValidator(bytes32 validationID) internal view returns (bool) {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
         return $._posValidatorInfo[validationID].owner != address(0);
-    }
-
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param validationID The validator's ID
-     * @param account The delegation ID to remove
-     */
-    function _removeValidationFromAccount(address account, bytes32 validationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] storage validations = $._accountValidations[account];
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < validations.length; i++) {
-            if (validations[i] == validationID) {
-                // Move the last element to this position and pop
-                validations[i] = validations[validations.length - 1];
-                validations.pop();
-                break;
-            }
-        }
-    }
-
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param account The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    function _removeDelegationFromAccount(address account, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] storage delegations = $._accountDelegations[account];
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i] == delegationID) {
-                // Move the last element to this position and pop
-                delegations[i] = delegations[delegations.length - 1];
-                delegations.pop();
-                break;
-            }
-        }
     }
 }

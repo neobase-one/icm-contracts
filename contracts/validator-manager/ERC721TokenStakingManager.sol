@@ -35,6 +35,8 @@ import {WarpMessage} from
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721Receiver.sol";
 
+import {PoSUtils } from "./PoSUtils.sol";
+
 /**
  * @dev Implementation of the {IERC721TokenStakingManager} interface.
  *
@@ -185,7 +187,7 @@ contract ERC721TokenStakingManager is
        
         address owner = $._posValidatorInfo[validationID].owner;
 
-        _removeValidationFromAccount(owner, validationID);
+        PoSUtils.removeFromBytes32Array($._accountValidations[owner], validationID);
 
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock(owner, weightToValue(validator.startingWeight));
@@ -524,8 +526,8 @@ contract ERC721TokenStakingManager is
         Delegator memory delegator = $._delegatorStakes[delegationID];
         bytes32 validationID = delegator.validationID;
 
-        _removeNFTDelegationFromValidator(validationID, delegationID);
-        _removeNFTDelegationFromAccount(delegator.owner, delegationID);
+        PoSUtils.removeFromBytes32Array($._accountNFTDelegations[delegator.owner], delegationID);
+        PoSUtils.removeFromBytes32Array($._validatorNFTDelegations[validationID], delegationID);
 
         tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
 
@@ -736,45 +738,5 @@ contract ERC721TokenStakingManager is
         }
         // Calculate effective weight based on both weight and time period
         return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
-    }
-
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param account The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    function _removeNFTDelegationFromAccount(address account, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] storage delegations = $._accountNFTDelegations[account];
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i] == delegationID) {
-                // Move the last element to this position and pop
-                delegations[i] = delegations[delegations.length - 1];
-                delegations.pop();
-                break;
-            }
-        }
-    }
-
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    function _removeNFTDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-        bytes32[] storage delegations = $._validatorNFTDelegations[validationID];
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i] == delegationID) {
-                // Move the last element to this position and pop
-                delegations[i] = delegations[delegations.length - 1];
-                delegations.pop();
-                break;
-            }
-        }
     }
 }
