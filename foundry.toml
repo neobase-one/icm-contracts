@@ -6,6 +6,10 @@ solc_version = '0.8.25'
 evm_version = 'shanghai'
 test = 'tests'
 bytecode_hash = "none"
+ffi = true
+ast = true
+build_info = true
+extra_output = ["storageLayout"]
 
 [fmt]
 line_length = 100

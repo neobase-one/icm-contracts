@@ -10,9 +10,6 @@ import {
     PoSValidatorManagerSettings
 } from "./interfaces/IPoSValidatorManager.sol";
 import {
-    PoSValidatorManager
-} from "./PoSValidatorManager.sol";
-import {
     Validator,
     ValidatorRegistrationInput,
     ValidatorStatus,

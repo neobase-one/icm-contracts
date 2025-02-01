@@ -197,12 +197,12 @@ interface IPoSValidatorManager is IValidatorManager {
      * @notice See {IPoSValidatorManager-initializeEndValidation} for details of the first three parameters
      * @param recipientAddress The address to receive the rewards. If the 0-address is provided, the rewards will be sent to the validator.
      */
-    function initializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
-    ) external;
+    // function initializeEndValidation(
+    //     bytes32 validationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address recipientAddress
+    // ) external;
 
     /**
      * @notice Begins the process of ending an active validation period, but does not revert if the latest known uptime
@@ -215,22 +215,22 @@ interface IPoSValidatorManager is IValidatorManager {
      * the latest known uptime will be used.
      * @param messageIndex The index of the ICM message to be received providing the uptime proof.
      */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external;
+    // function forceInitializeEndValidation(
+    //     bytes32 validationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex
+    // ) external;
 
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndValidation} for details of the first three parameters
-     * @param recipientAddress Address to receive the rewards.
-     */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
-    ) external;
+    // /**
+    //  * @notice See {IPoSValidatorManager-forceInitializeEndValidation} for details of the first three parameters
+    //  * @param recipientAddress Address to receive the rewards.
+    //  */
+    // function forceInitializeEndValidation(
+    //     bytes32 validationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address recipientAddress
+    // ) external;
 
     /**
      * @notice Completes the delegator registration process by submitting an acknowledgement of the registration of a
@@ -270,12 +270,12 @@ interface IPoSValidatorManager is IValidatorManager {
      * @notice See {IPoSValidatorManager-initializeEndDelegation} for details of the first three parameters
      * @param recipientAddress The address to receive the rewards. If the 0-address is provided, the rewards will be sent to the delegator.
      */
-    function initializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
-    ) external;
+    // function initializeEndDelegation(
+    //     bytes32 delegationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address recipientAddress
+    // ) external;
 
     /**
      * @notice Begins the process of removing a delegator from a validation period, but does not revert if the delegation is not eligible for rewards.
@@ -291,22 +291,22 @@ interface IPoSValidatorManager is IValidatorManager {
      * @param messageIndex If {includeUptimeProof} is true, the index of the ICM message to be received providing the
      * uptime proof.
      */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external;
+    // function forceInitializeEndDelegation(
+    //     bytes32 delegationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex
+    // ) external;
 
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndDelegation} for details of the first three parameters
-     * @param recipientAddress The address to receive the rewards.
-     */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address recipientAddress
-    ) external;
+    // /**
+    //  * @notice See {IPoSValidatorManager-forceInitializeEndDelegation} for details of the first three parameters
+    //  * @param recipientAddress The address to receive the rewards.
+    //  */
+    // function forceInitializeEndDelegation(
+    //     bytes32 delegationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address recipientAddress
+    // ) external;
 
     /**
      * @notice Resubmits a delegator registration or delegator end message to be sent to the P-Chain.
@@ -332,19 +332,19 @@ interface IPoSValidatorManager is IValidatorManager {
      * @notice Withdraws the delegation fees from completed delegations to the owner of the validator.
      * @param validationID The ID of the validation period being ended.
      */
-    function claimDelegationFees(bytes32 validationID) external;
+    // function claimDelegationFees(bytes32 validationID) external;
 
     /**
      * @notice Changes the address of the recipient of the validator's rewards for a validation period. This method can be called any time before {completeEndValidation}.
      * @param validationID The ID of the validation period being ended.
      * @param recipient The address to receive the rewards.
      */
-    function changeValidatorRewardRecipient(bytes32 validationID, address recipient) external;
+    // function changeValidatorRewardRecipient(bytes32 validationID, address recipient) external;
 
     /**
      * @notice Changes the address of the recipient of the delegator's rewards for a delegation period. This method can be called any time before {completeEndDelegation}.
      * @param delegationID The ID of the validation period being ended.
      * @param recipient The address to receive the rewards.
      */
-    function changeDelegatorRewardRecipient(bytes32 delegationID, address recipient) external;
+    // function changeDelegatorRewardRecipient(bytes32 delegationID, address recipient) external;
 }

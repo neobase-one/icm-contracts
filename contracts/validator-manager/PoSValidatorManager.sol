@@ -245,20 +245,20 @@ abstract contract PoSValidatorManager is
     /**
      * @notice See {IPoSValidatorManager-claimDelegationFees}.
      */
-    function claimDelegationFees(bytes32 validationID) external {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+    // function claimDelegationFees(bytes32 validationID) external {
+    //     PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
-        ValidatorStatus status = getValidator(validationID).status;
-        if (status != ValidatorStatus.Completed) {
-            revert InvalidValidatorStatus(status);
-        }
+    //     ValidatorStatus status = getValidator(validationID).status;
+    //     if (status != ValidatorStatus.Completed) {
+    //         revert InvalidValidatorStatus(status);
+    //     }
 
-        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
+    //     if ($._posValidatorInfo[validationID].owner != _msgSender()) {
+    //         revert UnauthorizedOwner(_msgSender());
+    //     }
 
-        _withdrawValidationRewards($._posValidatorInfo[validationID].owner, validationID);
-    }
+    //     _withdrawValidationRewards($._posValidatorInfo[validationID].owner, validationID);
+    // }
 
     /**
      * @notice See {IPoSValidatorManager-initializeEndValidation}.
@@ -268,98 +268,99 @@ abstract contract PoSValidatorManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initializeEndValidationWithCheck(
-            validationID, includeUptimeProof, messageIndex, address(0)
-        );
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-initializeEndValidation}.
-     */
-    function initializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        _initializeEndValidationWithCheck(
-            validationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
-    }
-
-    function _initializeEndValidationWithCheck(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal {
-        if (
-            !_initializeEndPoSValidation(
-                validationID, includeUptimeProof, messageIndex, rewardRecipient
-            )
-        ) {
-            revert ValidatorIneligibleForRewards(validationID);
-        }
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndValidation}.
-     */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external {
-        // Ignore the return value here to force end validation, regardless of possible missed rewards
+        // _initializeEndValidationWithCheck(
+            // validationID, includeUptimeProof, messageIndex, address(0)
+        // );
         _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex, address(0));
     }
 
     /**
+     * @notice See {IPoSValidatorManager-initializeEndValidation}.
+     */
+    // function initializeEndValidation(
+    //     bytes32 validationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address rewardRecipient
+    // ) external {
+    //     _initializeEndValidationWithCheck(
+    //         validationID, includeUptimeProof, messageIndex, rewardRecipient
+    //     );
+    // }
+
+    // function _initializeEndValidationWithCheck(
+    //     bytes32 validationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address rewardRecipient
+    // ) internal {
+    //     if (
+    //         !_initializeEndPoSValidation(
+    //             validationID, includeUptimeProof, messageIndex, rewardRecipient
+    //         )
+    //     ) {
+    //         revert ValidatorIneligibleForRewards(validationID);
+    //     }
+    // }
+
+    /**
      * @notice See {IPoSValidatorManager-forceInitializeEndValidation}.
      */
-    function forceInitializeEndValidation(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
+    // function forceInitializeEndValidation(
+        // bytes32 validationID,
+        // bool includeUptimeProof,
+        // uint32 messageIndex
+    // ) external {
         // Ignore the return value here to force end validation, regardless of possible missed rewards
-        _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex, rewardRecipient);
-    }
+        // _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex, address(0));
+    // }
 
-    function changeValidatorRewardRecipient(
-        bytes32 validationID,
-        address rewardRecipient
-    ) external {
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+    /**
+     * @notice See {IPoSValidatorManager-forceInitializeEndValidation}.
+     */
+    // function forceInitializeEndValidation(
+        // bytes32 validationID,
+        // bool includeUptimeProof,
+        // uint32 messageIndex,
+        // address rewardRecipient
+    // ) external {
+        // Ignore the return value here to force end validation, regardless of possible missed rewards
+        // _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex, rewardRecipient);
+    // }
 
-        if (rewardRecipient == address(0)) {
-            revert InvalidRewardRecipient(rewardRecipient);
-        }
+    // function changeValidatorRewardRecipient(
+    //     bytes32 validationID,
+    //     address rewardRecipient
+    // ) external {
+    //     PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
-        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
+    //     if (rewardRecipient == address(0)) {
+    //         revert InvalidRewardRecipient(rewardRecipient);
+    //     }
 
-        $._rewardRecipients[validationID] = rewardRecipient;
-    }
+    //     if ($._posValidatorInfo[validationID].owner != _msgSender()) {
+    //         revert UnauthorizedOwner(_msgSender());
+    //     }
 
-    function changeDelegatorRewardRecipient(
-        bytes32 delegationID,
-        address rewardRecipient
-    ) external {
-        if (rewardRecipient == address(0)) {
-            revert InvalidRewardRecipient(rewardRecipient);
-        }
+    //     $._rewardRecipients[validationID] = rewardRecipient;
+    // }
 
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+    // function changeDelegatorRewardRecipient(
+    //     bytes32 delegationID,
+    //     address rewardRecipient
+    // ) external {
+    //     if (rewardRecipient == address(0)) {
+    //         revert InvalidRewardRecipient(rewardRecipient);
+    //     }
 
-        if ($._delegatorStakes[delegationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
+    //     PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
 
-        $._delegatorRewardRecipients[delegationID] = rewardRecipient;
-    }
+    //     if ($._delegatorStakes[delegationID].owner != _msgSender()) {
+    //         revert UnauthorizedOwner(_msgSender());
+    //     }
+
+    //     $._delegatorRewardRecipients[delegationID] = rewardRecipient;
+    // }
 
     /**
      * @dev Helper function that initializes the end of a PoS validation period.
@@ -700,64 +701,65 @@ abstract contract PoSValidatorManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initializeEndDelegationWithCheck(
-            delegationID, includeUptimeProof, messageIndex, address(0)
-        );
+        _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, address(0));
+        // _initializeEndDelegationWithCheck(
+            // delegationID, includeUptimeProof, messageIndex, address(0)
+        // );
     }
 
     /**
      * @notice See {IPoSValidatorManager-initializeEndDelegation}.
      */
-    function initializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        _initializeEndDelegationWithCheck(
-            delegationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
-    }
+    // function initializeEndDelegation(
+    //     bytes32 delegationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address rewardRecipient
+    // ) external {
+    //     _initializeEndDelegationWithCheck(
+    //         delegationID, includeUptimeProof, messageIndex, rewardRecipient
+    //     );
+    // }
 
-    function _initializeEndDelegationWithCheck(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal {
-        if (
-            !_initializeEndDelegation(
-                delegationID, includeUptimeProof, messageIndex, rewardRecipient
-            )
-        ) {
-            revert DelegatorIneligibleForRewards(delegationID);
-        }
-    }
-
-    /**
-     * @notice See {IPoSValidatorManager-forceInitializeEndDelegation}.
-     */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external {
-        // Ignore the return value here to force end delegation, regardless of possible missed rewards
-        _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, address(0));
-    }
+    // function _initializeEndDelegationWithCheck(
+    //     bytes32 delegationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address rewardRecipient
+    // ) internal {
+    //     if (
+    //         !_initializeEndDelegation(
+    //             delegationID, includeUptimeProof, messageIndex, rewardRecipient
+    //         )
+    //     ) {
+    //         revert DelegatorIneligibleForRewards(delegationID);
+    //     }
+    // }
 
     /**
      * @notice See {IPoSValidatorManager-forceInitializeEndDelegation}.
      */
-    function forceInitializeEndDelegation(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        // Ignore the return value here to force end delegation, regardless of possible missed rewards
-        _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
-    }
+    // function forceInitializeEndDelegation(
+    //     bytes32 delegationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex
+    // ) external {
+    //     // Ignore the return value here to force end delegation, regardless of possible missed rewards
+    //     _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, address(0));
+    // }
+
+    // /**
+    //  * @notice See {IPoSValidatorManager-forceInitializeEndDelegation}.
+    //  */
+    // function forceInitializeEndDelegation(
+    //     bytes32 delegationID,
+    //     bool includeUptimeProof,
+    //     uint32 messageIndex,
+    //     address rewardRecipient
+    // ) external {
+    //     // Ignore the return value here to force end delegation, regardless of possible missed rewards
+    //     _initializeEndDelegation(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
+    // }
 
     function initializeRedelegation(
         bytes32 delegationID,
