@@ -101,8 +101,6 @@ abstract contract PoSValidatorManager is
 
     uint16 public constant MAXIMUM_DELEGATION_FEE_BIPS = 10000;
 
-    uint16 public constant BIPS_CONVERSION_FACTOR = 10000;
-
     error InvalidDelegationFee(uint16 delegationFeeBips);
     error InvalidDelegationID(bytes32 delegationID);
     error InvalidDelegatorStatus(DelegatorStatus status);

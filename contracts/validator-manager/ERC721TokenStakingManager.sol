@@ -594,7 +594,7 @@ contract ERC721TokenStakingManager is
             emit UptimeUpdated(validationID, uptime, currentEpoch);
 
             if (validatorInfo.owner != address(0)) {
-                (uint256 valWeight, uint256 valNftWeight) = _calculateAccountWeight(validatorInfo.owner);
+                (uint256 valWeight, uint256 valNftWeight) = PoSUtils.calculateAccountWeight(validatorInfo.owner, $);
                 $._balanceTracker.balanceTrackerHook(validatorInfo.owner, valWeight, false);
                 $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, valNftWeight, false);
 
@@ -602,7 +602,7 @@ contract ERC721TokenStakingManager is
                 for (uint256 j = 0; j < delegations.length; j++) {
                     Delegator memory delegator = $._delegatorStakes[delegations[j]];
                     if (delegator.owner != address(0)) {
-                        (uint256 weight, uint256 nftWeight) = _calculateAccountWeight(delegator.owner);
+                        (uint256 weight, uint256 nftWeight) = PoSUtils.calculateAccountWeight(delegator.owner, $);
                         $._balanceTracker.balanceTrackerHook(delegator.owner, weight, false);
                     }
                 }
@@ -611,7 +611,7 @@ contract ERC721TokenStakingManager is
                 for (uint256 j = 0; j < nftDelegations.length; j++) {
                     DelegatorNFT memory delegator = $._delegatorNFTStakes[nftDelegations[j]];
                     if (delegator.owner != address(0)) {
-                        (uint256 weight, uint256 nftWeight) = _calculateAccountWeight(delegator.owner);
+                        (uint256 weight, uint256 nftWeight) = PoSUtils.calculateAccountWeight(delegator.owner, $);
                         $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, nftWeight, false);
                     }
                 }
@@ -620,123 +620,5 @@ contract ERC721TokenStakingManager is
             uptime = $._posValidatorInfo[validationID].uptimeSeconds;
         }
         return uptime;
-    }
-
-    /**
-    * @notice Calculates the total weight and NFT weight for a given account based on its roles as a validator, delegator, and NFT delegator.
-    * @dev This function aggregates the weight and NFT weight of an account by summing:
-    *      - The account's weight as a validator.
-    *      - Delegation fee weights from delegators for the account's validations.
-    *      - The account's weight as a delegator and NFT delegator for other validators.
-    * @param account The address of the account for which the weights are being calculated.
-    * @return weight The total weight of the account, including its validator and delegator weights.
-    * @return nftWeight The total NFT weight of the account, including its NFT validator and NFT delegator weights.
-    */
-    function _calculateAccountWeight(
-        address account
-    ) internal view returns (uint256, uint256) {
-        uint256 weight;
-        uint256 nftWeight;
-        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-
-        // sum weights as validator
-        for (uint256 i = 0; i < $._accountValidations[account].length; i++) {
-            bytes32 validationID = $._accountValidations[account][i];
-            weight += _calculateEffectiveWeight(
-                $._posValidatorInfo[validationID].weight,
-                $._posValidatorInfo[validationID].uptimeSeconds,
-                $._posValidatorInfo[validationID].prevEpochUptimeSeconds
-            );
-            nftWeight += _calculateEffectiveWeight(
-                $._posValidatorInfo[validationID].nftWeight,
-                $._posValidatorInfo[validationID].uptimeSeconds,
-                $._posValidatorInfo[validationID].prevEpochUptimeSeconds
-            );
-            // add the weight of all active delegation fees
-            bytes32[] memory delegations = $._validatorDelegations[validationID];
-            for (uint256 j = 0; j < delegations.length; j++) {
-                Delegator memory delegator = $._delegatorStakes[delegations[j]];
-                if (delegator.status == DelegatorStatus.Active) {
-                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                        delegator.weight,
-                        $._posValidatorInfo[validationID].uptimeSeconds,
-                        $._posValidatorInfo[validationID].prevEpochUptimeSeconds
-                    );
-                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-                    weight += delegatorFeeWeight;
-                }
-            }
-            // add the weight of all active NFT delegation fees
-            bytes32[] memory nftDelegations = $._validatorNFTDelegations[validationID];
-            for (uint256 j = 0; j < nftDelegations.length; j++) {
-                DelegatorNFT memory delegator = $._delegatorNFTStakes[nftDelegations[j]];
-                if (delegator.status == DelegatorStatus.Active) {
-                    uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                        delegator.weight,
-                        $._posValidatorInfo[validationID].uptimeSeconds,
-                        $._posValidatorInfo[validationID].prevEpochUptimeSeconds
-                    );
-                    uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-                    nftWeight += delegatorFeeWeight;
-                }
-            }
-        }
-
-        // sum weights as delegator
-        for (uint256 i = 0; i < $._accountDelegations[account].length; i++) {
-            bytes32 delegationID = $._accountDelegations[account][i];
-            Delegator memory delegator = $._delegatorStakes[delegationID];
-            if (delegator.owner != address(0)) {
-                uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                    delegator.weight,
-                    $._posValidatorInfo[delegator.validationID].uptimeSeconds,
-                    $._posValidatorInfo[delegator.validationID].prevEpochUptimeSeconds
-                );
-                uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[delegator.validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-                weight += delegateEffectiveWeight - delegatorFeeWeight;
-            }   
-        }
-
-        // sum weights as NFT delegator
-        for (uint256 i = 0; i < $._accountNFTDelegations[account].length; i++) {
-            bytes32 delegationID = $._accountNFTDelegations[account][i];
-            DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
-            if (delegator.owner != address(0)) {
-                uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                    delegator.weight,
-                    $._posValidatorInfo[delegator.validationID].uptimeSeconds,
-                    $._posValidatorInfo[delegator.validationID].prevEpochUptimeSeconds
-                );
-                uint256 delegatorFeeWeight = (delegateEffectiveWeight * $._posValidatorInfo[delegator.validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-                nftWeight += delegateEffectiveWeight - delegatorFeeWeight;
-            }   
-        }
-        return (weight, nftWeight);
-    }
-
-    /**
-    * @notice Calculates the effective weight of a delegator's stake based on the change in uptime over an epoch.
-    * @dev This function computes the effective weight by considering the delegator's stake (`weight`) and the
-    *      difference between the current uptime and the previous epoch's uptime, normalized by the epoch duration.
-    *      If the current uptime is zero or less than the previous uptime, the effective weight is zero.
-    * @param weight The original weight of the delegator's stake.
-    * @param currentUptime The validator's current uptime for the epoch.
-    * @param previousUptime The validator's uptime for the previous epoch.
-    * @return effectiveWeight The effective weight of the delegator's stake based on uptime and epoch duration.
-    */
-    function _calculateEffectiveWeight(
-         uint256 weight,
-         uint64 currentUptime,
-         uint64 previousUptime
-    ) internal view returns (uint256) {
-        if(previousUptime > currentUptime || currentUptime == 0) {
-            return 0;
-        }
-        // Calculate effective weight based on both weight and time period
-        return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
     }
 }
