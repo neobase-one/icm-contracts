@@ -75,30 +75,30 @@ contract NativeTokenStakingManagerTest is PoSValidatorManagerTest {
         app.initialize(defaultPoSSettings);
     }
 
-    function testZeroMaxStakeMultiplier() public {
-        app = new NativeTokenStakingManager(ICMInitializable.Allowed);
-        vm.expectRevert(
-            abi.encodeWithSelector(PoSValidatorManager.InvalidStakeMultiplier.selector, 0)
-        );
+    // function testZeroMaxStakeMultiplier() public {
+    //     app = new NativeTokenStakingManager(ICMInitializable.Allowed);
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(PoSValidatorManager.InvalidStakeMultiplier.selector, 0)
+    //     );
 
-        PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.maximumStakeMultiplier = 0;
-        app.initialize(defaultPoSSettings);
-    }
+    //     PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+    //     defaultPoSSettings.maximumStakeMultiplier = 0;
+    //     app.initialize(defaultPoSSettings);
+    // }
 
-    function testMaxStakeMultiplierOverLimit() public {
-        app = new NativeTokenStakingManager(ICMInitializable.Allowed);
-        uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PoSValidatorManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
-            )
-        );
+    // function testMaxStakeMultiplierOverLimit() public {
+    //     app = new NativeTokenStakingManager(ICMInitializable.Allowed);
+    //     uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(
+    //             PoSValidatorManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
+    //         )
+    //     );
 
-        PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
-        app.initialize(defaultPoSSettings);
-    }
+    //     PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+    //     defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
+    //     app.initialize(defaultPoSSettings);
+    // }
 
     function testZeroWeightToValueFactor() public {
         app = new NativeTokenStakingManager(ICMInitializable.Allowed);

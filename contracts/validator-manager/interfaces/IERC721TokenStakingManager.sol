@@ -28,4 +28,10 @@ interface IERC721TokenStakingManager is IPoSValidatorManager {
         uint64 minStakeDuration,
         uint256[] memory tokenIds
     ) external payable returns (bytes32 validationID);
+
+    function calculateEffectiveWeight(
+         uint64 weight,
+         uint64 currentUptime,
+         uint64 previousUptime
+    ) external view returns (uint256);
 }

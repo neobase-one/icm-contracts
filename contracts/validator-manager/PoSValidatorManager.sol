@@ -20,8 +20,6 @@ import {
     ValidatorStatus
 } from "./interfaces/IValidatorManager.sol";
 import {IRewardCalculator} from "./interfaces/IRewardCalculator.sol";
-import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
@@ -51,13 +49,6 @@ abstract contract PoSValidatorManager is
         uint16 _minimumDelegationFeeBips;
         /// @notice The duration in seconds after a delegator's delegation is ended before the delegator's stake is unlocked.
         uint64 _unlockDuration;
-        /**
-         * @notice A multiplier applied to validator's initial stake amount to determine
-         * the maximum amount of stake a validator can have with delegations.
-         * Note: Setting this value to 1 would disable delegations to validators, since
-         * the maximum stake would be equal to the initial stake.
-         */
-        uint64 _maximumStakeMultiplier;
         /// @notice The factor used to convert between weight and value.
         uint256 _weightToValueFactor;
         /// @notice The reward stream balance tracker for this validator manager.
@@ -93,10 +84,9 @@ abstract contract PoSValidatorManager is
     error InvalidNonce(uint64 nonce);
     error InvalidStakeAmount(uint256 stakeAmount);
     error InvalidMinStakeDuration(uint64 minStakeDuration);
-    error InvalidStakeMultiplier(uint8 maximumStakeMultiplier);
     error MaxWeightExceeded(uint64 newValidatorWeight);
     error MinStakeDurationNotPassed(uint64 endTime);
-    error unlockDurationNotPassed(uint64 endTime);
+    error UnlockDurationNotPassed(uint64 endTime);
     error UnauthorizedOwner(address sender);
     error ValidatorNotPoS(bytes32 validationID);
     error ZeroWeightToValueFactor();
@@ -132,7 +122,6 @@ abstract contract PoSValidatorManager is
             minimumStakeDuration: settings.minimumStakeDuration,
             unlockDuration: settings.unlockDuration,
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
-            maximumStakeMultiplier: settings.maximumStakeMultiplier,
             weightToValueFactor: settings.weightToValueFactor,
             balanceTracker: settings.balanceTracker,
             epochDuration: settings.epochDuration,
@@ -147,7 +136,6 @@ abstract contract PoSValidatorManager is
         uint64 minimumStakeDuration,
         uint64 unlockDuration,
         uint16 minimumDelegationFeeBips,
-        uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
         IBalanceTracker balanceTracker,
         uint64 epochDuration,
@@ -160,10 +148,6 @@ abstract contract PoSValidatorManager is
         }
         if (minimumStakeAmount > maximumStakeAmount) {
             revert InvalidStakeAmount(minimumStakeAmount);
-        }
-        if (maximumStakeMultiplier == 0 || maximumStakeMultiplier > MAXIMUM_STAKE_MULTIPLIER_LIMIT)
-        {
-            revert InvalidStakeMultiplier(maximumStakeMultiplier);
         }
         // Minimum stake duration should be at least one churn period in order to prevent churn tracker abuse.
         if (minimumStakeDuration < _getChurnPeriodSeconds()) {
@@ -180,7 +164,6 @@ abstract contract PoSValidatorManager is
         $._maximumStakeAmount = maximumStakeAmount;
         $._minimumStakeDuration = minimumStakeDuration;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
-        $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
         $._balanceTracker = balanceTracker;
         $._epochDuration = epochDuration;
@@ -438,7 +421,7 @@ abstract contract PoSValidatorManager is
 
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + weight;
-        if (newValidatorWeight > validator.startingWeight * $._maximumStakeMultiplier) {
+        if (newValidatorWeight > $._maximumStakeAmount) {
             revert MaxWeightExceeded(newValidatorWeight);
         }
 
@@ -589,7 +572,7 @@ abstract contract PoSValidatorManager is
 
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + delegator.weight;
-        if (newValidatorWeight > validator.startingWeight * $._maximumStakeMultiplier) {
+        if (newValidatorWeight > $._maximumStakeAmount) {
             revert MaxWeightExceeded(newValidatorWeight);
         }
 
@@ -644,17 +627,7 @@ abstract contract PoSValidatorManager is
 
         // Only the delegation owner or parent validator can end the delegation.
         if (delegator.owner != _msgSender()) {
-            // Validators can only remove delegations after the minimum stake duration has passed.
-            if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-                revert UnauthorizedOwner(_msgSender());
-            }
-
-            if (
-                block.timestamp
-                    < validator.startedAt + $._posValidatorInfo[validationID].minStakeDuration
-            ) {
-                revert MinStakeDurationNotPassed(uint64(block.timestamp));
-            }
+            revert UnauthorizedOwner(_msgSender());
         }
 
         if (validator.status == ValidatorStatus.Active) {
@@ -755,7 +728,7 @@ abstract contract PoSValidatorManager is
             }
         }
         if(block.timestamp < delegator.endedAt + $._unlockDuration) {
-            revert unlockDurationNotPassed(uint64(block.timestamp));
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
         _completeEndDelegation(delegationID);

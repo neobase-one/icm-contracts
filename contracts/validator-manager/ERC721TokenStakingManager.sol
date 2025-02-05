@@ -145,6 +145,14 @@ contract ERC721TokenStakingManager is
         _unlock(owner, weightToValue(validator.startingWeight));
     }
 
+    function calculateEffectiveWeight(
+      uint64 weight,
+      uint64 currentUptime,
+      uint64 previousUptime
+    ) external view returns (uint256) {
+        _calculateEffectiveWeight(weight, currentUptime, previousUptime);
+    }
+
     /**
      * @notice See {PoSValidatorManager-_lock}
      */
@@ -320,6 +328,7 @@ contract ERC721TokenStakingManager is
             emit UptimeUpdated(validationID, uptime, currentEpoch);
 
             _updateBalanceTracker(validationID);
+            _getERC721StakingManagerStorage()._erc721Manager.updateBalanceTracker(validationID);
         } else {
             uptime = $._posValidatorInfo[validationID].uptimeSeconds;
         }
@@ -335,9 +344,21 @@ contract ERC721TokenStakingManager is
     * @param currentUptime The validator's current uptime for the epoch.
     * @param previousUptime The validator's uptime for the previous epoch.
     * @return effectiveWeight The effective weight of the delegator's stake based on uptime and epoch duration.
-    */
-    function _calculateEffectiveWeight(
-         uint256 weight,
+    // */
+    // function calculateEffectiveWeight(
+    //      uint64 weight,
+    //      uint64 currentUptime,
+    //      uint64 previousUptime
+    // ) external view returns (uint256) {
+    //     if(previousUptime > currentUptime || currentUptime == 0) {
+    //         return 0;
+    //     }
+    //     // Calculate effective weight based on both weight and time period
+    //     return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
+    // }
+
+     function _calculateEffectiveWeight(
+         uint64 weight,
          uint64 currentUptime,
          uint64 previousUptime
     ) internal view returns (uint256) {
@@ -347,4 +368,6 @@ contract ERC721TokenStakingManager is
         // Calculate effective weight based on both weight and time period
         return (weight * (currentUptime - previousUptime)) / _getPoSValidatorManagerStorage()._epochDuration;
     }
+
+ 
 }

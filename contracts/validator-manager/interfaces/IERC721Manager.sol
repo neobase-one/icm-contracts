@@ -41,6 +41,7 @@ struct DelegatorNFT {
     uint64 startedAt;
     uint64 endedAt;
     uint256[] tokenIDs;
+    uint256 rewardBalance;
 }
 
 /**
@@ -75,4 +76,6 @@ interface IERC721Manager {
         bytes32 validationID,
         address validator
     ) external returns (bytes32);
+
+    function updateBalanceTracker(bytes32 validationID) external returns (int256);
 }

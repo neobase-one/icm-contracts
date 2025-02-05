@@ -253,51 +253,51 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
         });
     }
 
-    function testRedelegation() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerDefaultDelegator(validationID);
+    // function testRedelegation() public {
+    //     bytes32 validationID = _registerDefaultValidator();
+    //     bytes32 delegationID = _registerDefaultDelegator(validationID);
 
-        bytes32 validationID2 = _registerValidator({
-            nodeID: _newNodeID(),
-            l1ID: DEFAULT_L1_ID,
-            weight: DEFAULT_WEIGHT,
-            registrationExpiry: DEFAULT_EXPIRY,
-            blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
-            registrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP
-        });
+    //     bytes32 validationID2 = _registerValidator({
+    //         nodeID: _newNodeID(),
+    //         l1ID: DEFAULT_L1_ID,
+    //         weight: DEFAULT_WEIGHT,
+    //         registrationExpiry: DEFAULT_EXPIRY,
+    //         blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
+    //         registrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP
+    //     });
 
-        _initializeEndDelegationValidatorActiveWithChecks({
-            validationID: validationID,
-            sender: DEFAULT_DELEGATOR_ADDRESS,
-            delegationID: delegationID,
-            startDelegationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
-            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            expectedValidatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 2,
-            includeUptime: true,
-            force: false,
-            rewardRecipient: address(this)
-        });
+    //     _initializeEndDelegationValidatorActiveWithChecks({
+    //         validationID: validationID,
+    //         sender: DEFAULT_DELEGATOR_ADDRESS,
+    //         delegationID: delegationID,
+    //         startDelegationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
+    //         endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
+    //         expectedValidatorWeight: DEFAULT_WEIGHT,
+    //         expectedNonce: 2,
+    //         includeUptime: true,
+    //         force: false,
+    //         rewardRecipient: address(this)
+    //     });
 
-        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + 1);
+    //     vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + 1);
 
-        bytes32 delegationID2 =_initializeRedelegation({
-            validationID: validationID,
-            delegationID: delegationID,
-            sender: DEFAULT_DELEGATOR_ADDRESS,
-            validatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 2,
-            nextValidatorID: validationID2
-        });
+    //     bytes32 delegationID2 =_initializeRedelegation({
+    //         validationID: validationID,
+    //         delegationID: delegationID,
+    //         sender: DEFAULT_DELEGATOR_ADDRESS,
+    //         validatorWeight: DEFAULT_WEIGHT,
+    //         expectedNonce: 2,
+    //         nextValidatorID: validationID2
+    //     });
 
-        bytes memory setValidatorWeightPayload = ValidatorMessages.packL1ValidatorWeightMessage(
-            validationID2, 1, DEFAULT_WEIGHT
-        );
+    //     bytes memory setValidatorWeightPayload = ValidatorMessages.packL1ValidatorWeightMessage(
+    //         validationID2, 1, DEFAULT_WEIGHT
+    //     );
 
-        _setUpCompleteDelegatorRegistration(
-            delegationID2, DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP, setValidatorWeightPayload
-        );
-    }
+    //     _setUpCompleteDelegatorRegistration(
+    //         delegationID2, DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP, setValidatorWeightPayload
+    //     );
+    // }
 
     function testResendDelegatorRegistration() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -1842,22 +1842,22 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
     }
 
 
-    function _initializeRedelegation(
-        bytes32 validationID,
-        bytes32 delegationID,
-        address sender,
-        uint64 validatorWeight,
-        uint64 expectedNonce,
-        bytes32 nextValidatorID
-    ) internal returns (bytes32){
-        bytes memory weightUpdateMessage = ValidatorMessages.packL1ValidatorWeightMessage(
-            validationID, expectedNonce, validatorWeight
-        );
+    // function _initializeRedelegation(
+    //     bytes32 validationID,
+    //     bytes32 delegationID,
+    //     address sender,
+    //     uint64 validatorWeight,
+    //     uint64 expectedNonce,
+    //     bytes32 nextValidatorID
+    // ) internal returns (bytes32){
+    //     bytes memory weightUpdateMessage = ValidatorMessages.packL1ValidatorWeightMessage(
+    //         validationID, expectedNonce, validatorWeight
+    //     );
 
-        _mockGetPChainWarpMessage(weightUpdateMessage, true);
-        vm.prank(sender);
-        return posValidatorManager.initializeRedelegation(delegationID, 0, nextValidatorID);
-    }
+    //     _mockGetPChainWarpMessage(weightUpdateMessage, true);
+    //     vm.prank(sender);
+    //     return posValidatorManager.initializeRedelegation(delegationID, 0, nextValidatorID);
+    // }
 
     function _endDefaultValidatorWithChecks(bytes32 validationID, uint64 expectedNonce) internal {
         _endValidationWithChecks({

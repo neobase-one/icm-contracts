@@ -88,16 +88,16 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         app.initialize(defaultPoSSettings, token);
     }
 
-    function testZeroMaxStakeMultiplier() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
-        vm.expectRevert(
-            abi.encodeWithSelector(PoSValidatorManager.InvalidStakeMultiplier.selector, 0)
-        );
+    // function testZeroMaxStakeMultiplier() public {
+    //     app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(PoSValidatorManager.InvalidStakeMultiplier.selector, 0)
+    //     );
 
-        PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.maximumStakeMultiplier = 0;
-        app.initialize(defaultPoSSettings, token);
-    }
+    //     PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+    //     defaultPoSSettings.maximumStakeMultiplier = 0;
+    //     app.initialize(defaultPoSSettings, token);
+    // }
 
     function testMinStakeDurationTooLow() public {
         app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
@@ -113,19 +113,19 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         app.initialize(defaultPoSSettings, token);
     }
 
-    function testMaxStakeMultiplierOverLimit() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
-        uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PoSValidatorManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
-            )
-        );
+    // function testMaxStakeMultiplierOverLimit() public {
+    //     app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
+    //     uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(
+    //             PoSValidatorManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
+    //         )
+    //     );
 
-        PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
-        app.initialize(defaultPoSSettings, token);
-    }
+    //     PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+    //     defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
+    //     app.initialize(defaultPoSSettings, token);
+    // }
 
     function testZeroWeightToValueFactor() public {
         app = new ERC20TokenStakingManager(ICMInitializable.Allowed);

@@ -69,12 +69,15 @@ contract ERC721Manager is
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => uint256[]) _validationNFTs;
         mapping(bytes32 validationID => uint64) _validationNonce;
+        mapping(address => uint256) _accountRewardBalance;
     }
     // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.ERC721Manager")) - 1)) & ~bytes32(uint256(0xff));
     bytes32 public constant ERC721_STAKING_MANAGER_STORAGE_LOCATION =
         0xf2d79c30881febd0da8597832b5b1bf1f4d4b2209b19059420303eb8fcab8a00;
+
+    uint16 public constant BIPS_CONVERSION_FACTOR = 10000;
 
     error InvalidNFTAmount(uint256 nftAmount);
     error InvalidTokenAddress(address tokenAddress);
@@ -415,11 +418,10 @@ contract ERC721Manager is
     ) internal returns (uint256[] memory tokenIDs) {
         ERC721ManagerStorage storage $ = _getERC721ManagerStorage();
 
-        // Delegator memory delegator = $._delegatorStakes[delegationID];
-        // bytes32 validationID = delegator.validationID;
+        DelegatorNFT memory delegator = $._delegatorNFTStakes[delegationID];
+        bytes32 validationID = delegator.validationID;
 
-        // _removeNFTDelegationsFromAccount(delegator.owner, delegationID);
-        // _removeNFTDelegationFromValidator(validationID, delegationId);
+        _removeNFTDelegationFromValidator(validationID, delegationID);
 
         tokenIDs = $._delegatorNFTStakes[delegationID].tokenIDs;
 
@@ -430,43 +432,62 @@ contract ERC721Manager is
         return tokenIDs;
     }
 
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param account The validator's ID
-     * @param delegationID The delegation ID to remove
-    //  */
-    // function _removeNFTDelegationFromAccount(address account, bytes32 delegationID) internal {
-    //     PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-    //     bytes32[] storage delegations = $._accountDelegations[account];
+    function _removeNFTDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
+        ERC721ManagerStorage storage $ = _getERC721ManagerStorage();
+        bytes32[] storage delegations = $._validatorNFTDelegations[validationID];
 
-    //     // Find and remove the delegation ID
-    //     for (uint256 i = 0; i < delegations.length; i++) {
-    //         if (delegations[i] == delegationID) {
-    //             // Move the last element to this position and pop
-    //             delegations[i] = delegations[delegations.length - 1];
-    //             delegations.pop();
-    //             break;
-    //         }
-    //     }
-    // }
+        // Find and remove the delegation ID
+        for (uint256 i = 0; i < delegations.length; i++) {
+            if (delegations[i] == delegationID) {
+                // Move the last element to this position and pop
+                delegations[i] = delegations[delegations.length - 1];
+                delegations.pop();
+                break;
+            }
+        }
+    }
 
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    // function _removeNFTDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
-    //     PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
-    //     bytes32[] storage delegations = $._validatorNFTDelegations[validationID];
 
-    //     // Find and remove the delegation ID
-    //     for (uint256 i = 0; i < delegations.length; i++) {
-    //         if (delegations[i] == delegationID) {
-    //             // Move the last element to this position and pop
-    //             delegations[i] = delegations[delegations.length - 1];
-    //             delegations.pop();
-    //             break;
-    //         }
-    //     }
-    // }
+    function updateBalanceTracker(bytes32 validationID) external returns (int256) {
+        ERC721ManagerStorage storage $ = _getERC721ManagerStorage();
+        PoSValidatorInfo memory validatorInfo = $._posManager.getPoSValidatorInfo(validationID);
+
+        uint256 valWeight;
+        valWeight += $._posManager.calculateEffectiveWeight(
+            valueToWeightNFT($._validationNFTs[validationID].length),
+            validatorInfo.uptimeSeconds,
+            validatorInfo.prevEpochUptimeSeconds
+        );
+
+        bytes32[] memory delegations = $._validatorNFTDelegations[validationID];
+        for (uint256 i = 0; i < delegations.length; i++) {
+            DelegatorNFT memory delegator = $._delegatorNFTStakes[delegations[i]];
+            if (delegator.status == DelegatorStatus.Active) {
+                uint256 delegateEffectiveWeight = $._posManager.calculateEffectiveWeight(
+                    delegator.weight,
+                    validatorInfo.uptimeSeconds,
+                    validatorInfo.prevEpochUptimeSeconds
+                );
+                uint256 delegatorFeeWeight = (delegateEffectiveWeight * validatorInfo.delegationFeeBips)
+            / BIPS_CONVERSION_FACTOR;
+
+                uint256 delWeight = delegateEffectiveWeight - delegatorFeeWeight;
+                valWeight += delegatorFeeWeight;
+
+                uint256 delBalance = uint256(int256($._accountRewardBalance[delegator.owner]) + int256(delWeight) - int256(delegator.rewardBalance));
+                delegator.rewardBalance = delWeight;
+
+                $._accountRewardBalance[delegator.owner] = delBalance;
+                $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, delBalance, false);
+            }
+        }
+
+        int256 delta = int256(valWeight) - int256(validatorInfo.rewardBalance);
+        validatorInfo.rewardBalance = valWeight;
+
+
+        uint256 valBalance = uint256(int256($._accountRewardBalance[validatorInfo.owner]) + delta);
+        $._accountRewardBalance[validatorInfo.owner] = valBalance;
+        $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, valBalance, false);
+    }
 }
