@@ -16,10 +16,9 @@ import {WarpMessage} from
 import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721Receiver.sol";
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
-import {IERC721Manager, ERC721ManagerSettings} from "./interfaces/IERC721Manager.sol";
+import {IERC721Manager, ERC721ManagerSettings, DelegatorNFT} from "./interfaces/IERC721Manager.sol";
 import {IERC721TokenStakingManager} from "./interfaces/IERC721TokenStakingManager.sol";
 import {
-    DelegatorNFT,
     DelegatorStatus
 } from "./interfaces/IPoSValidatorManager.sol";
 import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
@@ -29,7 +28,6 @@ import {
 } from "./interfaces/IValidatorManager.sol";
 import {
     Delegator,
-    DelegatorNFT,
     DelegatorStatus,
     IPoSValidatorManager,
     PoSValidatorInfo,

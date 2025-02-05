@@ -59,16 +59,7 @@ struct Delegator {
     uint64 endedAt;
     uint64 startingNonce;
     uint64 endingNonce;
-}
-
-struct DelegatorNFT {
-    DelegatorStatus status;
-    address owner;
-    bytes32 validationID;
-    uint64 weight;
-    uint64 startedAt;
-    uint64 endedAt;
-    uint256[] tokenIDs;
+    uint256 rewardBalance;
 }
 
 /**
@@ -82,8 +73,8 @@ struct PoSValidatorInfo {
     uint64 currentEpoch;
     uint64 prevEpochUptimeSeconds;
     uint64 weight;
+    uint256 rewardBalance;
     uint256[] tokenIDs;
-    uint64 nftWeight;
 }
 
 /**
@@ -108,24 +99,6 @@ interface IPoSValidatorManager is IValidatorManager {
         uint64 validatorWeight,
         uint64 delegatorWeight,
         bytes32 setWeightMessageID
-    );
-
-     /**
-     * @notice Event emitted when a NFT delegator is added 
-     * @param delegationID The ID of the delegation
-     * @param validationID The ID of the validation period being delegated to
-     * @param delegatorAddress The address of the delegator
-     * @param nonce The message nonce used to update the validator weight
-     * @param delegatorWeight The weight of the delegator
-     * @param tokenIDs The list of tokenIDs delegated
-     */
-    event DelegatorAddedNFT(
-        bytes32 indexed delegationID,
-        bytes32 indexed validationID,
-        address indexed delegatorAddress,
-        uint64 nonce,
-        uint64 delegatorWeight,
-        uint256[] tokenIDs
     );
 
     /**
