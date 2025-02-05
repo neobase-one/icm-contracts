@@ -212,4 +212,6 @@ interface IValidatorManager {
      * and never will be active on the P-Chain.
      */
     function completeEndValidation(uint32 messageIndex) external;
+
+    function getValidator(bytes32 validationID) external view returns (Validator memory);
 }

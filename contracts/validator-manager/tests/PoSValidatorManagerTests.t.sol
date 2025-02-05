@@ -2095,16 +2095,12 @@ abstract contract PoSValidatorManagerTest is ValidatorManagerTest {
             }),
             minimumStakeAmount: DEFAULT_MINIMUM_STAKE_AMOUNT,
             maximumStakeAmount: DEFAULT_MAXIMUM_STAKE_AMOUNT,
-            minimumNFTAmount: DEFAULT_MINIMUM_NFT_AMOUNT,
-            maximumNFTAmount: DEFAULT_MAXIMUM_NFT_AMOUNT,
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
-            unlockDelegateDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
-            rewardCalculator: IRewardCalculator(address(0)),
+            unlockDuration: DEFAULT_UNLOCK_DELEGATE_DURATION,
             balanceTracker: IBalanceTracker(address(0)),
-            balanceTrackerNFT: IBalanceTracker(address(0)),
             epochDuration: DEFAULT_EPOCH_DURATION,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
         });

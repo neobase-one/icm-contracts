@@ -225,7 +225,6 @@ contract ERC20TokenStakingManagerTest is PoSValidatorManagerTest {
         rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE);
 
         PoSValidatorManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.rewardCalculator = rewardCalculator;
         app.initialize(defaultPoSSettings, token);
 
         validatorManager = app;

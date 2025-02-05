@@ -145,7 +145,7 @@ contract ERC20TokenStakingManager is
     /**
      * @notice See {PoSValidatorManager-_reward}
      */
-    function _reward(address account, uint256 amount) internal virtual override {
+    function _reward(address account, uint256 amount) internal virtual {
         ERC20TokenStakingManagerStorage storage $ = _getERC20StakingManagerStorage();
         $._token.mint(account, amount);
     }

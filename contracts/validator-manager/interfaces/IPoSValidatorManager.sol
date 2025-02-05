@@ -37,16 +37,12 @@ struct PoSValidatorManagerSettings {
     ValidatorManagerSettings baseSettings;
     uint256 minimumStakeAmount;
     uint256 maximumStakeAmount;
-    uint256 minimumNFTAmount;
-    uint256 maximumNFTAmount;
     uint64 minimumStakeDuration;
-    uint64 unlockDelegateDuration;
+    uint64 unlockDuration;
     uint16 minimumDelegationFeeBips;
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
-    IRewardCalculator rewardCalculator;
     IBalanceTracker balanceTracker;
-    IBalanceTracker balanceTrackerNFT;
     uint64 epochDuration;
     bytes32 uptimeBlockchainID;
 }
@@ -246,4 +242,6 @@ interface IPoSValidatorManager is IValidatorManager {
      * @param messageIndex The index of the ICM message to be received providing the acknowledgement.
      */
     function completeEndDelegation(bytes32 delegationID, uint32 messageIndex) external;
+
+    function getPoSValidatorInfo(bytes32 validationID) external view returns (PoSValidatorInfo memory);
 }

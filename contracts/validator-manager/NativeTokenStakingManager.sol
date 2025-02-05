@@ -100,7 +100,7 @@ contract NativeTokenStakingManager is
     /**
      * @notice See {PoSValidatorManager-_reward}
      */
-    function _reward(address account, uint256 amount) internal virtual override {
+    function _reward(address account, uint256 amount) internal virtual {
         NATIVE_MINTER.mintNativeCoin(account, amount);
     }
 }

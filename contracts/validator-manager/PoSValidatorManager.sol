@@ -55,7 +55,7 @@ abstract contract PoSValidatorManager is
         /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
         uint16 _minimumDelegationFeeBips;
         /// @notice The duration in seconds after a delegator's delegation is ended before the delegator's stake is unlocked.
-        uint64 _unlockDelegateDuration;
+        uint64 _unlockDuration;
         /**
          * @notice A multiplier applied to validator's initial stake amount to determine
          * the maximum amount of stake a validator can have with delegations.
@@ -111,7 +111,7 @@ abstract contract PoSValidatorManager is
     error InvalidStakeMultiplier(uint8 maximumStakeMultiplier);
     error MaxWeightExceeded(uint64 newValidatorWeight);
     error MinStakeDurationNotPassed(uint64 endTime);
-    error UnlockDelegateDurationNotPassed(uint64 endTime);
+    error unlockDurationNotPassed(uint64 endTime);
     error UnauthorizedOwner(address sender);
     error ValidatorNotPoS(bytes32 validationID);
     error ZeroWeightToValueFactor();
@@ -145,16 +145,12 @@ abstract contract PoSValidatorManager is
             minimumStakeAmount: settings.minimumStakeAmount,
             maximumStakeAmount: settings.maximumStakeAmount,
             minimumStakeDuration: settings.minimumStakeDuration,
-            unlockDelegateDuration: settings.unlockDelegateDuration,
+            unlockDuration: settings.unlockDuration,
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
             maximumStakeMultiplier: settings.maximumStakeMultiplier,
             weightToValueFactor: settings.weightToValueFactor,
-            rewardCalculator: settings.rewardCalculator,
             balanceTracker: settings.balanceTracker,
-            balanceTrackerNFT: settings.balanceTrackerNFT,
             epochDuration: settings.epochDuration,
-            minimumNFTAmount: settings.minimumNFTAmount,
-            maximumNFTAmount: settings.maximumNFTAmount,
             uptimeBlockchainID: settings.uptimeBlockchainID
         });
     }
@@ -164,16 +160,12 @@ abstract contract PoSValidatorManager is
         uint256 minimumStakeAmount,
         uint256 maximumStakeAmount,
         uint64 minimumStakeDuration,
-        uint64 unlockDelegateDuration,
+        uint64 unlockDuration,
         uint16 minimumDelegationFeeBips,
         uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
-        IRewardCalculator rewardCalculator,
         IBalanceTracker balanceTracker,
-        IBalanceTracker balanceTrackerNFT,
         uint64 epochDuration,
-        uint256 minimumNFTAmount,
-        uint256 maximumNFTAmount,
         bytes32 uptimeBlockchainID
     ) internal onlyInitializing {
         PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
@@ -202,16 +194,13 @@ abstract contract PoSValidatorManager is
         $._minimumStakeAmount = minimumStakeAmount;
         $._maximumStakeAmount = maximumStakeAmount;
         $._minimumStakeDuration = minimumStakeDuration;
-        $._minimumNFTAmount = minimumNFTAmount;
-        $._maximumNFTAmount = maximumNFTAmount;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
         $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
         $._balanceTracker = balanceTracker;
-        $._balanceTrackerNFT = balanceTrackerNFT;
         $._epochDuration = epochDuration;
         $._uptimeBlockchainID = uptimeBlockchainID;
-        $._unlockDelegateDuration = unlockDelegateDuration;
+        $._unlockDuration = unlockDuration;
     }
 
     /**
@@ -239,6 +228,15 @@ abstract contract PoSValidatorManager is
         uint32 messageIndex
     ) external {
         _initializeEndPoSValidation(validationID, includeUptimeProof, messageIndex);
+    }
+
+    /**
+     * @notice Returns a validator registered to the given validationID
+     * @param validationID ID of the validation period associated with the validator
+     */
+    function getPoSValidatorInfo(bytes32 validationID) public view returns (PoSValidatorInfo memory) {
+        PoSValidatorManagerStorage storage $ = _getPoSValidatorManagerStorage();
+        return $._posValidatorInfo[validationID];
     }
 
     /**
@@ -772,8 +770,8 @@ abstract contract PoSValidatorManager is
                 revert InvalidNonce(nonce);
             }
         }
-        if(block.timestamp < delegator.endedAt + $._unlockDelegateDuration) {
-            revert UnlockDelegateDurationNotPassed(uint64(block.timestamp));
+        if(block.timestamp < delegator.endedAt + $._unlockDuration) {
+            revert unlockDurationNotPassed(uint64(block.timestamp));
         }
 
         _completeEndDelegation(delegationID);
@@ -802,11 +800,6 @@ abstract contract PoSValidatorManager is
 
         emit DelegationEnded(delegationID, validationID, 0, 0);
     }
-
-    /**
-     * @dev This function must be implemented to mint rewards to validators and delegators.
-     */
-    function _reward(address account, uint256 amount) internal virtual;
 
     /**
      * @dev Return true if this is a PoS validator with locked stake. Returns false if this was originally a PoA
