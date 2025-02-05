@@ -218,8 +218,6 @@ contract ERC721TokenStakingManager is
         $._posValidatorInfo[validationID].weight = weight;
         $._posValidatorInfo[validationID].tokenIDs = tokenIDs;
 
-        $._accountValidations[owner].push(validationID);
-
         return validationID;
     }
 

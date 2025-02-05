@@ -72,10 +72,6 @@ abstract contract PoSValidatorManager is
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
-        /// @notice Maps account to array of validationIDs
-        mapping(address => bytes32[]) _accountValidations;
-        /// @notice Maps account to array of delegationIDs
-        mapping(address => bytes32[]) _accountDelegations;
         
         mapping(address => uint256) _accountRewardBalance;
     }
@@ -516,7 +512,6 @@ abstract contract PoSValidatorManager is
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startedAt = uint64(block.timestamp);
 
-        $._accountDelegations[delegator.owner].push(delegationID);
         $._validatorDelegations[validationID].push(delegationID);
 
         emit DelegatorRegistered({
