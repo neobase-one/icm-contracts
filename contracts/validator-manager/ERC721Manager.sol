@@ -36,6 +36,9 @@ import {
 import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 
+import {console} from "forge-std/console.sol";
+
+
 /**
  * @dev Implementation of the {IERC721Manager} interface.
  *
@@ -66,6 +69,7 @@ contract ERC721Manager is
         mapping(bytes32 delegationID => DelegatorNFT) _delegatorNFTStakes;
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => bytes32[]) _validatorNFTDelegations;
+        mapping(bytes32 validationID => uint256) _validationBalance;
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => uint256[]) _validationNFTs;
         mapping(bytes32 validationID => uint64) _validationNonce;
@@ -459,6 +463,9 @@ contract ERC721Manager is
             validatorInfo.prevEpochUptimeSeconds
         );
 
+        console.log("VALWIEGHT");
+        console.log(valWeight);
+
         bytes32[] memory delegations = $._validatorNFTDelegations[validationID];
         for (uint256 i = 0; i < delegations.length; i++) {
             DelegatorNFT memory delegator = $._delegatorNFTStakes[delegations[i]];
@@ -482,11 +489,17 @@ contract ERC721Manager is
             }
         }
 
-        int256 delta = int256(valWeight) - int256(validatorInfo.rewardBalance);
-        validatorInfo.rewardBalance = valWeight;
+        int256 delta = int256(valWeight) - int256($._validationBalance[validationID]);
+        $._validationBalance[validationID] = valWeight;
+        
+        console.log("DELLTAAAA");
+        console.log(delta);
 
 
         uint256 valBalance = uint256(int256($._accountRewardBalance[validatorInfo.owner]) + delta);
+
+        console.log("BALANCEEE");
+        console.log(valBalance);
         $._accountRewardBalance[validatorInfo.owner] = valBalance;
         $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, valBalance, false);
     }

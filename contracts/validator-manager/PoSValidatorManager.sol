@@ -26,6 +26,7 @@ import {WarpMessage} from
 import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
 
+import {console} from "forge-std/console.sol";
 /**
  * @dev Implementation of the {IPoSValidatorManager} interface.
  *
@@ -655,6 +656,8 @@ abstract contract PoSValidatorManager is
                 validationID: validationID
             });
         } else if (validator.status == ValidatorStatus.Completed) {
+
+            console.log("Hello");
             _completeEndDelegation(delegationID);
             // If the validator has completed, then no further uptimes may be submitted, so we always
             // end the delegation.
