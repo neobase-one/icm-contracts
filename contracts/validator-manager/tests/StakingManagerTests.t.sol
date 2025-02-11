@@ -34,6 +34,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         address(0x2345234523452345234523452345234523452345);
     uint64 public constant DEFAULT_REWARD_RATE = uint64(10);
     uint64 public constant DEFAULT_MINIMUM_STAKE_DURATION = 24 hours;
+    uint64 public constant DEFAULT_MINIMUM_DELEGATION_AMOUNT = 1e17;
     uint16 public constant DEFAULT_MINIMUM_DELEGATION_FEE_BIPS = 100;
     uint16 public constant DEFAULT_DELEGATION_FEE_BIPS = 150;
     uint8 public constant DEFAULT_MAXIMUM_STAKE_MULTIPLIER = 4;
@@ -246,6 +247,22 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
             expectedNonce: 1
         });
+    }
+
+    function testInitiateDelegatorRegistratioInvalidAmount() public {
+        bytes32 validationID = _registerDefaultValidator();
+
+        _beforeSend(DEFAULT_MINIMUM_DELEGATION_AMOUNT / 10, DEFAULT_DELEGATOR_ADDRESS);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.InvalidStakeAmount.selector, DEFAULT_MINIMUM_DELEGATION_AMOUNT / 10
+            )
+        );
+        _initiateDelegatorRegistration(
+            validationID,
+            DEFAULT_DELEGATOR_ADDRESS, 
+            _valueToWeight(DEFAULT_MINIMUM_DELEGATION_AMOUNT / 10)
+        );
     }
 
     function testResendDelegatorRegistration() public {
@@ -2000,6 +2017,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             maximumStakeAmount: DEFAULT_MAXIMUM_STAKE_AMOUNT,
             maximumNFTAmount: DEFAULT_MAXIMUM_NFT_AMOUNT,
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
+            minimumDelegationAmount: DEFAULT_MINIMUM_DELEGATION_AMOUNT,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,

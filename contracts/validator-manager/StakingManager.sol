@@ -47,6 +47,7 @@ abstract contract StakingManager is
         /// @notice The minimum amount of time in seconds a validator must be staked for. Must be at least {_churnPeriodSeconds}.
         uint64 _minimumStakeDuration;
         uint256 _maximumNFTAmount;
+        uint256 _minimumDelegationAmount;
         /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
         uint16 _minimumDelegationFeeBips;
         /**
@@ -141,6 +142,7 @@ abstract contract StakingManager is
             minimumStakeAmount: settings.minimumStakeAmount,
             maximumStakeAmount: settings.maximumStakeAmount,
             minimumStakeDuration: settings.minimumStakeDuration,
+            minimumDelegationAmount: settings.minimumDelegationAmount,
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
             maximumStakeMultiplier: settings.maximumStakeMultiplier,
             weightToValueFactor: settings.weightToValueFactor,
@@ -160,6 +162,7 @@ abstract contract StakingManager is
         uint256 maximumStakeAmount,
         uint256 maximumNFTAmount,
         uint64 minimumStakeDuration,
+        uint256 minimumDelegationAmount,
         uint16 minimumDelegationFeeBips,
         uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
@@ -197,6 +200,7 @@ abstract contract StakingManager is
         $._maximumStakeAmount = maximumStakeAmount;
         $._maximumNFTAmount = maximumNFTAmount;
         $._minimumStakeDuration = minimumStakeDuration;
+        $._minimumDelegationAmount = minimumDelegationAmount;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
         $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
@@ -477,6 +481,9 @@ abstract contract StakingManager is
             revert InvalidValidatorStatus(validator.status);
         }
 
+        if (delegationAmount < $._minimumDelegationAmount) {
+            revert InvalidStakeAmount(delegationAmount);
+        }
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + weight;
         if (newValidatorWeight > validator.startingWeight * $._maximumStakeMultiplier) {

@@ -40,6 +40,7 @@ struct StakingManagerSettings {
     uint256 maximumStakeAmount;
     uint256 maximumNFTAmount;
     uint64 minimumStakeDuration;
+    uint256 minimumDelegationAmount;
     uint16 minimumDelegationFeeBips;
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
