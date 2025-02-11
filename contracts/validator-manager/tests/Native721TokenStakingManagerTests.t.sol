@@ -185,7 +185,257 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.initialize(_defaultPoSSettings(), stakingToken); // settings.manager is not set
     }
 
+    function testDelegationRewards() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerDefaultDelegator(validationID);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        // Validator is Completed, so this will also complete the delegation.
+        _initiateDelegatorRemoval({
+            sender: DEFAULT_DELEGATOR_ADDRESS,
+            delegationID: delegationID,
+            endDelegationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION + 1,
+            includeUptime: true,
+            force: true,
+            rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
+        });
+
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+
+        (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+            DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
+        assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.1e18);
+        assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
+    }
+
+    function testDelegationRewardsForSameValidatorAndDelegator() public {
+        bytes32 validationID = _registerDefaultValidator();
+
+        bytes32 delegationID = _registerDelegator({
+            validationID: validationID,
+            delegatorAddress: address(this),
+            weight: DEFAULT_DELEGATOR_WEIGHT,
+            initRegistrationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
+            completeRegistrationTimestamp: DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP,
+            expectedValidatorWeight: DEFAULT_DELEGATOR_WEIGHT + DEFAULT_WEIGHT,
+            expectedNonce: 1
+        });
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        // Validator is Completed, so this will also complete the delegation.
+        _initiateDelegatorRemoval({
+            sender: address(this),
+            delegationID: delegationID,
+            endDelegationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION + 1,
+            includeUptime: true,
+            force: true,
+            rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
+        });
+
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+
+        (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+            DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
+
+        assertApproxEqRel(validatorReward + delegatorReward, _claimReward(address(this)), 0.1e18);
+    }
+
+    function testNFTDelegationRewards() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        _initiateNFTDelegatorRemoval(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+        _completeNFTDelegatorRemoval(DEFAULT_DELEGATOR_ADDRESS, delegationID);
+        _expectNFTStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, 1);
+
+        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+
+        (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+            1e6, 1e6, DEFAULT_DELEGATION_FEE_BIPS);
+
+        assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.1e18);
+        assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
+    }
+
+    function testRevertEndDelegationNFTBeforeUnlock() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        _initiateNFTDelegatorRemoval(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.UnlockDurationNotPassed.selector, 2679400
+            )
+        );
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        app.completeNFTDelegatorRemoval(delegationID); 
+    }
+
+    function testEndNFTDelegationRevertBeforeMinStakeDuration() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.MinStakeDurationNotPassed.selector, block.timestamp
+            )
+        );
+        _initiateNFTDelegatorRemoval(
+            DEFAULT_DELEGATOR_ADDRESS,
+            delegationID,
+            true,
+            0
+        );
+    }
+
+    function testValidationRegistrationWithoutNFT() public {
+         vm.expectRevert(
+            abi.encodeWithSelector(
+                Native721TokenStakingManager.InvalidNFTAmount.selector, 0
+            )
+        );
+        uint256[] memory tokens = new uint256[](0);
+        app.initiateValidatorRegistration{value: DEFAULT_MINIMUM_STAKE_AMOUNT}({
+            nodeID: DEFAULT_NODE_ID,
+            blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
+            registrationExpiry: DEFAULT_EXPIRY,
+            remainingBalanceOwner: DEFAULT_P_CHAIN_OWNER,
+            disableOwner: DEFAULT_P_CHAIN_OWNER,
+            delegationFeeBips: DEFAULT_DELEGATION_FEE_BIPS,
+            minStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
+            tokenIDs: tokens
+        });
+    }
+
+    function testRevertRemovalDelgationNFTForNonOwner() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.UnauthorizedOwner.selector, address(42)
+            )
+        );
+        _initiateNFTDelegatorRemoval(
+            address(42),
+            delegationID,
+            true,
+            0
+        );
+    }
+ 
     // Helpers
+    function _calculateExpectedRewards(
+        uint256 validatorStake,
+        uint256 delegatorStake,
+        uint256 delegationFeeBips
+    ) internal pure returns (uint256 validatorReward, uint256 delegatorReward) {
+        uint256 feeWeight = delegatorStake * delegationFeeBips / 10000;
+        delegatorReward = (REWARD_PER_EPOCH * (delegatorStake - feeWeight)) / (delegatorStake + validatorStake);
+        validatorReward = (REWARD_PER_EPOCH * (validatorStake + feeWeight)) / (delegatorStake + validatorStake);
+    }
+
+    function _registerNFTDelegation(
+        bytes32 validationID,
+        address delegatorAddress
+    ) internal virtual returns (bytes32) {
+        uint256[] memory tokens = new uint256[](1);
+        tokens[0] = ++testTokenID;
+
+        _beforeSendNFT(tokens[0], delegatorAddress);
+
+        vm.prank(delegatorAddress);
+        return app.registerNFTDelegation(validationID, delegatorAddress, tokens);
+    }
+
+    function _initiateNFTDelegatorRemoval(
+        address delegatorAddress,
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) internal virtual returns (bytes32) {
+        vm.prank(delegatorAddress);
+        app.initiateNFTDelegatorRemoval(delegationID, includeUptimeProof, messageIndex);
+    }
+
+    function _completeNFTDelegatorRemoval(
+        address delegatorAddress,
+        bytes32 delegationID
+    ) internal virtual returns (bytes32) {
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DURATION);
+        vm.prank(delegatorAddress);
+        app.completeNFTDelegatorRemoval(delegationID);
+    }
+
     function _initiateValidatorRegistration(
         bytes memory nodeID,
         bytes memory blsPublicKey,
@@ -247,6 +497,13 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
     function _beforeSend(uint256 amount, address spender) internal override {
         // Native tokens no need pre approve
     }
+
+    function _beforeSendNFT(uint256 tokenId, address spender) internal {
+        stakingToken.transferFrom(address(this), spender, tokenId);
+
+        vm.prank(spender);
+        stakingToken.approve(address(app), tokenId);
+    }
     // solhint-enable no-empty-blocks
 
     function _expectStakeUnlock(address account, uint256 amount) internal override {
@@ -254,7 +511,21 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         vm.expectCall(account, amount, "");
     }
 
+    function _expectNFTStakeUnlock(address account, uint256 amount) internal view {
+        assertEq(stakingToken.balanceOf(account), amount);
+    }
+
     function _expectRewardIssuance(address account, uint256 amount) internal override {
+    }
+
+    function _claimReward(address account) internal returns(uint256) {
+        vm.prank(account);
+        return balanceTracker.claimReward(address(app), address(rewardToken), account, false);
+    }
+
+    function _claimRewardNFT(address account) internal returns(uint256) {
+        vm.prank(account);
+        return balanceTrackerNFT.claimReward(address(app), address(rewardToken), account, false);
     }
 
     function _setUp() internal override returns (ACP99Manager) {

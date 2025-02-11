@@ -41,7 +41,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     uint256 public constant SECONDS_IN_YEAR = 31536000;
     uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 50;
     uint48 public constant DEFAULT_EPOCH_DURATION = 30 days;
-    uint64 public constant DEFAULT_UNLOCK_DURATION = 1 days;
 
 
     StakingManager public stakingManager;
@@ -826,6 +825,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
 
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT));
 
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DURATION);
         stakingManager.completeDelegatorRemoval(delegationID, 0);
 
         assertEq(
@@ -1901,6 +1901,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     }
 
     function _completeEndValidation(bytes memory l1ValidatorRegistrationMessage) internal {
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DURATION);
         _mockGetPChainWarpMessage(l1ValidatorRegistrationMessage, true);
         stakingManager.completeValidatorRemoval(0);
     }
@@ -1961,6 +1962,8 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         bytes memory weightUpdateMessage
     ) internal {
         _mockGetPChainWarpMessage(weightUpdateMessage, true);
+
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DURATION);
         stakingManager.completeDelegatorRemoval(delegationID, 0);
     }
 

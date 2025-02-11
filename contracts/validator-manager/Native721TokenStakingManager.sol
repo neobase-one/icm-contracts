@@ -206,6 +206,10 @@ contract Native721TokenStakingManager is
             return validationID;
         }
 
+        if(block.timestamp < validator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
         address owner = $._posValidatorInfo[validationID].owner;
 
         // The stake is unlocked whether the validation period is completed or invalidated.
@@ -377,7 +381,7 @@ contract Native721TokenStakingManager is
         }
 
         if (tokenIDs.length < 1 || tokenIDs.length > $._maximumNFTAmount) {
-            revert InvalidStakeAmount(tokenIDs.length);
+            revert InvalidNFTAmount(tokenIDs.length);
         }
 
         // Lock the stake in the contract.
@@ -410,7 +414,7 @@ contract Native721TokenStakingManager is
         uint256[] memory tokenIDs
     ) internal returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
-        uint64 weight = valueToWeight(tokenIDs.length);
+        uint64 weight = valueToWeightNFT(tokenIDs.length);
 
         // Ensure the validation period is active
         Validator memory validator = $._manager.getValidator(validationID);
@@ -549,7 +553,7 @@ contract Native721TokenStakingManager is
         Validator memory validator = $._manager.getValidator(validationID);
 
         uint256 valWeight = _calculateEffectiveWeight(
-            validator.weight,
+            validator.startingWeight,
             validatorInfo.uptimeSeconds,
             validatorInfo.prevEpochUptimeSeconds
         );
@@ -564,7 +568,7 @@ contract Native721TokenStakingManager is
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
             if (delegator.status == DelegatorStatus.Active) {
-                
+
                 uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
                     delegator.weight,
                     validatorInfo.uptimeSeconds,

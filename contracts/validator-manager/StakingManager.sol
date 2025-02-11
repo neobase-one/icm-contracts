@@ -553,6 +553,8 @@ abstract contract StakingManager is
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startTime = uint64(block.timestamp);
 
+        $._validatorDelegations[validationID].push(delegationID);
+
         emit CompletedDelegatorRegistration({
             delegationID: delegationID,
             validationID: validationID,
@@ -622,6 +624,7 @@ abstract contract StakingManager is
             // the complete step, even if the delivered nonce is greater than the nonce used to
             // initiate the removal.
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
+            $._delegatorStakes[delegationID].endTime = uint64(block.timestamp);
 
             ($._delegatorStakes[delegationID].endingNonce,) = $
                 ._manager
@@ -705,6 +708,10 @@ abstract contract StakingManager is
             if (delegator.endingNonce > nonce) {
                 revert InvalidNonce(nonce);
             }
+        }
+
+        if(block.timestamp < delegator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
         _completeDelegatorRemoval(delegationID);
