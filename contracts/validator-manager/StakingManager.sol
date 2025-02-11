@@ -15,7 +15,6 @@ import {
     StakingManagerSettings
 } from "./interfaces/IStakingManager.sol";
 import {Validator, ValidatorStatus, PChainOwner} from "./ACP99Manager.sol";
-import {IRewardCalculator} from "./interfaces/IRewardCalculator.sol";
 import {
     IWarpMessenger,
     WarpMessage
@@ -56,21 +55,12 @@ abstract contract StakingManager is
         uint64 _maximumStakeMultiplier;
         /// @notice The factor used to convert between weight and value.
         uint256 _weightToValueFactor;
-        /// @notice The reward calculator for this validator manager.
-        IRewardCalculator _rewardCalculator;
         /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the subnetID that this contract manages.
         bytes32 _uptimeBlockchainID;
         /// @notice Maps the validation ID to its requirements.
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
-        /// @notice Maps the delegation ID to its pending staking rewards.
-        mapping(bytes32 delegationID => uint256) _redeemableDelegatorRewards;
-        mapping(bytes32 delegationID => address) _delegatorRewardRecipients;
-        /// @notice Maps the validation ID to its pending staking rewards.
-        mapping(bytes32 validationID => uint256) _redeemableValidatorRewards;
-        /// @notice Maps the validation ID to its reward recipient.
-        mapping(bytes32 validationID => address) _rewardRecipients;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -92,7 +82,6 @@ abstract contract StakingManager is
     error InvalidDelegationFee(uint16 delegationFeeBips);
     error InvalidDelegationID(bytes32 delegationID);
     error InvalidDelegatorStatus(DelegatorStatus status);
-    error InvalidRewardRecipient(address rewardRecipient);
     error InvalidStakeAmount(uint256 stakeAmount);
     error InvalidMinStakeDuration(uint64 minStakeDuration);
     error InvalidStakeMultiplier(uint8 maximumStakeMultiplier);
@@ -100,8 +89,6 @@ abstract contract StakingManager is
     error MinStakeDurationNotPassed(uint64 endTime);
     error UnauthorizedOwner(address sender);
     error ValidatorNotPoS(bytes32 validationID);
-    error ValidatorIneligibleForRewards(bytes32 validationID);
-    error DelegatorIneligibleForRewards(bytes32 delegationID);
     error ZeroWeightToValueFactor();
     error InvalidUptimeBlockchainID(bytes32 uptimeBlockchainID);
 
@@ -139,7 +126,6 @@ abstract contract StakingManager is
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
             maximumStakeMultiplier: settings.maximumStakeMultiplier,
             weightToValueFactor: settings.weightToValueFactor,
-            rewardCalculator: settings.rewardCalculator,
             uptimeBlockchainID: settings.uptimeBlockchainID
         });
     }
@@ -153,7 +139,6 @@ abstract contract StakingManager is
         uint16 minimumDelegationFeeBips,
         uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
-        IRewardCalculator rewardCalculator,
         bytes32 uptimeBlockchainID
     ) internal onlyInitializing {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
@@ -186,7 +171,6 @@ abstract contract StakingManager is
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
         $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
-        $._rewardCalculator = rewardCalculator;
         $._uptimeBlockchainID = uptimeBlockchainID;
     }
 
@@ -208,24 +192,6 @@ abstract contract StakingManager is
     }
 
     /**
-     * @notice See {IStakingManager-claimDelegationFees}.
-     */
-    function claimDelegationFees(bytes32 validationID) external {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        ValidatorStatus status = $._manager.getValidator(validationID).status;
-        if (status != ValidatorStatus.Completed) {
-            revert InvalidValidatorStatus(status);
-        }
-
-        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
-
-        _withdrawValidationRewards($._posValidatorInfo[validationID].owner, validationID);
-    }
-
-    /**
      * @notice See {IStakingManager-initiateValidatorRemoval}.
      * Extends the functionality of {ACP99Manager-initiateValidatorRemoval} updating staker state.
      */
@@ -234,105 +200,7 @@ abstract contract StakingManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initiateValidatorRemovalWithCheck(
-            validationID, includeUptimeProof, messageIndex, address(0)
-        );
-    }
-
-    /**
-     * @notice See {IStakingManager-initiateValidatorRemoval}.
-     */
-    function initiateValidatorRemoval(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        _initiateValidatorRemovalWithCheck(
-            validationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
-    }
-
-    function _initiateValidatorRemovalWithCheck(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal {
-        if (
-            !_initiatePoSValidatorRemoval(
-                validationID, includeUptimeProof, messageIndex, rewardRecipient
-            )
-        ) {
-            revert ValidatorIneligibleForRewards(validationID);
-        }
-    }
-
-    /**
-     * @notice See {IStakingManager-forceInitiateValidatorRemoval}.
-     */
-    function forceInitiateValidatorRemoval(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external {
-        // Ignore the return value here to force end validation, regardless of possible missed rewards
-        _initiatePoSValidatorRemoval(validationID, includeUptimeProof, messageIndex, address(0));
-    }
-
-    /**
-     * @notice See {IStakingManager-forceInitiateValidatorRemoval}.
-     */
-    function forceInitiateValidatorRemoval(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        // Ignore the return value here to force end validation, regardless of possible missed rewards
-        _initiatePoSValidatorRemoval(
-            validationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
-    }
-
-    /**
-     * @notice See {IStakingManager-changeValidatorRewardRecipient}.
-     */
-    function changeValidatorRewardRecipient(
-        bytes32 validationID,
-        address rewardRecipient
-    ) external {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        if (rewardRecipient == address(0)) {
-            revert InvalidRewardRecipient(rewardRecipient);
-        }
-
-        if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
-
-        $._rewardRecipients[validationID] = rewardRecipient;
-    }
-
-    /**
-     * @notice See {IStakingManager-changeDelegatorRewardRecipient}.
-     */
-    function changeDelegatorRewardRecipient(
-        bytes32 delegationID,
-        address rewardRecipient
-    ) external {
-        if (rewardRecipient == address(0)) {
-            revert InvalidRewardRecipient(rewardRecipient);
-        }
-
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        if ($._delegatorStakes[delegationID].owner != _msgSender()) {
-            revert UnauthorizedOwner(_msgSender());
-        }
-
-        $._delegatorRewardRecipients[delegationID] = rewardRecipient;
+        _initiatePoSValidatorRemoval(validationID, includeUptimeProof, messageIndex);
     }
 
     /**
@@ -343,9 +211,8 @@ abstract contract StakingManager is
     function _initiatePoSValidatorRemoval(
         bytes32 validationID,
         bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal returns (bool) {
+        uint32 messageIndex
+    ) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         $._manager.initiateValidatorRemoval(validationID);
@@ -356,7 +223,7 @@ abstract contract StakingManager is
 
         // Non-PoS validators are required to boostrap the network, but are not eligible for rewards.
         if (!_isPoSValidator(validationID)) {
-            return true;
+            return;
         }
 
         // PoS validations can only be ended by their owners.
@@ -380,22 +247,7 @@ abstract contract StakingManager is
             uptimeSeconds = $._posValidatorInfo[validationID].uptimeSeconds;
         }
 
-        uint256 reward = $._rewardCalculator.calculateReward({
-            stakeAmount: weightToValue(validator.startingWeight),
-            validatorStartTime: validator.startTime,
-            stakingStartTime: validator.startTime,
-            stakingEndTime: validator.endTime,
-            uptimeSeconds: uptimeSeconds
-        });
-
-        if (rewardRecipient == address(0)) {
-            rewardRecipient = $._posValidatorInfo[validationID].owner;
-        }
-
-        $._redeemableValidatorRewards[validationID] += reward;
-        $._rewardRecipients[validationID] = rewardRecipient;
-
-        return (reward > 0);
+        return;
     }
 
     /**
@@ -420,18 +272,6 @@ abstract contract StakingManager is
         }
 
         address owner = $._posValidatorInfo[validationID].owner;
-        address rewardRecipient = $._rewardRecipients[validationID];
-        delete $._rewardRecipients[validationID];
-
-        // the reward-recipient should always be set, but just in case it isn't, we won't burn the reward
-        if (rewardRecipient == address(0)) {
-            rewardRecipient = owner;
-        }
-
-        // The validator can either be Completed or Invalidated here. We only grant rewards for Completed.
-        if (validator.status == ValidatorStatus.Completed) {
-            _withdrawValidationRewards(rewardRecipient, validationID);
-        }
 
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock(owner, weightToValue(validator.startingWeight));
@@ -535,7 +375,6 @@ abstract contract StakingManager is
         $._posValidatorInfo[validationID].delegationFeeBips = delegationFeeBips;
         $._posValidatorInfo[validationID].minStakeDuration = minStakeDuration;
         $._posValidatorInfo[validationID].uptimeSeconds = 0;
-        $._rewardRecipients[validationID] = owner;
 
         return validationID;
     }
@@ -696,63 +535,7 @@ abstract contract StakingManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initiateDelegatorRemovalWithCheck(
-            delegationID, includeUptimeProof, messageIndex, address(0)
-        );
-    }
-
-    /**
-     * @notice See {IStakingManager-initiateDelegatorRemoval}.
-     */
-    function initiateDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        _initiateDelegatorRemovalWithCheck(
-            delegationID, includeUptimeProof, messageIndex, rewardRecipient
-        );
-    }
-
-    function _initiateDelegatorRemovalWithCheck(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal {
-        if (
-            !_initiateDelegatorRemoval(
-                delegationID, includeUptimeProof, messageIndex, rewardRecipient
-            )
-        ) {
-            revert DelegatorIneligibleForRewards(delegationID);
-        }
-    }
-
-    /**
-     * @notice See {IStakingManager-forceInitiateDelegatorRemoval}.
-     */
-    function forceInitiateDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
-    ) external {
-        // Ignore the return value here to force end delegation, regardless of possible missed rewards
-        _initiateDelegatorRemoval(delegationID, includeUptimeProof, messageIndex, address(0));
-    }
-
-    /**
-     * @notice See {IStakingManager-forceInitiateDelegatorRemoval}.
-     */
-    function forceInitiateDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) external {
-        // Ignore the return value here to force end delegation, regardless of possible missed rewards
-        _initiateDelegatorRemoval(delegationID, includeUptimeProof, messageIndex, rewardRecipient);
+        _initiateDelegatorRemoval(delegationID, includeUptimeProof, messageIndex);
     }
 
     /**
@@ -763,9 +546,8 @@ abstract contract StakingManager is
     function _initiateDelegatorRemoval(
         bytes32 delegationID,
         bool includeUptimeProof,
-        uint32 messageIndex,
-        address rewardRecipient
-    ) internal returns (bool) {
+        uint32 messageIndex
+    ) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         Delegator memory delegator = $._delegatorStakes[delegationID];
@@ -812,69 +594,16 @@ abstract contract StakingManager is
                 ._manager
                 .initiateValidatorWeightUpdate(validationID, validator.weight - delegator.weight);
 
-            uint256 reward =
-                _calculateAndSetDelegationReward(delegator, rewardRecipient, delegationID);
-
             emit InitiatedDelegatorRemoval({delegationID: delegationID, validationID: validationID});
-            return (reward > 0);
+            return;
         } else if (validator.status == ValidatorStatus.Completed) {
-            _calculateAndSetDelegationReward(delegator, rewardRecipient, delegationID);
             _completeDelegatorRemoval(delegationID);
             // If the validator has completed, then no further uptimes may be submitted, so we always
             // end the delegation.
-            return true;
+            return;
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
-    }
-
-    /**
-     * @dev Calculates the reward owed to the delegator based on the state of the delegator and its corresponding validator.
-     * then set the reward and reward recipient in the storage.
-     */
-    function _calculateAndSetDelegationReward(
-        Delegator memory delegator,
-        address rewardRecipient,
-        bytes32 delegationID
-    ) private returns (uint256) {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        Validator memory validator = $._manager.getValidator(delegator.validationID);
-
-        uint64 delegationEndTime;
-        if (
-            validator.status == ValidatorStatus.PendingRemoved
-                || validator.status == ValidatorStatus.Completed
-        ) {
-            delegationEndTime = validator.endTime;
-        } else if (validator.status == ValidatorStatus.Active) {
-            delegationEndTime = uint64(block.timestamp);
-        } else {
-            // Should be unreachable.
-            revert InvalidValidatorStatus(validator.status);
-        }
-
-        // Only give rewards in the case that the delegation started before the validator exited.
-        if (delegationEndTime <= delegator.startTime) {
-            return 0;
-        }
-
-        uint256 reward = $._rewardCalculator.calculateReward({
-            stakeAmount: weightToValue(delegator.weight),
-            validatorStartTime: validator.startTime,
-            stakingStartTime: delegator.startTime,
-            stakingEndTime: delegationEndTime,
-            uptimeSeconds: $._posValidatorInfo[delegator.validationID].uptimeSeconds
-        });
-
-        if (rewardRecipient == address(0)) {
-            rewardRecipient = delegator.owner;
-        }
-
-        $._redeemableDelegatorRewards[delegationID] = reward;
-        $._delegatorRewardRecipients[delegationID] = rewardRecipient;
-
-        return reward;
     }
 
     /**
@@ -963,20 +692,10 @@ abstract contract StakingManager is
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
 
-        address rewardRecipient = $._delegatorRewardRecipients[delegationID];
-        delete $._delegatorRewardRecipients[delegationID];
-
-        if (rewardRecipient == address(0)) {
-            rewardRecipient = delegator.owner;
-        }
-
-        (uint256 delegationRewards, uint256 validatorFees) =
-            _withdrawDelegationRewards(rewardRecipient, delegationID, validationID);
-
         // Unlock the delegator's stake.
         _unlock(delegator.owner, weightToValue(delegator.weight));
 
-        emit CompletedDelegatorRemoval(delegationID, validationID, delegationRewards, validatorFees);
+        emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
     }
 
     /**
@@ -991,42 +710,5 @@ abstract contract StakingManager is
     function _isPoSValidator(bytes32 validationID) internal view returns (bool) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         return $._posValidatorInfo[validationID].owner != address(0);
-    }
-
-    function _withdrawValidationRewards(address rewardRecipient, bytes32 validationID) internal {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        uint256 rewards = $._redeemableValidatorRewards[validationID];
-        delete $._redeemableValidatorRewards[validationID];
-
-        _reward(rewardRecipient, rewards);
-    }
-
-    function _withdrawDelegationRewards(
-        address rewardRecipient,
-        bytes32 delegationID,
-        bytes32 validationID
-    ) internal returns (uint256, uint256) {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        uint256 delegationRewards;
-        uint256 validatorFees;
-
-        uint256 rewards = $._redeemableDelegatorRewards[delegationID];
-        delete $._redeemableDelegatorRewards[delegationID];
-
-        if (rewards > 0) {
-            validatorFees = (rewards * $._posValidatorInfo[validationID].delegationFeeBips)
-                / BIPS_CONVERSION_FACTOR;
-
-            // Allocate the delegation fees to the validator.
-            $._redeemableValidatorRewards[validationID] += validatorFees;
-
-            // Reward the remaining tokens to the delegator.
-            delegationRewards = rewards - validatorFees;
-            _reward(rewardRecipient, delegationRewards);
-        }
-
-        return (delegationRewards, validatorFees);
     }
 }
