@@ -11,3 +11,6 @@
 [submodule "lib/reward-streams"]
 	path = lib/reward-streams
 	url = https://github.com/euler-xyz/reward-streams
+[submodule "lib/ethereum-vault-connector"]
+	path = lib/ethereum-vault-connector
+	url = https://github.com/euler-xyz/ethereum-vault-connector

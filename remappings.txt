@@ -7,3 +7,4 @@
 @utilities=contracts/utilities
 @euler-xyz/reward-streams@1.0.0=lib/reward-streams/src
 evc/=lib/ethereum-vault-connector/src/
+openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/

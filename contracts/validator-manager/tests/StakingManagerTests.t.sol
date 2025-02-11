@@ -40,7 +40,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     uint256 public constant DEFAULT_WEIGHT_TO_VALUE_FACTOR = 1e12;
     uint256 public constant SECONDS_IN_YEAR = 31536000;
     uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 50;
-    uint64 public constant DEFAULT_EPOCH_DURATION = 30 days;
+    uint48 public constant DEFAULT_EPOCH_DURATION = 30 days;
     uint64 public constant DEFAULT_UNLOCK_DURATION = 1 days;
 
 
