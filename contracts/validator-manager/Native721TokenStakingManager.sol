@@ -482,19 +482,8 @@ contract Native721TokenStakingManager is
             revert InvalidDelegatorStatus(delegator.status);
         }
 
-        // Only the delegation owner or parent validator can end the delegation.
         if (delegator.owner != _msgSender()) {
-            // Validators can only remove delegations after the minimum stake duration has passed.
-            if ($._posValidatorInfo[validationID].owner != _msgSender()) {
-                revert UnauthorizedOwner(_msgSender());
-            }
-
-            if (
-                block.timestamp
-                    < validator.startTime + $._posValidatorInfo[validationID].minStakeDuration
-            ) {
-                revert MinStakeDurationNotPassed(uint64(block.timestamp));
-            }
+            revert UnauthorizedOwner(_msgSender());
         }
 
         if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed || validator.status == ValidatorStatus.PendingRemoved) {

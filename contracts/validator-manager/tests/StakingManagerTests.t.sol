@@ -389,44 +389,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         });
     }
 
-    function testInitiateDelegatorRemovalByValidator() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerDefaultDelegator(validationID);
-
-        _initiateDelegatorRemovalValidatorActiveWithChecks({
-            validationID: validationID,
-            sender: address(this),
-            delegationID: delegationID,
-            startDelegationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
-            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
-            expectedValidatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 2,
-            includeUptime: true,
-            force: false,
-            rewardRecipient: address(0)
-        });
-    }
-
-    function testInitiateDelegatorRemovalByValidatorMinStakeDurationNotPassed() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerDefaultDelegator(validationID);
-
-        uint64 invalidEndTime = DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP + 1 hours;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StakingManager.MinStakeDurationNotPassed.selector, invalidEndTime
-            )
-        );
-        _initiateDelegatorRemoval({
-            sender: address(this),
-            delegationID: delegationID,
-            endDelegationTimestamp: invalidEndTime,
-            includeUptime: false,
-            force: false,
-            rewardRecipient: address(0)
-        });
-    }
-
     function testInitiateDelegatorRemovalMinStakeDurationNotPassed() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -1366,6 +1328,8 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
 
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP + 1 + DEFAULT_MINIMUM_STAKE_DURATION);
         _expectStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, _weightToValue(DEFAULT_DELEGATOR_WEIGHT));
+
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
         stakingManager.initiateDelegatorRemoval(delegationID, true, 0);
     }
 
