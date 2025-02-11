@@ -422,7 +422,7 @@ abstract contract PoSValidatorManager is
 
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + weight;
-        if (newValidatorWeight > $._maximumStakeAmount) {
+        if (newValidatorWeight > valueToWeight($._maximumStakeAmount)) {
             revert MaxWeightExceeded(newValidatorWeight);
         }
 
