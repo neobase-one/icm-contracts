@@ -609,7 +609,7 @@ abstract contract StakingManager is
             }
         }
 
-        if (validator.status == ValidatorStatus.Active) {
+        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.PendingRemoved) {
             // Check that minimum stake duration has passed.
             if (block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));

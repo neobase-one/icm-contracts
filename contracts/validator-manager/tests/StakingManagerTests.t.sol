@@ -1365,38 +1365,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         stakingManager.completeDelegatorRemoval(delegationID, 0);
     }
 
-    function testCompleteDelegatorRegistrationValidatorPendingRemoved() public {
-        bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _initiateDefaultDelegatorRegistration(validationID);
-
-        bytes memory setWeightMessage =
-            ValidatorMessages.packL1ValidatorWeightMessage(validationID, 2, 0);
-        bytes memory uptimeMessage = ValidatorMessages.packValidationUptimeMessage(
-            validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        );
-
-        _initiateValidatorRemoval({
-            validationID: validationID,
-            completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
-            setWeightMessage: setWeightMessage,
-            includeUptime: true,
-            uptimeMessage: uptimeMessage,
-            force: false
-        });
-
-        _setUpCompleteDelegatorRegistrationWithChecks(
-            validationID, delegationID, DEFAULT_COMPLETION_TIMESTAMP + 1, 0, 2
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
-            )
-        );
-
-        stakingManager.initiateDelegatorRemoval(delegationID, false, 0);
-    }
-
     function testResendEndDelegationWhileActive() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);

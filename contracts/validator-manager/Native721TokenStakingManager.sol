@@ -325,7 +325,7 @@ contract Native721TokenStakingManager is
      */
     function _unlockNFTs(address to, uint256[] memory tokenIDs) internal virtual {
         for (uint256 i = 0; i < tokenIDs.length; i++) {
-            _getERC721StakingManagerStorage()._token.safeTransferFrom(address(this), to, tokenIDs[i]);
+            _getERC721StakingManagerStorage()._token.transferFrom(address(this), to, tokenIDs[i]);
         }
     }
 
@@ -497,7 +497,7 @@ contract Native721TokenStakingManager is
             }
         }
 
-        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed) {
+        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed || validator.status == ValidatorStatus.PendingRemoved) {
             // Check that minimum stake duration has passed.
             if (validator.status != ValidatorStatus.Completed && block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
