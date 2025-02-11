@@ -667,7 +667,7 @@ contract Native721TokenStakingManager is
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
         Validator memory validator = $._manager.getValidator(validationID);
 
-        if (uptime > validatorInfo.uptimeSeconds) {
+        if (uptime > validatorInfo.uptimeSeconds || currentEpoch > validatorInfo.currentEpoch) {
             if(currentEpoch > validatorInfo.currentEpoch){
                 validatorInfo.currentEpoch = currentEpoch;
                 validatorInfo.prevEpochUptimeSeconds = validatorInfo.uptimeSeconds;
