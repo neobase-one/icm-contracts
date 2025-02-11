@@ -17,6 +17,8 @@ import {
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {PChainOwner} from "../ACP99Manager.sol";
 
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
+
 abstract contract StakingManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
     uint64 public constant DEFAULT_DELEGATOR_WEIGHT = uint64(1e5);
@@ -37,6 +39,10 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     uint8 public constant DEFAULT_MAXIMUM_STAKE_MULTIPLIER = 4;
     uint256 public constant DEFAULT_WEIGHT_TO_VALUE_FACTOR = 1e12;
     uint256 public constant SECONDS_IN_YEAR = 31536000;
+    uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 50;
+    uint64 public constant DEFAULT_EPOCH_DURATION = 30 days;
+    uint64 public constant DEFAULT_UNLOCK_DURATION = 1 days;
+
 
     StakingManager public stakingManager;
     IRewardCalculator public rewardCalculator;
@@ -61,7 +67,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         bytes32 indexed delegationID, bytes32 indexed validationID, uint256 rewards, uint256 fees
     );
 
-    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime);
+    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
     function testDelegationFeeBipsTooLow() public {
         vm.expectRevert(
@@ -1074,7 +1080,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
 
         vm.expectEmit(true, true, true, true, address(stakingManager));
-        emit UptimeUpdated(validationID, uptime1);
+        emit UptimeUpdated(validationID, uptime1, 0);
         stakingManager.submitUptimeProof(validationID, 0);
 
         // Submit a second uptime proof via initiateValidatorRemoval. This one is not sufficient for rewards
@@ -1113,7 +1119,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         _mockGetUptimeWarpMessage(uptimeMsg1, true);
 
         vm.expectEmit(true, true, true, true, address(stakingManager));
-        emit UptimeUpdated(validationID, uptime1);
+        emit UptimeUpdated(validationID, uptime1, 0);
         stakingManager.submitUptimeProof(validationID, 0);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
@@ -2021,12 +2027,17 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             manager: ValidatorManager(address(0)),
             minimumStakeAmount: DEFAULT_MINIMUM_STAKE_AMOUNT,
             maximumStakeAmount: DEFAULT_MAXIMUM_STAKE_AMOUNT,
+            maximumNFTAmount: DEFAULT_MAXIMUM_NFT_AMOUNT,
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             rewardCalculator: IRewardCalculator(address(0)),
-            uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID
+            uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+            epochDuration: DEFAULT_EPOCH_DURATION,
+            balanceTracker: IBalanceTracker(address(0)),
+            balanceTrackerNFT: IBalanceTracker(address(0)),
+            unlockDuration: DEFAULT_UNLOCK_DURATION
         });
     }
 

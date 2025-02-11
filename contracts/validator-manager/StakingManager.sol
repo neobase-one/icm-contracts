@@ -24,6 +24,8 @@ import {ReentrancyGuardUpgradeable} from
 import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
+
 /**
  * @dev Implementation of the {IStakingManager} interface.
  *
@@ -44,6 +46,7 @@ abstract contract StakingManager is
         uint256 _maximumStakeAmount;
         /// @notice The minimum amount of time in seconds a validator must be staked for. Must be at least {_churnPeriodSeconds}.
         uint64 _minimumStakeDuration;
+        uint256 _maximumNFTAmount;
         /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
         uint16 _minimumDelegationFeeBips;
         /**
@@ -57,10 +60,24 @@ abstract contract StakingManager is
         uint256 _weightToValueFactor;
         /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the subnetID that this contract manages.
         bytes32 _uptimeBlockchainID;
+        /// @notice The reward stream balance tracker for this validator manager.
+        IBalanceTracker _balanceTracker;
+        /// @notice The reward stream balance tracker for this validator manager.
+        IBalanceTracker _balanceTrackerNFT;
+        /// @notice The duration of an epoch in seconds
+        uint64 _epochDuration;
+        uint64 _unlockDuration;
         /// @notice Maps the validation ID to its requirements.
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
+        /// @notice Maps validation ID to array of delegation IDs
+        mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
+        /// @notice Maps account to array of delegationIDs
+        mapping(address => uint256) _accountRewardBalance;
+        /// @notice Maps account to array of delegationIDs
+        mapping(address => uint256) _accountNFTRewardBalance;
+        mapping(bytes32 delegationID => uint256[]) _lockedNFTs;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -91,6 +108,7 @@ abstract contract StakingManager is
     error ValidatorNotPoS(bytes32 validationID);
     error ZeroWeightToValueFactor();
     error InvalidUptimeBlockchainID(bytes32 uptimeBlockchainID);
+    error UnlockDurationNotPassed(uint64 endTime);
 
     error InvalidWarpOriginSenderAddress(address senderAddress);
     error InvalidWarpSourceChainID(bytes32 sourceChainID);
@@ -126,7 +144,12 @@ abstract contract StakingManager is
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
             maximumStakeMultiplier: settings.maximumStakeMultiplier,
             weightToValueFactor: settings.weightToValueFactor,
-            uptimeBlockchainID: settings.uptimeBlockchainID
+            uptimeBlockchainID: settings.uptimeBlockchainID,
+            balanceTracker: settings.balanceTracker,
+            balanceTrackerNFT: settings.balanceTrackerNFT,
+            unlockDuration: settings.unlockDuration,
+            epochDuration: settings.epochDuration,
+            maximumNFTAmount: settings.maximumNFTAmount
         });
     }
 
@@ -135,11 +158,16 @@ abstract contract StakingManager is
         ValidatorManager manager,
         uint256 minimumStakeAmount,
         uint256 maximumStakeAmount,
+        uint256 maximumNFTAmount,
         uint64 minimumStakeDuration,
         uint16 minimumDelegationFeeBips,
         uint8 maximumStakeMultiplier,
         uint256 weightToValueFactor,
-        bytes32 uptimeBlockchainID
+        bytes32 uptimeBlockchainID,
+        uint64 unlockDuration,
+        uint64 epochDuration,
+        IBalanceTracker balanceTracker,
+        IBalanceTracker balanceTrackerNFT
     ) internal onlyInitializing {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -167,11 +195,16 @@ abstract contract StakingManager is
         $._manager = manager;
         $._minimumStakeAmount = minimumStakeAmount;
         $._maximumStakeAmount = maximumStakeAmount;
+        $._maximumNFTAmount = maximumNFTAmount;
         $._minimumStakeDuration = minimumStakeDuration;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
         $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._weightToValueFactor = weightToValueFactor;
         $._uptimeBlockchainID = uptimeBlockchainID;
+        $._unlockDuration = unlockDuration;
+        $._epochDuration = epochDuration;
+        $._balanceTracker = balanceTracker;
+        $._balanceTrackerNFT = balanceTrackerNFT;
     }
 
     /**
@@ -255,7 +288,7 @@ abstract contract StakingManager is
      * Extends the functionality of {ACP99Manager-completeValidatorRemoval} by unlocking staking rewards.
      */
     function completeValidatorRemoval(uint32 messageIndex)
-        external
+        external virtual
         nonReentrant
         returns (bytes32)
     {
@@ -283,7 +316,7 @@ abstract contract StakingManager is
      * @dev Helper function that extracts the uptime from a ValidationUptimeMessage Warp message
      * If the uptime is greater than the stored uptime, update the stored uptime.
      */
-    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal returns (uint64) {
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) virtual internal returns (uint64) {
         (WarpMessage memory warpMessage, bool valid) =
             WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
         if (!valid) {
@@ -313,7 +346,7 @@ abstract contract StakingManager is
 
         if (uptime > $._posValidatorInfo[validationID].uptimeSeconds) {
             $._posValidatorInfo[validationID].uptimeSeconds = uptime;
-            emit UptimeUpdated(validationID, uptime);
+            emit UptimeUpdated(validationID, uptime, 0);
         } else {
             uptime = $._posValidatorInfo[validationID].uptimeSeconds;
         }

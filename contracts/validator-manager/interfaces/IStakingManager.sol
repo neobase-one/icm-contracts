@@ -7,6 +7,8 @@ pragma solidity 0.8.25;
 
 import {ValidatorManager} from "../ValidatorManager.sol";
 import {IRewardCalculator} from "./IRewardCalculator.sol";
+import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
+
 
 /**
  * @dev Delegator status
@@ -36,12 +38,17 @@ struct StakingManagerSettings {
     ValidatorManager manager;
     uint256 minimumStakeAmount;
     uint256 maximumStakeAmount;
+    uint256 maximumNFTAmount;
     uint64 minimumStakeDuration;
     uint16 minimumDelegationFeeBips;
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
     IRewardCalculator rewardCalculator;
     bytes32 uptimeBlockchainID;
+    uint64 unlockDuration;
+    uint64 epochDuration;
+    IBalanceTracker balanceTracker;
+    IBalanceTracker balanceTrackerNFT;
 }
 
 /**
@@ -53,8 +60,10 @@ struct Delegator {
     bytes32 validationID;
     uint64 weight;
     uint64 startTime;
+    uint64 endTime;
     uint64 startingNonce;
     uint64 endingNonce;
+    uint256 rewardBalance;
 }
 
 /**
@@ -65,6 +74,11 @@ struct PoSValidatorInfo {
     uint16 delegationFeeBips;
     uint64 minStakeDuration;
     uint64 uptimeSeconds;
+    uint64 currentEpoch;
+    uint64 prevEpochUptimeSeconds;
+    uint256 rewardBalance;
+    uint256 rewardBalanceNFT;
+    uint256[] tokenIDs;
 }
 
 /**
@@ -124,7 +138,7 @@ interface IStakingManager {
      * @param validationID The ID of the validation period
      * @param uptime The updated uptime of the validator
      */
-    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime);
+    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
     /**
      * @notice Updates the uptime of the validationID if the submitted proof is greated than the stored uptime.
