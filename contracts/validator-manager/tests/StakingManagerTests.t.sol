@@ -361,6 +361,70 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         );
     }
 
+    function testRedelegation() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerDefaultDelegator(validationID);
+
+        bytes32 nextValidationID = _registerValidator({
+            nodeID: _newNodeID(),
+            subnetID: DEFAULT_SUBNET_ID,
+            weight: DEFAULT_WEIGHT,
+            registrationExpiry: DEFAULT_EXPIRY,
+            blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
+            registrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP
+        });
+
+        _initiateDelegatorRemovalValidatorActiveWithChecks({
+            validationID: validationID,
+            sender: DEFAULT_DELEGATOR_ADDRESS,
+            delegationID: delegationID,
+            startDelegationTimestamp: DEFAULT_DELEGATOR_INIT_REGISTRATION_TIMESTAMP,
+            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
+            expectedValidatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            includeUptime: true,
+            force: false,
+            rewardRecipient: address(this)
+        });
+
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP + 1);
+
+        bytes32 delegationID2 =_initializeRedelegation({
+            validationID: validationID,
+            delegationID: delegationID,
+            sender: DEFAULT_DELEGATOR_ADDRESS,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            nextValidatorID: nextValidationID
+        });
+
+        bytes memory setValidatorWeightPayload = ValidatorMessages.packL1ValidatorWeightMessage(
+            nextValidationID, 1, DEFAULT_WEIGHT
+        );
+
+        _setUpCompleteDelegatorRegistration(
+            delegationID2, DEFAULT_DELEGATOR_COMPLETE_REGISTRATION_TIMESTAMP, setValidatorWeightPayload
+        );
+    }
+
+    function _initializeRedelegation(
+        bytes32 validationID,
+        bytes32 delegationID,
+        address sender,
+        uint64 validatorWeight,
+        uint64 expectedNonce,
+        bytes32 nextValidatorID
+    ) internal returns (bytes32){
+        bytes memory weightUpdateMessage = ValidatorMessages.packL1ValidatorWeightMessage(
+            validationID, expectedNonce, validatorWeight
+        );
+
+        _mockGetPChainWarpMessage(weightUpdateMessage, true);
+        vm.prank(sender);
+        return stakingManager.initiateRedelegation(delegationID, 0, nextValidatorID);
+    }
+
+
     function testInitializeEndValidationNotOwner() public {
         bytes32 validationID = _registerDefaultValidator();
 

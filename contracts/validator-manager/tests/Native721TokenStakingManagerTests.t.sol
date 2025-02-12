@@ -295,7 +295,28 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
 
-    function testRevertEndDelegationNFTBeforeUnlock() public {
+    function testNFTRedelegation() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        address rewardRecipient = address(42);
+
+        bytes32 nextValidationID = _registerValidator({
+            nodeID: _newNodeID(),
+            subnetID: DEFAULT_SUBNET_ID,
+            weight: DEFAULT_WEIGHT,
+            registrationExpiry: DEFAULT_EXPIRY,
+            blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
+            registrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP
+        });
+
+        vm.warp(block.timestamp + DEFAULT_MINIMUM_STAKE_DURATION + 1);
+
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        app.registerNFTRedelegation(delegationID, false, 0, nextValidationID);
+    }
+
+    function testEndDelegationNFTBeforeUnlock() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
 

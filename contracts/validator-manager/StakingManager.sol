@@ -569,6 +569,98 @@ abstract contract StakingManager is
         });
     }
 
+    function initiateRedelegation(
+        bytes32 delegationID,
+        uint32 messageIndex,
+        bytes32 validationID
+    ) external returns (bytes32) {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Delegator memory delegator = $._delegatorStakes[delegationID];
+
+        // Ensure the delegator is pending removed. Since anybody can call this function once
+        // end delegation has been initiated, we need to make sure that this function is only
+        // callable after that has been done.
+        if (delegator.status != DelegatorStatus.PendingRemoved) {
+            revert InvalidDelegatorStatus(delegator.status);
+        }
+
+        // We only expect an ICM message if we haven't received a weight update with a nonce greater than the delegation's ending nonce
+        if (
+            $._manager.getValidator(delegator.validationID).status != ValidatorStatus.Completed
+                && $._manager.getValidator(delegator.validationID).receivedNonce < delegator.endingNonce
+        ) {
+            (bytes32 unpackedValidationID, uint64 unpackedNonce) =
+                $._manager.completeValidatorWeightUpdate(messageIndex);
+            if (delegator.validationID != unpackedValidationID) {
+                revert UnexpectedValidationID(unpackedValidationID, delegator.validationID);
+            }
+
+            // The received nonce should be at least as high as the delegation's ending nonce. This allows a weight
+            // update using a higher nonce (which implicitly includes the delegation's weight update) to be used to
+            // complete delisting for an earlier delegation. This is necessary because the P-Chain is only willing
+            // to sign the latest weight update.
+            if (delegator.endingNonce > unpackedNonce) {
+                revert InvalidNonce(unpackedNonce);
+            }
+        }
+
+        // To prevent churn tracker abuse, check that one full churn period has passed,
+        // so a delegator may not stake twice in the same churn period.
+        if (block.timestamp < delegator.startTime + $._manager.getChurnPeriodSeconds()) {
+            revert MinStakeDurationNotPassed(uint64(block.timestamp));
+        }
+
+        // Once this function completes, the delegation is completed so we can clear it from state now.
+        delete $._delegatorStakes[delegationID];
+        _removeDelegationFromValidator(delegationID, validationID);
+
+        emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
+
+        // Ensure the validation period is active
+        // Ensure the validation period is active
+        Validator memory validator = $._manager.getValidator(validationID);
+        // Check that the validation ID is a PoS validator
+        if (!_isPoSValidator(validationID)) {
+            revert ValidatorNotPoS(validationID);
+        }
+        if (validator.status != ValidatorStatus.Active) {
+            revert InvalidValidatorStatus(validator.status);
+        }
+
+        // Update the validator weight
+        uint64 newValidatorWeight = validator.weight + delegator.weight;
+        if (newValidatorWeight > validator.startingWeight * $._maximumStakeMultiplier) {
+            revert MaxWeightExceeded(newValidatorWeight);
+        }
+
+        (uint64 nonce, bytes32 messageID) =
+            $._manager.initiateValidatorWeightUpdate(validationID, newValidatorWeight);
+
+        delegationID = keccak256(abi.encodePacked(validationID, nonce));
+
+        // Store the delegation information. Set the delegator status to pending added,
+        // so that it can be properly started in the complete step, even if the delivered
+        // nonce is greater than the nonce used to initiate registration.
+        $._delegatorStakes[delegationID].status = DelegatorStatus.PendingAdded;
+        $._delegatorStakes[delegationID].owner = delegator.owner;
+        $._delegatorStakes[delegationID].validationID = validationID;
+        $._delegatorStakes[delegationID].weight = delegator.weight;
+        $._delegatorStakes[delegationID].startTime = 0;
+        $._delegatorStakes[delegationID].startingNonce = nonce;
+        $._delegatorStakes[delegationID].endingNonce = 0;
+
+        emit InitiatedDelegatorRegistration({
+            delegationID: delegationID,
+            validationID: validationID,
+            delegatorAddress: delegator.owner,
+            nonce: nonce,
+            validatorWeight: newValidatorWeight,
+            delegatorWeight: delegator.weight,
+            setWeightMessageID: messageID
+        });
+        return delegationID;
+    }
+
     /**
      * @notice See {IStakingManager-initiateDelegatorRemoval}.
      */
@@ -746,5 +838,25 @@ abstract contract StakingManager is
     function _isPoSValidator(bytes32 validationID) internal view returns (bool) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         return $._posValidatorInfo[validationID].owner != address(0);
+    }
+
+        /**
+     * @dev Removes a delegation ID from a validator's delegation list
+     * @param validationID The validator's ID
+     * @param delegationID The delegation ID to remove
+     */
+    function _removeDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        bytes32[] storage delegations = $._validatorDelegations[validationID];
+
+        // Find and remove the delegation ID
+        for (uint256 i = 0; i < delegations.length; i++) {
+            if (delegations[i] == delegationID) {
+                // Move the last element to this position and pop
+                delegations[i] = delegations[delegations.length - 1];
+                delegations.pop();
+                break;
+            }
+        }
     }
 }

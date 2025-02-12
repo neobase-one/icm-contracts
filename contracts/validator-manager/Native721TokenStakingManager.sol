@@ -693,23 +693,4 @@ contract Native721TokenStakingManager is
         return (weight * (currentUptime - previousUptime)) / _getStakingManagerStorage()._epochDuration;
     }
 
-    /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    function _removeDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        bytes32[] storage delegations = $._validatorDelegations[validationID];
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i] == delegationID) {
-                // Move the last element to this position and pop
-                delegations[i] = delegations[delegations.length - 1];
-                delegations.pop();
-                break;
-            }
-        }
-    }
 }
