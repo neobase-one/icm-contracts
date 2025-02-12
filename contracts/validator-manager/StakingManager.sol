@@ -110,6 +110,8 @@ abstract contract StakingManager is
     error ZeroWeightToValueFactor();
     error InvalidUptimeBlockchainID(bytes32 uptimeBlockchainID);
     error UnlockDurationNotPassed(uint64 endTime);
+    error InvalidBalanceTracker();
+    error InvalidBalanceTrackerNFT();
 
     error InvalidWarpOriginSenderAddress(address senderAddress);
     error InvalidWarpSourceChainID(bytes32 sourceChainID);
@@ -193,6 +195,13 @@ abstract contract StakingManager is
         }
         if (uptimeBlockchainID == bytes32(0)) {
             revert InvalidUptimeBlockchainID(uptimeBlockchainID);
+        }
+
+        if (address(balanceTracker) == address(0)){
+            revert InvalidBalanceTracker();
+        }
+        if (address(balanceTrackerNFT) == address(0)){
+            revert InvalidBalanceTrackerNFT();
         }
 
         $._manager = manager;

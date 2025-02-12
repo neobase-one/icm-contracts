@@ -440,13 +440,22 @@ contract Native721TokenStakingManager is
 
         $._validatorDelegations[validationID].push(delegationID);
 
-        // emit DelegatorAdded({
-            // delegationID: delegationID,
-            // validationID: validationID,
-            // delegatorAddress: delegatorAddress,
-            // nonce: nonce,
-            // delegatorWeight: weight
-        // }); 
+        emit InitiatedDelegatorRegistration({
+            delegationID: delegationID,
+            validationID: validationID,
+            delegatorAddress: delegatorAddress,
+            nonce: nonce,
+            validatorWeight: validator.weight,
+            delegatorWeight: weight,
+            setWeightMessageID: messageID
+        });
+
+        emit CompletedDelegatorRegistration({
+            delegationID: delegationID,
+            validationID: validationID,
+            startTime: uint64(block.timestamp)
+        });
+
         return delegationID;
     }
 
@@ -498,7 +507,7 @@ contract Native721TokenStakingManager is
 
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
             $._delegatorStakes[delegationID].endTime = uint64(block.timestamp);
-            // emit DelegatorRemovalInitialized(delegationID, validationID);
+            emit InitiatedDelegatorRemoval(delegationID, validationID);
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
@@ -530,7 +539,7 @@ contract Native721TokenStakingManager is
         delete $._delegatorStakes[delegationID];
         delete $._lockedNFTs[delegationID];
 
-        // emit DelegationEnded(delegationID, validationID, 0, 0);
+        emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
         return tokenIDs;
     }
