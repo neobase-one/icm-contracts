@@ -6,6 +6,7 @@
 pragma solidity 0.8.25;
 
 import {Test} from "@forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
 import {StakingManagerTest} from "./StakingManagerTests.t.sol";
 import {Native721TokenStakingManager} from "../Native721TokenStakingManager.sol";
 import {StakingManager, StakingManagerSettings} from "../StakingManager.sol";
@@ -277,13 +278,14 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
             ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
         _mockGetUptimeWarpMessage(uptimeMessage, true);
 
+        // Validator is Completed, so this will also complete the delegation.
         _initiateNFTDelegatorRemoval(
             DEFAULT_DELEGATOR_ADDRESS,
             delegationID,
             true,
             0
         );
-        _completeNFTDelegatorRemoval(DEFAULT_DELEGATOR_ADDRESS, delegationID);
+
         _expectNFTStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, 1);
 
         vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
@@ -294,6 +296,65 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.1e18);
         assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
     }
+
+    // function testDoubleDelegationRewards() public {
+    //     bytes32 validationID = _registerDefaultValidator();
+    //     bytes32 delegationID = _registerDefaultDelegator(validationID);
+    //     bytes32 NFTdelegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+    //     console.log("here1");
+    //     _endValidationWithChecks({
+    //         validationID: validationID,
+    //         validatorOwner: address(this),
+    //         completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+    //         completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+    //         validatorWeight: DEFAULT_WEIGHT,
+    //         expectedNonce: 2,
+    //         rewardRecipient: address(this)
+    //     });
+
+
+    //     // console.log("here2");
+    //     // uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+    //     // bytes memory uptimeMessage =
+    //     //     ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+    //     // _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+    //     // console.log("here3");
+    //     // _initiateNFTDelegatorRemoval(
+    //     //     DEFAULT_DELEGATOR_ADDRESS,
+    //     //     NFTdelegationID,
+    //     //     true,
+    //     //     0
+    //     // );
+    //     // console.log("here4");
+    //     // _expectNFTStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, 1);
+
+    //     console.log("here5");
+    //     // Validator is Completed, so this will also complete the delegation.
+    //     _initiateDelegatorRemoval({
+    //         sender: DEFAULT_DELEGATOR_ADDRESS,
+    //         delegationID: delegationID,
+    //         endDelegationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION + 1,
+    //         includeUptime: false,
+    //         force: false,
+    //         rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
+    //     });
+
+    //     vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+    //     console.log("here6");
+
+    //     // (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+    //     //     1e6, 1e6, DEFAULT_DELEGATION_FEE_BIPS);
+
+    //     // assertApproxEqRel(validatorReward, _claimRewardNFT(address(this)), 0.1e18);
+    //     // assertApproxEqRel(delegatorReward, _claimRewardNFT(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
+
+    //     (uint256 validatorReward,uint256 delegatorReward) = _calculateExpectedRewards(
+    //         DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
+    //     assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.1e18);
+    //     assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
+    // }
 
     function testNFTRedelegation() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -320,20 +381,22 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
 
-        _endValidationWithChecks({
-            validationID: validationID,
-            validatorOwner: address(this),
-            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
-            completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
-            validatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 2,
-            rewardRecipient: address(this)
-        });
+        // _endValidationWithChecks({
+        //     validationID: validationID,
+        //     validatorOwner: address(this),
+        //     completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+        //     completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
+        //     validatorWeight: DEFAULT_WEIGHT,
+        //     expectedNonce: 2,
+        //     rewardRecipient: address(this)
+        // });
 
         uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
         bytes memory uptimeMessage =
             ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
         _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        vm.warp(block.timestamp + DEFAULT_MINIMUM_STAKE_DURATION + 1);
 
         _initiateNFTDelegatorRemoval(
             DEFAULT_DELEGATOR_ADDRESS,
@@ -344,7 +407,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                StakingManager.UnlockDurationNotPassed.selector, 2679400
+                StakingManager.UnlockDurationNotPassed.selector, 87401
             )
         );
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);

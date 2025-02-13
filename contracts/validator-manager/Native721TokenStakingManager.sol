@@ -508,6 +508,12 @@ contract Native721TokenStakingManager is
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
             $._delegatorStakes[delegationID].endTime = uint64(block.timestamp);
             emit InitiatedDelegatorRemoval(delegationID, validationID);
+            if (validator.status == ValidatorStatus.Completed) {
+                uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
+                _unlockNFTs(delegator.owner, tokenIDs);
+                // If the validator has completed, then no further uptimes may be submitted, so we always
+                // end the delegation.
+            }
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
