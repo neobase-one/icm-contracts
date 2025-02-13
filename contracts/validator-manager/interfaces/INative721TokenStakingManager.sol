@@ -15,6 +15,19 @@ import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
  * Proof of Stake Validator Manager that stakes ERC721 tokens.
  */
 interface INative721TokenStakingManager is IStakingManager {
+
+    /**
+     * @notice Event emitted when a delegator registration is an NFT delegation
+     * @param delegationID The ID of the delegation
+     * @param validationID The ID of the validation period being delegated to
+     * @param delegatorAddress The address of the delegator
+    **/
+    event IsNFTDelegation(
+        bytes32 indexed delegationID,
+        bytes32 indexed validationID,
+        address indexed delegatorAddress
+    );
+
     /**
      * @notice Begins the validator registration process. Locks the provided native asset in the contract as the stake.
      * @param nodeID The ID of the node to add to the L1.

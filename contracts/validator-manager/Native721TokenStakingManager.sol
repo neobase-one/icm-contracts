@@ -456,6 +456,12 @@ contract Native721TokenStakingManager is
             startTime: uint64(block.timestamp)
         });
 
+        emit IsNFTDelegation({
+            delegationID: delegationID,
+            validationID: validationID,
+            delegatorAddress: delegatorAddress
+        });
+
         return delegationID;
     }
 
