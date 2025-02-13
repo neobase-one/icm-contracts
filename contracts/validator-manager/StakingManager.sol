@@ -61,6 +61,8 @@ abstract contract StakingManager is
         uint256 _weightToValueFactor;
         /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the subnetID that this contract manages.
         bytes32 _uptimeBlockchainID;
+        /// @notice Validator removal admin address
+        address _validatorRemovalAdmin;
         /// @notice The reward stream balance tracker for this validator manager.
         IBalanceTracker _balanceTracker;
         /// @notice The reward stream balance tracker for this validator manager.
@@ -96,7 +98,7 @@ abstract contract StakingManager is
 
     IWarpMessenger public constant WARP_MESSENGER =
         IWarpMessenger(0x0200000000000000000000000000000000000005);
-
+    
     error InvalidDelegationFee(uint16 delegationFeeBips);
     error InvalidDelegationID(bytes32 delegationID);
     error InvalidDelegatorStatus(DelegatorStatus status);
@@ -110,13 +112,13 @@ abstract contract StakingManager is
     error ZeroWeightToValueFactor();
     error InvalidUptimeBlockchainID(bytes32 uptimeBlockchainID);
     error UnlockDurationNotPassed(uint64 endTime);
-
     error InvalidWarpOriginSenderAddress(address senderAddress);
     error InvalidWarpSourceChainID(bytes32 sourceChainID);
     error UnexpectedValidationID(bytes32 validationID, bytes32 expectedValidationID);
     error InvalidValidatorStatus(ValidatorStatus status);
     error InvalidNonce(uint64 nonce);
     error InvalidWarpMessage();
+    error UnauthorizedInitialValidatorRemoval(address sender);
 
     // solhint-disable ordering
     /**
@@ -145,6 +147,7 @@ abstract contract StakingManager is
             minimumDelegationAmount: settings.minimumDelegationAmount,
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
             maximumStakeMultiplier: settings.maximumStakeMultiplier,
+            validatorRemovalAdmin: settings.validatorRemovalAdmin,
             weightToValueFactor: settings.weightToValueFactor,
             uptimeBlockchainID: settings.uptimeBlockchainID,
             balanceTracker: settings.balanceTracker,
@@ -165,6 +168,7 @@ abstract contract StakingManager is
         uint256 minimumDelegationAmount,
         uint16 minimumDelegationFeeBips,
         uint8 maximumStakeMultiplier,
+        address validatorRemovalAdmin,
         uint256 weightToValueFactor,
         bytes32 uptimeBlockchainID,
         uint64 unlockDuration,
@@ -203,6 +207,7 @@ abstract contract StakingManager is
         $._minimumDelegationAmount = minimumDelegationAmount;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
         $._maximumStakeMultiplier = maximumStakeMultiplier;
+        $._validatorRemovalAdmin = validatorRemovalAdmin;
         $._weightToValueFactor = weightToValueFactor;
         $._uptimeBlockchainID = uptimeBlockchainID;
         $._unlockDuration = unlockDuration;
@@ -260,6 +265,10 @@ abstract contract StakingManager is
 
         // Non-PoS validators are required to boostrap the network, but are not eligible for rewards.
         if (!_isPoSValidator(validationID)) {
+            // Initial Validators can only be removed by the removal admin
+            if ($._validatorRemovalAdmin != _msgSender()) {
+                revert UnauthorizedInitialValidatorRemoval(_msgSender());
+            }
             return;
         }
 

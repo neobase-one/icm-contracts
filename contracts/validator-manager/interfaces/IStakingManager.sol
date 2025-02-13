@@ -44,6 +44,7 @@ struct StakingManagerSettings {
     uint16 minimumDelegationFeeBips;
     uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
+    address validatorRemovalAdmin;
     IRewardCalculator rewardCalculator;
     bytes32 uptimeBlockchainID;
     uint64 unlockDuration;

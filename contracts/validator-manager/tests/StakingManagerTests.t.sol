@@ -1225,6 +1225,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_COMPLETION_TIMESTAMP
         );
 
+        vm.prank(DEFAULT_VALIDATOR_REMOVAL_ADMIN);
         _initiateValidatorRemoval(validationID, false, address(0));
 
         uint256 balanceBefore = _getStakeAssetBalance(address(this));
@@ -2048,6 +2049,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             minimumDelegationAmount: DEFAULT_MINIMUM_DELEGATION_AMOUNT,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
             maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
+            validatorRemovalAdmin: DEFAULT_VALIDATOR_REMOVAL_ADMIN,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             rewardCalculator: IRewardCalculator(address(0)),
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
