@@ -459,7 +459,8 @@ contract Native721TokenStakingManager is
         emit IsNFTDelegation({
             delegationID: delegationID,
             validationID: validationID,
-            delegatorAddress: delegatorAddress
+            delegatorAddress: delegatorAddress,
+            lockedNFTs: tokenIDs
         });
 
         return delegationID;

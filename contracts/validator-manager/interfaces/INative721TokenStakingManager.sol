@@ -25,7 +25,8 @@ interface INative721TokenStakingManager is IStakingManager {
     event IsNFTDelegation(
         bytes32 indexed delegationID,
         bytes32 indexed validationID,
-        address indexed delegatorAddress
+        address indexed delegatorAddress,
+        uint256[] lockedNFTs
     );
 
     /**
