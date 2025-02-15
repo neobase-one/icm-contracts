@@ -62,6 +62,8 @@ contract Native721TokenStakingManager is
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.Native721TokenStakingManager")) - 1)) & ~bytes32(uint256(0xff));
     bytes32 public constant ERC721_STAKING_MANAGER_STORAGE_LOCATION =
         0xf2d79c30881febd0da8597832b5b1bf1f4d4b2209b19059420303eb8fcab8a00;
+    
+    uint8 public constant UPTIME_REWARDS_THRESHOLD_PERCENTAGE = 80;
 
     error InvalidNFTAmount(uint256 nftAmount);
     error InvalidTokenAddress(address tokenAddress);
@@ -720,6 +722,11 @@ contract Native721TokenStakingManager is
     ) internal view returns (uint256) {
         if(previousUptime > currentUptime || currentUptime == 0) {
             return 0;
+        }
+
+        // Return full weight if uptime is above threshold
+        if((currentUptime - previousUptime) * 100 / _getStakingManagerStorage()._epochDuration > UPTIME_REWARDS_THRESHOLD_PERCENTAGE) {
+            return weight;
         }
         // Calculate effective weight based on both weight and time period
         return (weight * (currentUptime - previousUptime)) / _getStakingManagerStorage()._epochDuration;
