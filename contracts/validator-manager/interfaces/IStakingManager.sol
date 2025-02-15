@@ -6,7 +6,6 @@
 pragma solidity 0.8.25;
 
 import {ValidatorManager} from "../ValidatorManager.sol";
-import {IRewardCalculator} from "./IRewardCalculator.sol";
 import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
 
@@ -42,10 +41,8 @@ struct StakingManagerSettings {
     uint64 minimumStakeDuration;
     uint256 minimumDelegationAmount;
     uint16 minimumDelegationFeeBips;
-    uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
     address validatorRemovalAdmin;
-    IRewardCalculator rewardCalculator;
     bytes32 uptimeBlockchainID;
     uint64 unlockDuration;
     uint64 epochDuration;

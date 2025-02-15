@@ -116,31 +116,6 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.initialize(defaultPoSSettings, stakingToken);
     }
 
-    function testZeroMaxStakeMultiplier() public {
-        app = new Native721TokenStakingManager(ICMInitializable.Allowed);
-        vm.expectRevert(abi.encodeWithSelector(StakingManager.InvalidStakeMultiplier.selector, 0));
-
-        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.manager = validatorManager;
-        defaultPoSSettings.maximumStakeMultiplier = 0;
-        app.initialize(defaultPoSSettings, stakingToken);
-    }
-
-    function testMaxStakeMultiplierOverLimit() public {
-        app = new Native721TokenStakingManager(ICMInitializable.Allowed);
-        uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StakingManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
-            )
-        );
-
-        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.manager = validatorManager;
-        defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
-        app.initialize(defaultPoSSettings, stakingToken);
-    }
-
     function testZeroWeightToValueFactor() public {
         app = new Native721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(abi.encodeWithSelector(StakingManager.ZeroWeightToValueFactor.selector));
@@ -690,7 +665,6 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         defaultPoSSettings.manager = validatorManager;
         defaultPoSSettings.balanceTracker = balanceTracker;
         defaultPoSSettings.balanceTrackerNFT = balanceTrackerNFT;
-        defaultPoSSettings.rewardCalculator = rewardCalculator;
 
         validatorManager.initialize(_defaultSettings(address(app)));
         app.initialize(defaultPoSSettings, stakingToken);

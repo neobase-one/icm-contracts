@@ -50,13 +50,6 @@ abstract contract StakingManager is
         uint256 _minimumDelegationAmount;
         /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
         uint16 _minimumDelegationFeeBips;
-        /**
-         * @notice A multiplier applied to validator's initial stake amount to determine
-         * the maximum amount of stake a validator can have with delegations.
-         * Note: Setting this value to 1 would disable delegations to validators, since
-         * the maximum stake would be equal to the initial stake.
-         */
-        uint64 _maximumStakeMultiplier;
         /// @notice The factor used to convert between weight and value.
         uint256 _weightToValueFactor;
         /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the subnetID that this contract manages.
@@ -88,8 +81,6 @@ abstract contract StakingManager is
     bytes32 public constant STAKING_MANAGER_STORAGE_LOCATION =
         0xafe6c4731b852fc2be89a0896ae43d22d8b24989064d841b2a1586b4d39ab600;
 
-    uint8 public constant MAXIMUM_STAKE_MULTIPLIER_LIMIT = 10;
-
     uint16 public constant MAXIMUM_DELEGATION_FEE_BIPS = 10000;
 
     uint16 public constant BIPS_CONVERSION_FACTOR = 10000;
@@ -104,7 +95,6 @@ abstract contract StakingManager is
     error InvalidDelegatorStatus(DelegatorStatus status);
     error InvalidStakeAmount(uint256 stakeAmount);
     error InvalidMinStakeDuration(uint64 minStakeDuration);
-    error InvalidStakeMultiplier(uint8 maximumStakeMultiplier);
     error MaxWeightExceeded(uint64 newValidatorWeight);
     error MinStakeDurationNotPassed(uint64 endTime);
     error UnauthorizedOwner(address sender);
@@ -146,7 +136,6 @@ abstract contract StakingManager is
             minimumStakeDuration: settings.minimumStakeDuration,
             minimumDelegationAmount: settings.minimumDelegationAmount,
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
-            maximumStakeMultiplier: settings.maximumStakeMultiplier,
             validatorRemovalAdmin: settings.validatorRemovalAdmin,
             weightToValueFactor: settings.weightToValueFactor,
             uptimeBlockchainID: settings.uptimeBlockchainID,
@@ -167,7 +156,6 @@ abstract contract StakingManager is
         uint64 minimumStakeDuration,
         uint256 minimumDelegationAmount,
         uint16 minimumDelegationFeeBips,
-        uint8 maximumStakeMultiplier,
         address validatorRemovalAdmin,
         uint256 weightToValueFactor,
         bytes32 uptimeBlockchainID,
@@ -183,10 +171,6 @@ abstract contract StakingManager is
         }
         if (minimumStakeAmount > maximumStakeAmount) {
             revert InvalidStakeAmount(minimumStakeAmount);
-        }
-        if (maximumStakeMultiplier == 0 || maximumStakeMultiplier > MAXIMUM_STAKE_MULTIPLIER_LIMIT)
-        {
-            revert InvalidStakeMultiplier(maximumStakeMultiplier);
         }
         // Minimum stake duration should be at least one churn period in order to prevent churn tracker abuse.
         if (minimumStakeDuration < manager.getChurnPeriodSeconds()) {
@@ -206,7 +190,6 @@ abstract contract StakingManager is
         $._minimumStakeDuration = minimumStakeDuration;
         $._minimumDelegationAmount = minimumDelegationAmount;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
-        $._maximumStakeMultiplier = maximumStakeMultiplier;
         $._validatorRemovalAdmin = validatorRemovalAdmin;
         $._weightToValueFactor = weightToValueFactor;
         $._uptimeBlockchainID = uptimeBlockchainID;
@@ -495,7 +478,7 @@ abstract contract StakingManager is
         }
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + weight;
-        if (newValidatorWeight > validator.startingWeight * $._maximumStakeMultiplier) {
+        if (newValidatorWeight > valueToWeight($._maximumStakeAmount)) {
             revert MaxWeightExceeded(newValidatorWeight);
         }
 
@@ -638,7 +621,7 @@ abstract contract StakingManager is
 
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + delegator.weight;
-        if (newValidatorWeight > validator.startingWeight * $._maximumStakeMultiplier) {
+        if (newValidatorWeight > valueToWeight($._maximumStakeAmount)) {
             revert MaxWeightExceeded(newValidatorWeight);
         }
 

@@ -37,7 +37,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_MINIMUM_DELEGATION_AMOUNT = 1e17;
     uint16 public constant DEFAULT_MINIMUM_DELEGATION_FEE_BIPS = 100;
     uint16 public constant DEFAULT_DELEGATION_FEE_BIPS = 150;
-    uint8 public constant DEFAULT_MAXIMUM_STAKE_MULTIPLIER = 4;
     uint256 public constant DEFAULT_WEIGHT_TO_VALUE_FACTOR = 1e12;
     uint256 public constant SECONDS_IN_YEAR = 31536000;
     uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 50;
@@ -1258,17 +1257,17 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     function testDelegationOverWeightLimit() public {
         bytes32 validationID = _registerDefaultValidator();
 
-        uint64 delegatorWeight = DEFAULT_WEIGHT * DEFAULT_MAXIMUM_STAKE_MULTIPLIER + 1;
+        uint256 delegatorAmount = DEFAULT_MAXIMUM_STAKE_AMOUNT;
 
-        _beforeSend(_weightToValue(delegatorWeight), DEFAULT_DELEGATOR_ADDRESS);
+        _beforeSend(delegatorAmount, DEFAULT_DELEGATOR_ADDRESS);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                StakingManager.MaxWeightExceeded.selector, delegatorWeight + DEFAULT_WEIGHT
+                StakingManager.MaxWeightExceeded.selector, DEFAULT_WEIGHT + _valueToWeight(delegatorAmount)
             )
         );
 
-        _initiateDelegatorRegistration(validationID, DEFAULT_DELEGATOR_ADDRESS, delegatorWeight);
+        _initiateDelegatorRegistration(validationID, DEFAULT_DELEGATOR_ADDRESS, _valueToWeight(delegatorAmount));
     }
 
     function testCompleteDelegatorRegistrationAlreadyRegistered() public {
@@ -2048,10 +2047,8 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
             minimumDelegationAmount: DEFAULT_MINIMUM_DELEGATION_AMOUNT,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
-            maximumStakeMultiplier: DEFAULT_MAXIMUM_STAKE_MULTIPLIER,
             validatorRemovalAdmin: DEFAULT_VALIDATOR_REMOVAL_ADMIN,
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
-            rewardCalculator: IRewardCalculator(address(0)),
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
             epochDuration: DEFAULT_EPOCH_DURATION,
             balanceTracker: IBalanceTracker(address(0)),
