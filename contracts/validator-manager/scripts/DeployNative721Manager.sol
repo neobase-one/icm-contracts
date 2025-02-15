@@ -64,6 +64,7 @@ contract DeploymentScript is Script {
             minimumDelegationFeeBips: 100,
             maximumStakeMultiplier: 4,
             weightToValueFactor: 1e12,
+            validatorRemovalAdmin: deployer,
             rewardCalculator: IRewardCalculator(address(0)),
             uptimeBlockchainID: bytes32(hex"abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"),
             epochDuration: 7 days,

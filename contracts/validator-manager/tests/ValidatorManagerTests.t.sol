@@ -35,6 +35,8 @@ abstract contract ValidatorManagerTest is Test {
         bytes32(hex"67e8531265d8e97bd5c23534a37f4ea42d41934ddf8fe2c77c27fac9ef89f973");
     address public constant WARP_PRECOMPILE_ADDRESS = 0x0200000000000000000000000000000000000005;
 
+    address public constant DEFAULT_VALIDATOR_REMOVAL_ADMIN = address(0x123);
+
     uint64 public constant DEFAULT_WEIGHT = 1e6;
     // Set the default weight to 1e10 to avoid churn issues
     uint64 public constant DEFAULT_INITIAL_VALIDATOR_WEIGHT = DEFAULT_WEIGHT * 1e4;
