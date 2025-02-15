@@ -570,6 +570,9 @@ abstract contract StakingManager is
         });
     }
 
+    /**
+     * @notice See {IStakingManager-initiateRedelegation}.
+     */
     function initiateRedelegation(
         bytes32 delegationID,
         uint32 messageIndex,
