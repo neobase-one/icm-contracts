@@ -109,6 +109,8 @@ abstract contract StakingManager is
     error InvalidNonce(uint64 nonce);
     error InvalidWarpMessage();
     error UnauthorizedInitialValidatorRemoval(address sender);
+    error InvalidEpoch();
+    error ZeroDelegatorAddress();
 
     // solhint-disable ordering
     /**
@@ -175,6 +177,10 @@ abstract contract StakingManager is
         // Minimum stake duration should be at least one churn period in order to prevent churn tracker abuse.
         if (minimumStakeDuration < manager.getChurnPeriodSeconds()) {
             revert InvalidMinStakeDuration(minimumStakeDuration);
+        }
+        // Check in accordance with reward streams contracts
+        if (epochDuration < 7 days || epochDuration > 10 * 7 days) {
+            revert InvalidEpoch();
         }
         if (weightToValueFactor == 0) {
             revert ZeroWeightToValueFactor();
@@ -475,6 +481,9 @@ abstract contract StakingManager is
 
         if (delegationAmount < $._minimumDelegationAmount) {
             revert InvalidStakeAmount(delegationAmount);
+        }
+        if (delegatorAddress == address(0)){
+            revert ZeroDelegatorAddress();
         }
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + weight;
