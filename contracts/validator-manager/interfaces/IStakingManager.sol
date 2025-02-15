@@ -26,7 +26,6 @@ enum DelegatorStatus {
  * @notice maximumStakeAmount is the maximum amount of stake that can be staked to a validator
  * @notice minimumStakeDuration is the minimum duration that validators must stake for
  * @notice minimumDelegationFeeBips is the minimum delegation fee in basis points that validators can charge
- * @notice maximumStakeMultiplier is the multiplier applied to validator's initial stake amount to determine
  * the maximum amount of stake a validator can have with delegations.
  * @notice weightToValueFactor is the factor used to convert validator weight to value
  * @notice rewardCalculator is the reward calculator used to calculate rewards for this validator manager
@@ -78,6 +77,7 @@ struct PoSValidatorInfo {
     uint256 rewardBalance;
     uint256 rewardBalanceNFT;
     uint256[] tokenIDs;
+    uint256 delegatedTokens;
 }
 
 /**

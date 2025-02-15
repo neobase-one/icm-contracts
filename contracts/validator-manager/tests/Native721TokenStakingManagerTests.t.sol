@@ -160,6 +160,22 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.initialize(_defaultPoSSettings(), stakingToken); // settings.manager is not set
     }
 
+    function testNFTDelegationOverWeightLimit() public {
+        bytes32 validationID = _registerDefaultValidator();
+
+        uint256[] memory tokens = new uint256[](DEFAULT_MAXIMUM_NFT_AMOUNT);
+
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Native721TokenStakingManager.InvalidNFTAmount.selector, DEFAULT_MAXIMUM_NFT_AMOUNT + 1
+            )
+        );
+
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        app.registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS, tokens);
+    }
+
     function testDelegationRewards() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
