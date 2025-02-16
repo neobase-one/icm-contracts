@@ -19,14 +19,11 @@ interface INative721TokenStakingManager is IStakingManager {
     /**
      * @notice Event emitted when a delegator registration is an NFT delegation
      * @param delegationID The ID of the delegation
-     * @param validationID The ID of the validation period being delegated to
-     * @param delegatorAddress The address of the delegator
+     * @param tokenIDs List of tokenIDs that are being delegated
     **/
-    event IsNFTDelegation(
+    event DelegatedNFTs(
         bytes32 indexed delegationID,
-        bytes32 indexed validationID,
-        address indexed delegatorAddress,
-        uint256[] lockedNFTs
+        uint256[] tokenIDs
     );
 
     /**
