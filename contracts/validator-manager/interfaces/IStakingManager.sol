@@ -73,6 +73,7 @@ struct PoSValidatorInfo {
     uint64 minStakeDuration;
     uint64 uptimeSeconds;
     uint64 currentEpoch;
+    uint64 nftNonce;
     uint64 prevEpochUptimeSeconds;
     uint256 rewardBalance;
     uint256 rewardBalanceNFT;

@@ -435,11 +435,10 @@ contract Native721TokenStakingManager is
             revert InvalidValidatorStatus(validator.status);
         }
 
-        (uint64 nonce, bytes32 messageID) =
-            $._manager.initiateValidatorWeightUpdate(validationID, validator.weight);
-
+        uint64 nonce = ++$._posValidatorInfo[validationID].nftNonce;
+        
         // Update the delegation status
-        bytes32 delegationID = keccak256(abi.encodePacked(validationID, nonce));
+        bytes32 delegationID = keccak256(abi.encodePacked(validationID, nonce, "ERC721"));
         $._delegatorStakes[delegationID].owner = delegatorAddress;
         $._delegatorStakes[delegationID].validationID = validationID;
         $._delegatorStakes[delegationID].weight = weight;
@@ -457,7 +456,7 @@ contract Native721TokenStakingManager is
             nonce: nonce,
             validatorWeight: validator.weight,
             delegatorWeight: weight,
-            setWeightMessageID: messageID
+            setWeightMessageID: 0
         });
 
         emit CompletedDelegatorRegistration({
