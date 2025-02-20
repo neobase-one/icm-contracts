@@ -269,7 +269,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
             completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
             completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
             validatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 2,
+            expectedNonce: 1,
             rewardRecipient: address(this)
         });
 
@@ -357,7 +357,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
             completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
             completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
             validatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 3,
+            expectedNonce: 2,
             rewardRecipient: address(this)
         });
 
@@ -503,7 +503,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
             completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
             completionTimestamp: DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION,
             validatorWeight: DEFAULT_WEIGHT,
-            expectedNonce: 2,
+            expectedNonce: 1,
             rewardRecipient: address(this)
         });
 
