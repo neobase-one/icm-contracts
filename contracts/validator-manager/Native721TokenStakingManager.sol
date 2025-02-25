@@ -20,6 +20,7 @@ import {
     PoSValidatorInfo,
     StakingManagerSettings
 } from "./interfaces/IStakingManager.sol";
+import { Math } from "@openzeppelin/contracts@5.0.2/utils/math/Math.sol";
 import {INative721TokenStakingManager} from "./interfaces/INative721TokenStakingManager.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
@@ -585,10 +586,13 @@ contract Native721TokenStakingManager is
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
             if (delegator.status == DelegatorStatus.Active) {
-
+                uint64 delegatorUptime = uint64(Math.min(
+                    validatorInfo.uptimeSeconds, 
+                    uint64(block.timestamp - delegator.startTime + validatorInfo.prevEpochUptimeSeconds)
+                ));
                 uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
                     delegator.weight,
-                    validatorInfo.uptimeSeconds,
+                    delegatorUptime,
                     validatorInfo.prevEpochUptimeSeconds
                 );
 
