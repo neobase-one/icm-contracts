@@ -27,6 +27,32 @@ interface INative721TokenStakingManager is IStakingManager {
     );
 
     /**
+     * @notice Event emitted when reward is registered
+     * @param primary True if the reward is primary, false if secondary
+     * @param epoch The epoch for which the reward is being registered
+     * @param token The reward token
+     * @param amount The amount of the reward
+    **/
+    event RewardRegistered(
+        bool primary,
+        uint64 epoch,
+        address token,
+        uint256 amount
+    );
+
+    /**
+    * @notice Event emitted when a reward is cancelled
+    * @param primary True if the reward is primary, false if secondary
+    * @param epoch The epoch for which the reward is being cancelled
+    * @param token The reward token
+    **/
+    event RewardCancelled(
+        bool primary,
+        uint64 epoch,
+        address token
+    );
+
+    /**
      * @notice Begins the validator registration process. Locks the provided native asset in the contract as the stake.
      * @param nodeID The ID of the node to add to the L1.
      * @param blsPublicKey The BLS public key of the validator.

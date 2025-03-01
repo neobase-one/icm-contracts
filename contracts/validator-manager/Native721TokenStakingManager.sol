@@ -5,7 +5,6 @@
 
 pragma solidity 0.8.25;
 
-import {StakingManager} from "./StakingManager.sol";
 import {
     StakingManagerSettings
 } from "./interfaces/IStakingManager.sol";
@@ -35,13 +34,9 @@ import {WarpMessage} from
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721Receiver.sol";
 
-import {
-    INativeTokenStakingManager, PChainOwner
-} from "./interfaces/INativeTokenStakingManager.sol";
 import {Validator, ValidatorStatus, PChainOwner} from "./ACP99Manager.sol";
 import {OwnableUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/access/OwnableUpgradeable.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @dev Implementation of the {INative721TokenStakingManager} interface.
@@ -69,10 +64,13 @@ contract Native721TokenStakingManager is
         0xf2d79c30881febd0da8597832b5b1bf1f4d4b2209b19059420303eb8fcab8a00;
     
     uint8 public constant UPTIME_REWARDS_THRESHOLD_PERCENTAGE = 80;
+    uint64 public constant REWARD_CLAIM_DELAY = 7 days;
 
     error InvalidNFTAmount(uint256 nftAmount);
     error InvalidTokenAddress(address tokenAddress);
     error InvalidInputLengths(uint256 inputLength1, uint256 inputLength2);
+    error TooEarly(uint256 actualTime, uint256 expectedTime);
+    error TooLate(uint256 actualTime, uint256 expectedTime);
 
 
     // solhint-disable ordering
@@ -649,53 +647,103 @@ contract Native721TokenStakingManager is
         $._totalRewardWeight[epoch] += valWeight;
         $._totalRewardWeightNFT[epoch] += valWeightNFT;
 
-        console.log($._accountRewardWeight[epoch][validatorInfo.owner]);
-        console.log($._accountRewardWeightNFT[epoch][validatorInfo.owner]);
-        console.log($._totalRewardWeight[epoch]);
-        console.log($._totalRewardWeightNFT[epoch]);
-
         validatorInfo.uptimeSeconds = uptime;
         
         emit UptimeUpdated(validationID, uptime, epoch);
         return uptime;
     }
 
-
-    function claimRewards(
-        uint64 epoch,
-        address[] memory tokens
-    ) external nonReentrant {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        for(uint256 i = 0; i < tokens.length; i++){
-
-            uint256 amount = ($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
-                 / $._totalRewardWeight[epoch];
-            uint256 withdrawable = amount - $._rewardWithdrawn[epoch][_msgSender()];
-            $._rewardWithdrawn[epoch][_msgSender()] = amount;
-            IERC20(tokens[i]).transfer(_msgSender(), withdrawable);
-        }
-    }
-
-    function setRewards(
+    function _getRewards(
         bool primary,
         uint64 epoch,
-        address[] memory tokens,
-        uint256[] memory amounts
-    ) external onlyOwner {
+        address[] memory tokens
+    ) internal view returns (uint256[] memory) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
-        if(tokens.length != amounts.length){
-            revert InvalidInputLengths(tokens.length, amounts.length);
-        }
+        uint256[] memory rewards = new uint256[](tokens.length);
 
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
-                $._rewardPools[epoch][tokens[i]] = amounts[i];
+                uint256 amount = ($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
+                 / $._totalRewardWeight[epoch];
+
+                rewards[i] = amount - $._rewardWithdrawn[epoch][_msgSender()][tokens[i]];
             } else {
-                $._rewardPoolsNFT[epoch][tokens[i]] = amounts[i];
+                uint256 amount = ($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][_msgSender()])
+                 / $._totalRewardWeightNFT[epoch];
+
+                rewards[i] = amount - $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]];
             }
-            IERC20(tokens[i]).transferFrom(_msgSender(), address(this), amounts[i]);
         }
+    }
+
+    function getRewards(
+        bool primary,
+        uint64 epoch,
+        address[] memory tokens
+    ) external view returns (uint256[] memory) {
+        return _getRewards(primary, epoch, tokens);
+    }
+
+    function claimRewards(
+        bool primary,
+        uint64 epoch,
+        address[] memory tokens,
+        address recipient
+    ) external nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if(block.timestamp < epoch * $._epochDuration + REWARD_CLAIM_DELAY){
+            revert TooEarly(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
+        }
+
+        uint256[] memory rewards = _getRewards(primary, epoch, tokens);
+        for(uint256 i = 0; i < tokens.length; i++){
+            if(primary){
+                $._rewardWithdrawn[epoch][_msgSender()][tokens[i]] += rewards[i];
+            } else {
+                $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]] += rewards[i];
+            }
+            IERC20(tokens[i]).transfer(recipient, rewards[i]);
+        }
+    }
+
+    function registerRewards(
+        bool primary,
+        uint64 epoch,
+        address token,
+        uint256 amount
+    ) external onlyOwner {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if(primary){
+            $._rewardPools[epoch][token] = amount;
+        } else {
+            $._rewardPoolsNFT[epoch][token] = amount;
+        }
+        IERC20(token).transferFrom(_msgSender(), address(this), amount);
+        emit RewardRegistered(primary, epoch, token, amount);
+    }
+
+    function cancelRewards(
+        bool primary,
+        uint64 epoch,
+        address token
+    ) external onlyOwner {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if(block.timestamp >= epoch * $._epochDuration + REWARD_CLAIM_DELAY){
+            revert TooLate(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
+        }
+
+        if(primary){
+            IERC20(token).transfer(_msgSender(), $._rewardPools[epoch][token]);
+            $._rewardPools[epoch][token] = 0;
+        } else {
+            IERC20(token).transfer(_msgSender(), $._rewardPoolsNFT[epoch][token]);
+            $._rewardPoolsNFT[epoch][token] = 0;
+        }
+        emit RewardCancelled(primary, epoch, token);
     }
 
     /**

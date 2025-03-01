@@ -78,8 +78,8 @@ abstract contract StakingManager is
         mapping(uint64 epoch => mapping(address account => uint256)) _accountRewardWeight;
         mapping(uint64 epoch => mapping(address account => uint256)) _accountRewardWeightNFT;
 
-        mapping(uint64 epoch => mapping(address account => uint256)) _rewardWithdrawn;
-        mapping(uint64 epoch => mapping(address account => uint256)) _rewardWithdrawnNFT;
+        mapping(uint64 epoch => mapping(address account => mapping(address token => uint256))) _rewardWithdrawn;
+        mapping(uint64 epoch => mapping(address account => mapping(address token => uint256))) _rewardWithdrawnNFT;
 
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPools; 
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT; 
