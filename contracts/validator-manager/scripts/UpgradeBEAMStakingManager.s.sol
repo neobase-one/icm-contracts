@@ -9,7 +9,6 @@ import {console} from "forge-std/console.sol";
 import {StakingManagerSettings} from "../Native721TokenStakingManager.sol";
 import {ValidatorManager} from "../ValidatorManager.sol";
 import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
-import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
 import {ITransparentUpgradeableProxy} from "openzeppelin-contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
