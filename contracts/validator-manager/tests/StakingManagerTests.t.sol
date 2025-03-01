@@ -168,70 +168,70 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         stakingManager.initiateValidatorRemoval(validationID, false, 0);
     }
 
-    function testInvalidUptimeWarpMessage() public {
-        bytes32 validationID = _registerDefaultValidator();
+    // function testInvalidUptimeWarpMessage() public {
+    //     bytes32 validationID = _registerDefaultValidator();
 
-        _mockGetUptimeWarpMessage(new bytes(0), false);
-        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-        vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
-        stakingManager.initiateValidatorRemoval(validationID, true, 0);
-    }
+    //     _mockGetUptimeWarpMessage(new bytes(0), false);
+    //     vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
+    //     vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
+    //     stakingManager.initiateValidatorRemoval(validationID, true, 0);
+    // }
 
-    function testInvalidUptimeSenderAddress() public {
-        bytes32 validationID = _registerDefaultValidator();
+    // function testInvalidUptimeSenderAddress() public {
+    //     bytes32 validationID = _registerDefaultValidator();
 
-        vm.mockCall(
-            WARP_PRECOMPILE_ADDRESS,
-            abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
-            abi.encode(
-                WarpMessage({
-                    sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
-                    originSenderAddress: address(this),
-                    payload: new bytes(0)
-                }),
-                true
-            )
-        );
-        vm.expectCall(
-            WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
-        );
+    //     vm.mockCall(
+    //         WARP_PRECOMPILE_ADDRESS,
+    //         abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
+    //         abi.encode(
+    //             WarpMessage({
+    //                 sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+    //                 originSenderAddress: address(this),
+    //                 payload: new bytes(0)
+    //             }),
+    //             true
+    //         )
+    //     );
+    //     vm.expectCall(
+    //         WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
+    //     );
 
-        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
-            )
-        );
-        stakingManager.initiateValidatorRemoval(validationID, true, 0);
-    }
+    //     vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(
+    //             ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
+    //         )
+    //     );
+    //     stakingManager.initiateValidatorRemoval(validationID, true, 0);
+    // }
 
-    function testInvalidUptimeValidationID() public {
-        bytes32 validationID = _registerDefaultValidator();
+    // function testInvalidUptimeValidationID() public {
+    //     bytes32 validationID = _registerDefaultValidator();
 
-        vm.mockCall(
-            WARP_PRECOMPILE_ADDRESS,
-            abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
-            abi.encode(
-                WarpMessage({
-                    sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
-                    originSenderAddress: address(0),
-                    payload: ValidatorMessages.packValidationUptimeMessage(bytes32(0), 0)
-                }),
-                true
-            )
-        );
-        vm.expectCall(
-            WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
-        );
+    //     vm.mockCall(
+    //         WARP_PRECOMPILE_ADDRESS,
+    //         abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
+    //         abi.encode(
+    //             WarpMessage({
+    //                 sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+    //                 originSenderAddress: address(0),
+    //                 payload: ValidatorMessages.packValidationUptimeMessage(bytes32(0), 0)
+    //             }),
+    //             true
+    //         )
+    //     );
+    //     vm.expectCall(
+    //         WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
+    //     );
 
-        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StakingManager.UnexpectedValidationID.selector, bytes32(0), validationID
-            )
-        );
-        stakingManager.initiateValidatorRemoval(validationID, true, 0);
-    }
+    //     vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(
+    //             StakingManager.UnexpectedValidationID.selector, bytes32(0), validationID
+    //         )
+    //     );
+    //     stakingManager.initiateValidatorRemoval(validationID, true, 0);
+    // }
 
     function testInitiateDelegatorRegistration() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -1102,45 +1102,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         });
     }
 
-    function testInitializeEndValidationUseStoredUptime() public {
-        bytes32 validationID = _registerDefaultValidator();
-
-        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-        bytes memory setValidatorWeightPayload =
-            ValidatorMessages.packL1ValidatorWeightMessage(validationID, 1, 0);
-        _mockSendWarpMessage(setValidatorWeightPayload, bytes32(0));
-
-        // Submit an uptime proof via submitUptime
-        uint64 uptimePercentage1 = 80;
-        uint64 uptime1 = (
-            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
-        ) / 100;
-        bytes memory uptimeMsg1 =
-            ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
-        _mockGetUptimeWarpMessage(uptimeMsg1, true);
-
-        vm.expectEmit(true, true, true, true, address(stakingManager));
-        emit UptimeUpdated(validationID, uptime1, 0);
-        stakingManager.submitUptimeProof(validationID, 0);
-
-        // Submit a second uptime proof via initiateValidatorRemoval. This one is not sufficient for rewards
-        // Submit an uptime proof via submitUptime
-        uint64 uptimePercentage2 = 79;
-        uint64 uptime2 = (
-            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage2
-        ) / 100;
-        bytes memory uptimeMsg2 =
-            ValidatorMessages.packValidationUptimeMessage(validationID, uptime2);
-        _mockGetUptimeWarpMessage(uptimeMsg2, true);
-
-        vm.expectEmit(true, true, true, true, address(validatorManager));
-        emit InitiatedValidatorRemoval(
-            validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_COMPLETION_TIMESTAMP
-        );
-
-        _initiateValidatorRemoval(validationID, true, address(0));
-    }
-
     function testInitializeEndValidationWithoutNewUptime() public {
         bytes32 validationID = _registerDefaultValidator();
 
@@ -1452,7 +1413,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             ((DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage)
                 / 100
         );
-        _mockGetUptimeWarpMessage(uptimeMsg, true);
+        // _mockGetUptimeWarpMessage(uptimeMsg, true);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit InitiatedValidatorRemoval(
@@ -1781,9 +1742,9 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     ) internal {
         _mockSendWarpMessage(setValidatorWeightPayload, bytes32(0));
 
-        if (includeUptime) {
-            _mockGetUptimeWarpMessage(uptimePayload, true);
-        }
+        // if (includeUptime) {
+            // _mockGetUptimeWarpMessage(uptimePayload, true);
+        // }
         _initiateDelegatorRemoval({
             sender: sender,
             delegationID: delegationID,

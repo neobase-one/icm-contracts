@@ -67,9 +67,10 @@ struct PoSValidatorInfo {
     uint16 delegationFeeBips;
     uint64 minStakeDuration;
     uint64 uptimeSeconds;
+    bytes32[] activeDelegations;
     uint256[] tokenIDs;
     uint64 tokenNonce;
-    uint256 delegatedTokens;
+    uint256 totalTokens;
 }
 
 /**

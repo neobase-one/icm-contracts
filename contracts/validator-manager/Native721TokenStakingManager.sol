@@ -41,6 +41,7 @@ import {
 import {Validator, ValidatorStatus, PChainOwner} from "./ACP99Manager.sol";
 import {OwnableUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/access/OwnableUpgradeable.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @dev Implementation of the {INative721TokenStakingManager} interface.
@@ -118,6 +119,7 @@ contract Native721TokenStakingManager is
         StakingManagerSettings calldata settings,
         IERC721 stakingToken
     ) internal onlyInitializing {
+        __Ownable_init(_msgSender());
         __StakingManager_init(settings);
         __Native721TokenStakingManager_init_unchained(stakingToken);
     }
@@ -237,8 +239,8 @@ contract Native721TokenStakingManager is
     ) external nonReentrant returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
  
-        if ($._posValidatorInfo[validationID].delegatedTokens + tokenIDs.length > $._maximumNFTAmount) {
-            revert InvalidNFTAmount(uint64($._posValidatorInfo[validationID].delegatedTokens + tokenIDs.length));
+        if ($._posValidatorInfo[validationID].totalTokens + tokenIDs.length > $._maximumNFTAmount) {
+            revert InvalidNFTAmount(uint64($._posValidatorInfo[validationID].totalTokens + tokenIDs.length));
         }
 
         _lockNFTs(tokenIDs);
@@ -298,6 +300,8 @@ contract Native721TokenStakingManager is
         uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
+
+
 
     /**
      * @notice See {INative721TokenStakingManager-erc721}.
@@ -417,7 +421,7 @@ contract Native721TokenStakingManager is
         $._posValidatorInfo[validationID].minStakeDuration = minStakeDuration;
         $._posValidatorInfo[validationID].uptimeSeconds = 0;
         $._posValidatorInfo[validationID].tokenIDs = tokenIDs;
-        $._posValidatorInfo[validationID].delegatedTokens = tokenIDs.length;
+        $._posValidatorInfo[validationID].totalTokens = tokenIDs.length;
 
         return validationID;
     }
@@ -451,8 +455,8 @@ contract Native721TokenStakingManager is
         $._delegatorStakes[delegationID].startTime = uint64(block.timestamp);
         $._lockedNFTs[delegationID] = tokenIDs;
 
-        $._posValidatorInfo[validationID].delegatedTokens += tokenIDs.length;
-        $._validatorDelegations[validationID].push(delegationID);
+        $._posValidatorInfo[validationID].totalTokens += tokenIDs.length;
+        $._posValidatorInfo[validationID].activeDelegations.push(delegationID);
 
         emit InitiatedDelegatorRegistration({
             delegationID: delegationID,
@@ -553,11 +557,9 @@ contract Native721TokenStakingManager is
         Delegator memory delegator = $._delegatorStakes[delegationID];
         bytes32 validationID = delegator.validationID;
 
-        _removeDelegationFromValidator(validationID, delegationID);
-
         tokenIDs = $._lockedNFTs[delegationID];
 
-        $._posValidatorInfo[validationID].delegatedTokens -= tokenIDs.length;
+        $._posValidatorInfo[validationID].totalTokens -= tokenIDs.length;
 
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
@@ -596,48 +598,48 @@ contract Native721TokenStakingManager is
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
         Validator memory validator = $._manager.getValidator(validationID);
 
-        if(validator.startTime > epoch * $._epochDuration){
-            return validatorInfo.uptimeSeconds;
+        if(validator.startTime > (epoch + 1) * $._epochDuration - 1){
+            return uptime;
         }
 
         uint256 valWeight = _calculateEffectiveWeight(
             validator.startingWeight,
-            uptime - $._validatorUptimes[epoch - 1][validationID]
+            uptime - validatorInfo.uptimeSeconds
         );
 
         uint256 valWeightNFT = _calculateEffectiveWeight(
             valueToWeightNFT(validatorInfo.tokenIDs.length),
-            uptime - $._validatorUptimes[epoch - 1][validationID]
+            uptime - validatorInfo.uptimeSeconds
         );
 
-        bytes32[] memory delegations = $._validatorDelegations[validationID];
+        bytes32[] memory delegations = validatorInfo.activeDelegations;
+
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
-            if (delegator.status == DelegatorStatus.Active) {
 
-                uint64 delegatorStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
-                uint64 delegatorEnd = uint64(Math.min(delegator.endTime, (epoch + 1) * $._epochDuration));
+            uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                delegator.weight,
+                // uint64(Math.min(delegator.endTime, (epoch + 1) * $._epochDuration)) 
+                    // - uint64(Math.max(delegator.startTime, epoch * $._epochDuration))
+                uptime - validatorInfo.uptimeSeconds 
+            );
 
-                uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                    delegator.weight,
-                    delegatorEnd - delegatorStart
-                );
+            uint256 feeWeight = (delegateEffectiveWeight * validatorInfo.delegationFeeBips)
+        / BIPS_CONVERSION_FACTOR;
 
-                uint256 delegatorFeeWeight = (delegateEffectiveWeight * validatorInfo.delegationFeeBips)
-            / BIPS_CONVERSION_FACTOR;
-
-                uint256 delWeight = delegateEffectiveWeight - delegatorFeeWeight;
-                
-                // check if NFT delegation
-                if($._lockedNFTs[delegations[i]].length == 0){
-                    valWeight += delegatorFeeWeight;
-                    $._accountRewardWeight[epoch][delegator.owner] += delWeight;
-                    $._totalRewardWeight[epoch] += delWeight;
-                } else {
-                    valWeightNFT += delegatorFeeWeight;
-                    $._accountRewardWeightNFT[epoch][delegator.owner] += delWeight;
-                    $._totalRewardWeightNFT[epoch] += delWeight;
-                } 
+            // check if NFT delegation
+            if($._lockedNFTs[delegations[i]].length == 0){
+                valWeight += feeWeight;
+                $._accountRewardWeight[epoch][delegator.owner] += delegateEffectiveWeight - feeWeight;
+                $._totalRewardWeight[epoch] += delegateEffectiveWeight - feeWeight;
+            } else {
+                valWeightNFT += feeWeight;
+                $._accountRewardWeightNFT[epoch][delegator.owner] += delegateEffectiveWeight - feeWeight;
+                $._totalRewardWeightNFT[epoch] += delegateEffectiveWeight - feeWeight;
+            }
+            if(delegator.status != DelegatorStatus.Active){
+                _removeDelegationFromValidator(validationID, delegations[i]);
+                delete $._delegatorStakes[delegations[i]];
             }
         }
 
@@ -647,7 +649,12 @@ contract Native721TokenStakingManager is
         $._totalRewardWeight[epoch] += valWeight;
         $._totalRewardWeightNFT[epoch] += valWeightNFT;
 
-        $._validatorUptimes[epoch][validationID] = uptime;
+        console.log($._accountRewardWeight[epoch][validatorInfo.owner]);
+        console.log($._accountRewardWeightNFT[epoch][validatorInfo.owner]);
+        console.log($._totalRewardWeight[epoch]);
+        console.log($._totalRewardWeightNFT[epoch]);
+
+        validatorInfo.uptimeSeconds = uptime;
         
         emit UptimeUpdated(validationID, uptime, epoch);
         return uptime;

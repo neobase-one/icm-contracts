@@ -23,6 +23,7 @@ import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
 import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @dev Implementation of the {IStakingManager} interface.
@@ -64,8 +65,6 @@ abstract contract StakingManager is
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
-        /// @notice Maps validation ID to array of delegation IDs
-        mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
 
         mapping(bytes32 delegationID => uint256[]) _lockedNFTs;
 
@@ -212,9 +211,9 @@ abstract contract StakingManager is
         }
         ValidatorStatus status =
             _getStakingManagerStorage()._manager.getValidator(validationID).status;
-        if (status != ValidatorStatus.Active) {
-            revert InvalidValidatorStatus(status);
-        }
+        // if (status != ValidatorStatus.Active) {
+            // revert InvalidValidatorStatus(status);
+        // }
 
         // Uptime proofs include the absolute number of seconds the validator has been active.
         _updateUptime(validationID, messageIndex);
@@ -544,7 +543,7 @@ abstract contract StakingManager is
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startTime = uint64(block.timestamp);
 
-        $._validatorDelegations[validationID].push(delegationID);
+        $._posValidatorInfo[validationID].activeDelegations.push(delegationID);
 
         emit CompletedDelegatorRegistration({
             delegationID: delegationID,
@@ -599,7 +598,6 @@ abstract contract StakingManager is
 
         // Once this function completes, the delegation is completed so we can clear it from state now.
         delete $._delegatorStakes[delegationID];
-        _removeDelegationFromValidator(delegationID, validationID);
 
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
@@ -797,9 +795,6 @@ abstract contract StakingManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
-        // Once this function completes, the delegation is completed so we can clear it from state now.
-        delete $._delegatorStakes[delegationID];
-
         // Unlock the delegator's stake.
         _unlock(delegator.owner, weightToValue(delegator.weight));
 
@@ -827,7 +822,7 @@ abstract contract StakingManager is
      */
     function _removeDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
-        bytes32[] storage delegations = $._validatorDelegations[validationID];
+        bytes32[] storage delegations = $._posValidatorInfo[validationID].activeDelegations;
 
         // Find and remove the delegation ID
         for (uint256 i = 0; i < delegations.length; i++) {

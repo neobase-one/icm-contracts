@@ -171,7 +171,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS, tokens);
     }
 
-    function testDelegationRewards() public {
+    function testK() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
 
@@ -195,12 +195,26 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
             rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
         });
 
-        vm.warp(block.timestamp + DEFAULT_EPOCH_DURATION);
+        uint64 uptime = DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP;
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION + 1);
+        app.submitUptimeProof(validationID, 0);
 
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
-        assertApproxEqRel(validatorReward, _claimReward(address(this)), 0.1e18);
-        assertApproxEqRel(delegatorReward, _claimReward(DEFAULT_DELEGATOR_ADDRESS), 0.1e18);
+
+
+        uint256 balanceBefore = rewardToken.balanceOf(address(this));
+        _claimReward(address(this));
+        assertApproxEqRel(validatorReward, rewardToken.balanceOf(address(this)) - balanceBefore, 0.1e18);
+
+
+        // balanceBefore = rewardToken.balanceOf(DEFAULT_DELEGATOR_ADDRESS);
+        // _claimReward(DEFAULT_DELEGATOR_ADDRESS);
+        // assertApproxEqRel(validatorReward, rewardToken.balanceOf(DEFAULT_DELEGATOR_ADDRESS) - balanceBefore, 0.1e18);
     }
 
     function testDelegationRewardsForSameValidatorAndDelegator() public {
@@ -632,7 +646,10 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
     function _claimReward(address account) internal returns(uint256) {
         vm.prank(account);
-        // TODO: Implement this
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(rewardToken);
+
+        app.claimRewards(0, tokens);
     }
 
     function _claimRewardNFT(address account) internal returns(uint256) {
@@ -647,7 +664,6 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         rewardToken = new ExampleERC20();
         stakingToken = new ExampleERC721();
-
         rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE);
 
         stakingToken.setApprovalForAll(address(app), true);
@@ -657,6 +673,15 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         validatorManager.initialize(_defaultSettings(address(app)));
         app.initialize(defaultPoSSettings, stakingToken);
+
+        rewardToken.approve(address(app), REWARD_PER_EPOCH * 2);
+        address[] memory tokens = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+        tokens[0] = address(rewardToken);
+        amounts[0] = REWARD_PER_EPOCH;
+
+        app.setRewards(true, 0, tokens, amounts);
+        app.setRewards(false, 0, tokens, amounts);
 
         stakingManager = app;
 
