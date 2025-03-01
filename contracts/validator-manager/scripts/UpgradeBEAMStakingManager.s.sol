@@ -2,14 +2,14 @@
 pragma solidity 0.8.25;
 
 import {Script} from "forge-std/Script.sol";
-import {ProxyAdmin} from "openzeppelin-contracts/proxy/transparent/ProxyAdmin.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts@5.0.2/proxy/transparent/ProxyAdmin.sol";
 import {Native721TokenStakingManager} from "../Native721TokenStakingManager.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {console} from "forge-std/console.sol";
 import {StakingManagerSettings} from "../Native721TokenStakingManager.sol";
 import {ValidatorManager} from "../ValidatorManager.sol";
-import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
-import {ITransparentUpgradeableProxy} from "openzeppelin-contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts@5.0.2/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
  * @notice Script to upgrade the Native721TokenStakingManager implementation
