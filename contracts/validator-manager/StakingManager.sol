@@ -24,7 +24,6 @@ import {ReentrancyGuardUpgradeable} from
 import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 
-
 /**
  * @dev Implementation of the {IStakingManager} interface.
  *
@@ -86,7 +85,6 @@ abstract contract StakingManager is
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPools; 
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT; 
     }
-
     // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.StakingManager")) - 1)) & ~bytes32(uint256(0xff));
@@ -121,8 +119,6 @@ abstract contract StakingManager is
     error InvalidNonce(uint64 nonce);
     error InvalidWarpMessage();
     error UnauthorizedInitialValidatorRemoval(address sender);
-    error InvalidEpoch();
-    error ZeroDelegatorAddress();
 
     // solhint-disable ordering
     /**
@@ -186,10 +182,6 @@ abstract contract StakingManager is
         if (minimumStakeDuration < manager.getChurnPeriodSeconds()) {
             revert InvalidMinStakeDuration(minimumStakeDuration);
         }
-        // Check in accordance with reward streams contracts
-        if (epochDuration < 7 days || epochDuration > 10 * 7 days) {
-            revert InvalidEpoch();
-        }
         if (weightToValueFactor == 0) {
             revert ZeroWeightToValueFactor();
         }
@@ -237,18 +229,14 @@ abstract contract StakingManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initiatePoSValidatorRemoval(validationID, includeUptimeProof, messageIndex);
+        _initiatePoSValidatorRemoval(validationID);
     }
 
     /**
      * @dev Helper function that initiates the end of a PoS validation period.
-     * Returns false if it is possible for the validator to claim rewards, but it is not eligible.
-     * Returns true otherwise.
      */
     function _initiatePoSValidatorRemoval(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 validationID
     ) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
@@ -278,14 +266,6 @@ abstract contract StakingManager is
                 < validator.startTime + $._posValidatorInfo[validationID].minStakeDuration
         ) {
             revert MinStakeDurationNotPassed(validator.endTime);
-        }
-
-        // Uptime proofs include the absolute number of seconds the validator has been active.
-        uint64 uptimeSeconds;
-        if (includeUptimeProof) {
-            uptimeSeconds = _updateUptime(validationID, messageIndex);
-        } else {
-            uptimeSeconds = $._posValidatorInfo[validationID].uptimeSeconds;
         }
 
         return;
@@ -488,9 +468,6 @@ abstract contract StakingManager is
         if (delegationAmount < $._minimumDelegationAmount) {
             revert InvalidStakeAmount(delegationAmount);
         }
-        if (delegatorAddress == address(0)){
-            revert ZeroDelegatorAddress();
-        }
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + weight;
         if (newValidatorWeight > valueToWeight($._maximumStakeAmount)) {
@@ -679,7 +656,7 @@ abstract contract StakingManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initiateDelegatorRemoval(delegationID, includeUptimeProof, messageIndex);
+        _initiateDelegatorRemoval(delegationID);
     }
 
     /**
@@ -688,9 +665,7 @@ abstract contract StakingManager is
      * Returns true otherwise.
      */
     function _initiateDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 delegationID
     ) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
@@ -711,11 +686,6 @@ abstract contract StakingManager is
             // Check that minimum stake duration has passed.
             if (block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
-            }
-
-            if (includeUptimeProof) {
-                // Uptime proofs include the absolute number of seconds the validator has been active.
-                _updateUptime(validationID, messageIndex);
             }
 
             // Set the delegator status to pending removed, so that it can be properly removed in

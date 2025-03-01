@@ -81,16 +81,6 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.initialize(defaultPoSSettings, stakingToken);
     }
 
-    function testInvalidEpoch() public {
-        app = new Native721TokenStakingManager(ICMInitializable.Allowed);
-        vm.expectRevert(abi.encodeWithSelector(StakingManager.InvalidEpoch.selector));
-
-        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.manager = validatorManager;
-        defaultPoSSettings.epochDuration = 1 days;
-        app.initialize(defaultPoSSettings, stakingToken);
-    }
-
     function testMaxMinimumDelegationFee() public {
         app = new Native721TokenStakingManager(ICMInitializable.Allowed);
         uint16 minimumDelegationFeeBips = app.MAXIMUM_DELEGATION_FEE_BIPS() + 1;
