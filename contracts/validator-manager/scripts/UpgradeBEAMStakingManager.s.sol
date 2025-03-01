@@ -69,8 +69,6 @@ contract UpgradeBEAMStakingManager is Script {
             validatorRemovalAdmin: _ADMIN_ADDRESS,
             uptimeBlockchainID: _UPTIME_BLOCKCHAIN_ID,
             epochDuration: _EPOCH_DURATION,
-            balanceTracker: TrackingRewardStreams(address(0xE553B8ded1A9E31C9C88A1633dE3Bb2F1d6Cb545)),
-            balanceTrackerNFT: TrackingRewardStreams(address(0xef96f6EaBF5c2dB0b37aD8A38b168887B894b6F8)),
             unlockDuration: _UNLOCK_PERIOD
         });
 

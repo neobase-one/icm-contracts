@@ -24,7 +24,6 @@ import {ReentrancyGuardUpgradeable} from
 import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 
-import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
 
 /**
  * @dev Implementation of the {IStakingManager} interface.
@@ -46,7 +45,9 @@ abstract contract StakingManager is
         uint256 _maximumStakeAmount;
         /// @notice The minimum amount of time in seconds a validator must be staked for. Must be at least {_churnPeriodSeconds}.
         uint64 _minimumStakeDuration;
+        /// @notice The maximum amount of staked NFTs allowed to be a validator.
         uint256 _maximumNFTAmount;
+        /// @notice The minimum delegation amount
         uint256 _minimumDelegationAmount;
         /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
         uint16 _minimumDelegationFeeBips;
@@ -56,12 +57,9 @@ abstract contract StakingManager is
         bytes32 _uptimeBlockchainID;
         /// @notice Validator removal admin address
         address _validatorRemovalAdmin;
-        /// @notice The reward stream balance tracker for this validator manager.
-        IBalanceTracker _balanceTracker;
-        /// @notice The reward stream balance tracker for this validator manager.
-        IBalanceTracker _balanceTrackerNFT;
         /// @notice The duration of an epoch in seconds
         uint64 _epochDuration;
+        /// @notice The duration of the unlock period in seconds
         uint64 _unlockDuration;
         /// @notice Maps the validation ID to its requirements.
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
@@ -69,12 +67,26 @@ abstract contract StakingManager is
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
         /// @notice Maps validation ID to array of delegation IDs
         mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
-        /// @notice Maps account to array of delegationIDs
-        mapping(address => uint256) _accountRewardBalance;
-        /// @notice Maps account to array of delegationIDs
-        mapping(address => uint256) _accountNFTRewardBalance;
+
         mapping(bytes32 delegationID => uint256[]) _lockedNFTs;
+
+        bytes32[] _activeValidations;
+
+        mapping(uint64 epoch => mapping(bytes32 validationID => uint256)) _validatorUptimes;
+
+        mapping(uint64 epoch => uint256) _totalRewardWeight;
+        mapping(uint64 epoch => uint256) _totalRewardWeightNFT;
+
+        mapping(uint64 epoch => mapping(address account => uint256)) _accountRewardWeight;
+        mapping(uint64 epoch => mapping(address account => uint256)) _accountRewardWeightNFT;
+
+        mapping(uint64 epoch => mapping(address account => uint256)) _rewardWithdrawn;
+        mapping(uint64 epoch => mapping(address account => uint256)) _rewardWithdrawnNFT;
+
+        mapping(uint64 epoch => mapping(address token => uint256)) _rewardPools; 
+        mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT; 
     }
+
     // solhint-enable private-vars-leading-underscore
 
     // keccak256(abi.encode(uint256(keccak256("avalanche-icm.storage.StakingManager")) - 1)) & ~bytes32(uint256(0xff));
@@ -141,8 +153,6 @@ abstract contract StakingManager is
             validatorRemovalAdmin: settings.validatorRemovalAdmin,
             weightToValueFactor: settings.weightToValueFactor,
             uptimeBlockchainID: settings.uptimeBlockchainID,
-            balanceTracker: settings.balanceTracker,
-            balanceTrackerNFT: settings.balanceTrackerNFT,
             unlockDuration: settings.unlockDuration,
             epochDuration: settings.epochDuration,
             maximumNFTAmount: settings.maximumNFTAmount
@@ -162,9 +172,7 @@ abstract contract StakingManager is
         uint256 weightToValueFactor,
         bytes32 uptimeBlockchainID,
         uint64 unlockDuration,
-        uint64 epochDuration,
-        IBalanceTracker balanceTracker,
-        IBalanceTracker balanceTrackerNFT
+        uint64 epochDuration
     ) internal onlyInitializing {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -201,8 +209,6 @@ abstract contract StakingManager is
         $._uptimeBlockchainID = uptimeBlockchainID;
         $._unlockDuration = unlockDuration;
         $._epochDuration = epochDuration;
-        $._balanceTracker = balanceTracker;
-        $._balanceTrackerNFT = balanceTrackerNFT;
     }
 
     /**

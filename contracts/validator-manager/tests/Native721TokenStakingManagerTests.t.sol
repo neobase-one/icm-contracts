@@ -33,9 +33,6 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
     IERC721 public stakingToken;
     IERC20 public rewardToken;
-    EthereumVaultConnector public evc;
-    TrackingRewardStreams public balanceTracker;
-    TrackingRewardStreams public balanceTrackerNFT;
 
     uint128 public constant REWARD_PER_EPOCH = 100e18;
 
@@ -647,12 +644,12 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
     function _claimReward(address account) internal returns(uint256) {
         vm.prank(account);
-        return balanceTracker.claimReward(address(app), address(rewardToken), account, false);
+        // TODO: Implement this
     }
 
     function _claimRewardNFT(address account) internal returns(uint256) {
         vm.prank(account);
-        return balanceTrackerNFT.claimReward(address(app), address(rewardToken), account, false);
+        // TODO: Implement this
     }
 
     function _setUp() internal override returns (ACP99Manager) {
@@ -663,34 +660,12 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         rewardToken = new ExampleERC20();
         stakingToken = new ExampleERC721();
 
-        evc = new EthereumVaultConnector();
-        balanceTracker = new TrackingRewardStreams(address(evc), DEFAULT_EPOCH_DURATION);
-        balanceTrackerNFT = new TrackingRewardStreams(address(evc), DEFAULT_EPOCH_DURATION);
         rewardCalculator = new ExampleRewardCalculator(DEFAULT_REWARD_RATE);
 
         stakingToken.setApprovalForAll(address(app), true);
-        rewardToken.approve(address(balanceTracker), REWARD_PER_EPOCH * 3);
-        rewardToken.approve(address(balanceTrackerNFT), REWARD_PER_EPOCH * 3);
-        uint128[] memory amounts = new uint128[](3);
-        amounts[0] = REWARD_PER_EPOCH;
-        amounts[1] = REWARD_PER_EPOCH;
-        amounts[1] = REWARD_PER_EPOCH;
-
-        balanceTracker.registerReward(address(app), address(rewardToken), 0, amounts);
-        balanceTracker.enableReward(address(app), address(rewardToken));
-
-        balanceTrackerNFT.registerReward(address(app), address(rewardToken), 0, amounts);
-        balanceTrackerNFT.enableReward(address(app), address(rewardToken));
-
-        vm.startPrank(DEFAULT_DELEGATOR_ADDRESS);
-        balanceTracker.enableReward(address(app), address(rewardToken));
-        balanceTrackerNFT.enableReward(address(app), address(rewardToken));
-        vm.stopPrank();
 
         StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.manager = validatorManager;
-        defaultPoSSettings.balanceTracker = balanceTracker;
-        defaultPoSSettings.balanceTrackerNFT = balanceTrackerNFT;
 
         validatorManager.initialize(_defaultSettings(address(app)));
         app.initialize(defaultPoSSettings, stakingToken);

@@ -49,14 +49,6 @@ contract DeployBEAMStakingManager is Script {
         // Start broadcasting transactions
         vm.startBroadcast();
 
-        // Deploy EVC and balance trackers
-        EthereumVaultConnector evc = new EthereumVaultConnector();
-        console.log("Deployed EVC at:", address(evc));
-
-        TrackingRewardStreams balanceTracker = new TrackingRewardStreams(address(evc), 7 days);
-        TrackingRewardStreams balanceTrackerNFT = new TrackingRewardStreams(address(evc), 7 days);
-        console.log("Deployed balance trackers at:", address(balanceTracker), address(balanceTrackerNFT));
-
         // Deploy implementation
         Native721TokenStakingManager implementation = new Native721TokenStakingManager(ICMInitializable.Disallowed);
         console.log("Deployed implementation at:", address(implementation));
@@ -74,8 +66,6 @@ contract DeployBEAMStakingManager is Script {
             validatorRemovalAdmin: ADMIN_ADDRESS,
             uptimeBlockchainID: UPTIME_BLOCKCHAIN_ID,
             epochDuration: EPOCH_DURATION,
-            balanceTracker: balanceTracker,
-            balanceTrackerNFT: balanceTrackerNFT,
             unlockDuration: UNLOCK_PERIOD
         });
 

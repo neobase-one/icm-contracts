@@ -39,6 +39,8 @@ import {
     INativeTokenStakingManager, PChainOwner
 } from "./interfaces/INativeTokenStakingManager.sol";
 import {Validator, ValidatorStatus, PChainOwner} from "./ACP99Manager.sol";
+import {OwnableUpgradeable} from
+    "@openzeppelin/contracts-upgradeable@5.0.2/access/OwnableUpgradeable.sol";
 
 /**
  * @dev Implementation of the {INative721TokenStakingManager} interface.
@@ -48,6 +50,7 @@ import {Validator, ValidatorStatus, PChainOwner} from "./ACP99Manager.sol";
 contract Native721TokenStakingManager is
     Initializable,
     StakingManager,
+    OwnableUpgradeable,
     INative721TokenStakingManager,
     IERC721Receiver
 {
@@ -68,6 +71,7 @@ contract Native721TokenStakingManager is
 
     error InvalidNFTAmount(uint256 nftAmount);
     error InvalidTokenAddress(address tokenAddress);
+    error InvalidInputLengths(uint256 inputLength1, uint256 inputLength2);
 
 
     // solhint-disable ordering
@@ -436,7 +440,7 @@ contract Native721TokenStakingManager is
             revert InvalidValidatorStatus(validator.status);
         }
 
-        uint64 nonce = ++$._posValidatorInfo[validationID].nftNonce;
+        uint64 nonce = ++$._posValidatorInfo[validationID].tokenNonce;
         
         // Update the delegation status
         bytes32 delegationID = keccak256(abi.encodePacked(validationID, nonce, "ERC721"));
@@ -564,79 +568,6 @@ contract Native721TokenStakingManager is
         return tokenIDs;
     }
 
-    function _updateBalanceTracker(bytes32 validationID) internal returns (int256) {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
-
-        Validator memory validator = $._manager.getValidator(validationID);
-
-        uint256 valWeight = _calculateEffectiveWeight(
-            validator.startingWeight,
-            validatorInfo.uptimeSeconds,
-            validatorInfo.prevEpochUptimeSeconds
-        );
-
-        uint256 valNFTWeight = _calculateEffectiveWeight(
-            valueToWeightNFT(validatorInfo.tokenIDs.length),
-            validatorInfo.uptimeSeconds,
-            validatorInfo.prevEpochUptimeSeconds
-        );
-
-        bytes32[] memory delegations = $._validatorDelegations[validationID];
-        for (uint256 i = 0; i < delegations.length; i++) {
-            Delegator memory delegator = $._delegatorStakes[delegations[i]];
-            if (delegator.status == DelegatorStatus.Active) {
-                uint64 delegatorUptime = uint64(Math.min(
-                    validatorInfo.uptimeSeconds, 
-                    uint64(block.timestamp - delegator.startTime + validatorInfo.prevEpochUptimeSeconds)
-                ));
-                uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                    delegator.weight,
-                    delegatorUptime,
-                    validatorInfo.prevEpochUptimeSeconds
-                );
-
-                uint256 delegatorFeeWeight = (delegateEffectiveWeight * validatorInfo.delegationFeeBips)
-            / BIPS_CONVERSION_FACTOR;
-
-                uint256 delWeight = delegateEffectiveWeight - delegatorFeeWeight;
-                
-                // check if NFT delegation
-                if($._lockedNFTs[delegations[i]].length == 0){
-                    valWeight += delegatorFeeWeight;
-
-                    uint256 accountBalance = uint256(int256($._accountRewardBalance[delegator.owner]) + int256(delWeight) - int256(delegator.rewardBalance));
-                    delegator.rewardBalance = delWeight;
-
-                    $._accountRewardBalance[delegator.owner] = accountBalance;
-                    $._balanceTracker.balanceTrackerHook(delegator.owner, accountBalance, false);
-                } else {
-                    valNFTWeight += delegatorFeeWeight;
-
-                    uint256 accountBalance = uint256(int256($._accountNFTRewardBalance[delegator.owner]) + int256(delWeight) - int256(delegator.rewardBalance));
-                    delegator.rewardBalance = delWeight;
-
-                    $._accountNFTRewardBalance[delegator.owner] = accountBalance;
-                    $._balanceTrackerNFT.balanceTrackerHook(delegator.owner, accountBalance, false); 
-                } 
-            }
-        }
-
-        int256 delta = int256(valWeight) - int256(validatorInfo.rewardBalance);
-        validatorInfo.rewardBalance = valWeight;
-
-        uint256 valBalance = uint256(int256($._accountRewardBalance[validatorInfo.owner]) + delta);
-        $._accountRewardBalance[validatorInfo.owner] = valBalance;
-        $._balanceTracker.balanceTrackerHook(validatorInfo.owner, valBalance, false);
-
-        int256 nftDelta = int256(valNFTWeight) - int256(validatorInfo.rewardBalanceNFT);
-        validatorInfo.rewardBalanceNFT = valNFTWeight;
-
-        uint256 valNFTBalance = uint256(int256($._accountNFTRewardBalance[validatorInfo.owner]) + nftDelta);
-        $._accountNFTRewardBalance[validatorInfo.owner] = valNFTBalance;
-        $._balanceTrackerNFT.balanceTrackerHook(validatorInfo.owner, valNFTBalance, false);
-    }
-
     /**
     * @notice Updates the uptime of a validator based on a verified ValidationUptimeMessage received via Warp.
     * @dev This function extracts the uptime from a Warp message, validates its authenticity, and updates the
@@ -655,7 +586,135 @@ contract Native721TokenStakingManager is
     * Emits:
     * - `UptimeUpdated` event when the uptime is successfully updated for a validator.
     */
-    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override onlyOwner() returns (uint64) {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        
+        uint64 uptime = _validateUptime(validationID, messageIndex);
+    
+        uint64 epoch = uint64(block.timestamp / $._epochDuration) - 1;
+
+        PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
+        Validator memory validator = $._manager.getValidator(validationID);
+
+        if(validator.startTime > epoch * $._epochDuration){
+            return validatorInfo.uptimeSeconds;
+        }
+
+        uint256 valWeight = _calculateEffectiveWeight(
+            validator.startingWeight,
+            uptime - $._validatorUptimes[epoch - 1][validationID]
+        );
+
+        uint256 valWeightNFT = _calculateEffectiveWeight(
+            valueToWeightNFT(validatorInfo.tokenIDs.length),
+            uptime - $._validatorUptimes[epoch - 1][validationID]
+        );
+
+        bytes32[] memory delegations = $._validatorDelegations[validationID];
+        for (uint256 i = 0; i < delegations.length; i++) {
+            Delegator memory delegator = $._delegatorStakes[delegations[i]];
+            if (delegator.status == DelegatorStatus.Active) {
+
+                uint64 delegatorStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
+                uint64 delegatorEnd = uint64(Math.min(delegator.endTime, (epoch + 1) * $._epochDuration));
+
+                uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
+                    delegator.weight,
+                    delegatorEnd - delegatorStart
+                );
+
+                uint256 delegatorFeeWeight = (delegateEffectiveWeight * validatorInfo.delegationFeeBips)
+            / BIPS_CONVERSION_FACTOR;
+
+                uint256 delWeight = delegateEffectiveWeight - delegatorFeeWeight;
+                
+                // check if NFT delegation
+                if($._lockedNFTs[delegations[i]].length == 0){
+                    valWeight += delegatorFeeWeight;
+                    $._accountRewardWeight[epoch][delegator.owner] += delWeight;
+                    $._totalRewardWeight[epoch] += delWeight;
+                } else {
+                    valWeightNFT += delegatorFeeWeight;
+                    $._accountRewardWeightNFT[epoch][delegator.owner] += delWeight;
+                    $._totalRewardWeightNFT[epoch] += delWeight;
+                } 
+            }
+        }
+
+        $._accountRewardWeight[epoch][validatorInfo.owner] += valWeight;
+        $._accountRewardWeightNFT[epoch][validatorInfo.owner] += valWeightNFT;
+
+        $._totalRewardWeight[epoch] += valWeight;
+        $._totalRewardWeightNFT[epoch] += valWeightNFT;
+
+        $._validatorUptimes[epoch][validationID] = uptime;
+        
+        emit UptimeUpdated(validationID, uptime, epoch);
+        return uptime;
+    }
+
+
+    function claimRewards(
+        uint64 epoch,
+        address[] memory tokens
+    ) external nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        for(uint256 i = 0; i < tokens.length; i++){
+
+            uint256 amount = ($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
+                 / $._totalRewardWeight[epoch];
+            uint256 withdrawable = amount - $._rewardWithdrawn[epoch][_msgSender()];
+            $._rewardWithdrawn[epoch][_msgSender()] = amount;
+            IERC20(tokens[i]).transfer(_msgSender(), withdrawable);
+        }
+    }
+
+    function setRewards(
+        bool primary,
+        uint64 epoch,
+        address[] memory tokens,
+        uint256[] memory amounts
+    ) external onlyOwner {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if(tokens.length != amounts.length){
+            revert InvalidInputLengths(tokens.length, amounts.length);
+        }
+
+        for(uint256 i = 0; i < tokens.length; i++){
+            if(primary){
+                $._rewardPools[epoch][tokens[i]] = amounts[i];
+            } else {
+                $._rewardPoolsNFT[epoch][tokens[i]] = amounts[i];
+            }
+            IERC20(tokens[i]).transferFrom(_msgSender(), address(this), amounts[i]);
+        }
+    }
+
+    /**
+    * @notice Calculates the effective weight of a delegator's stake based on the change in uptime over an epoch.
+    * @dev This function computes the effective weight by considering the delegator's stake (`weight`) and the
+    *      difference between the current uptime and the previous epoch's uptime, normalized by the epoch duration.
+    *      If the current uptime is zero or less than the previous uptime, the effective weight is zero.
+    * @param weight The original weight of the delegator's stake.
+    * @param duration The duration of uptime
+    * @return effectiveWeight The effective weight of the delegator's stake based on uptime and epoch duration.
+    */
+    function _calculateEffectiveWeight(
+         uint256 weight,
+         uint256 duration
+    ) internal view returns (uint256) {
+        uint64 epochDuration = _getStakingManagerStorage()._epochDuration;
+
+        // Return full weight if uptime is above threshold
+        if((duration * 100) / epochDuration > UPTIME_REWARDS_THRESHOLD_PERCENTAGE) {
+            return weight;
+        }
+        // Calculate effective weight based on both weight and time period
+        return (weight * duration) / epochDuration;
+    }
+
+    function _validateUptime(bytes32 validationID, uint32 messageIndex) internal view returns (uint64) {
         (WarpMessage memory warpMessage, bool valid) =
             WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
         if (!valid) {
@@ -673,61 +732,13 @@ contract Native721TokenStakingManager is
         if (warpMessage.originSenderAddress != address(0)) {
             revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
         }
-        if (warpMessage.originSenderAddress != address(0)) {
-            revert InvalidWarpOriginSenderAddress(warpMessage.originSenderAddress);
-        }
 
         (bytes32 uptimeValidationID, uint64 uptime) =
             ValidatorMessages.unpackValidationUptimeMessage(warpMessage.payload);
         if (validationID != uptimeValidationID) {
             revert UnexpectedValidationID(uptimeValidationID, validationID);
         }
-
-        uint64 currentEpoch = uint64(block.timestamp / $._epochDuration);
-
-        PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
-        Validator memory validator = $._manager.getValidator(validationID);
-
-        if (uptime > validatorInfo.uptimeSeconds || currentEpoch > validatorInfo.currentEpoch) {
-            if(currentEpoch > validatorInfo.currentEpoch){
-                validatorInfo.currentEpoch = currentEpoch;
-                validatorInfo.prevEpochUptimeSeconds = validatorInfo.uptimeSeconds;
-            }
-            validatorInfo.uptimeSeconds = uptime;
-            emit UptimeUpdated(validationID, uptime, currentEpoch);
-
-            _updateBalanceTracker(validationID);
-        } else {
-            uptime = $._posValidatorInfo[validationID].uptimeSeconds;
-        }
+        
         return uptime;
     }
-
-    /**
-    * @notice Calculates the effective weight of a delegator's stake based on the change in uptime over an epoch.
-    * @dev This function computes the effective weight by considering the delegator's stake (`weight`) and the
-    *      difference between the current uptime and the previous epoch's uptime, normalized by the epoch duration.
-    *      If the current uptime is zero or less than the previous uptime, the effective weight is zero.
-    * @param weight The original weight of the delegator's stake.
-    * @param currentUptime The validator's current uptime for the epoch.
-    * @param previousUptime The validator's uptime for the previous epoch.
-    * @return effectiveWeight The effective weight of the delegator's stake based on uptime and epoch duration.
-    */
-    function _calculateEffectiveWeight(
-         uint256 weight,
-         uint64 currentUptime,
-         uint64 previousUptime
-    ) internal view returns (uint256) {
-        if(previousUptime > currentUptime || currentUptime == 0) {
-            return 0;
-        }
-
-        // Return full weight if uptime is above threshold
-        if((currentUptime - previousUptime) * 100 / _getStakingManagerStorage()._epochDuration > UPTIME_REWARDS_THRESHOLD_PERCENTAGE) {
-            return weight;
-        }
-        // Calculate effective weight based on both weight and time period
-        return (weight * (currentUptime - previousUptime)) / _getStakingManagerStorage()._epochDuration;
-    }
-
 }

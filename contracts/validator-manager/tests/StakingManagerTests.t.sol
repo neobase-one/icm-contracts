@@ -17,8 +17,6 @@ import {
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {PChainOwner} from "../ACP99Manager.sol";
 
-import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
-
 abstract contract StakingManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
     uint64 public constant DEFAULT_DELEGATOR_WEIGHT = uint64(1e5);
@@ -2051,8 +2049,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
             epochDuration: DEFAULT_EPOCH_DURATION,
-            balanceTracker: IBalanceTracker(address(0)),
-            balanceTrackerNFT: IBalanceTracker(address(0)),
             unlockDuration: DEFAULT_UNLOCK_DURATION
         });
     }
