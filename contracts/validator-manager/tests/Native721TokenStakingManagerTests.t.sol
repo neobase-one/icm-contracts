@@ -25,8 +25,8 @@ import {ExampleERC20} from "@mocks/ExampleERC20.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721Receiver.sol";
 import {console} from "forge-std/console.sol";
-
-
+import {OwnableUpgradeable} from
+    "@openzeppelin/contracts-upgradeable@5.0.2/access/OwnableUpgradeable.sol";
 contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver {
     Native721TokenStakingManager public app;
 
@@ -34,6 +34,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
     IERC20 public rewardToken;
 
     uint128 public constant REWARD_PER_EPOCH = 100e18;
+    uint128 public constant REWARD_CLAIM_DELAY = 7 days;
 
     uint256 testTokenID = 0;
 
@@ -172,6 +173,56 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS, tokens);
     }
 
+    function testSubmitUptimeNonOwner() public {
+        bytes32 validationID = _registerDefaultValidator();
+
+        vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, 0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OwnableUpgradeable.OwnableUnauthorizedAccount.selector, DEFAULT_DELEGATOR_ADDRESS
+            )
+        );
+
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        app.submitUptimeProof(validationID, 0);
+    }
+
+    function testRewardRegistrationNonOwner() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OwnableUpgradeable.OwnableUnauthorizedAccount.selector, DEFAULT_DELEGATOR_ADDRESS
+            )
+        );
+
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        app.registerRewards(true, 0, address(rewardToken), REWARD_PER_EPOCH);
+    }
+
+    function testRewardCancellationTooLate() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Native721TokenStakingManager.TooLate.selector, 2 * DEFAULT_EPOCH_DURATION, 604800
+            )
+        );
+
+        vm.warp(2 * DEFAULT_EPOCH_DURATION);
+        app.cancelRewards(true, 0, address(rewardToken));    
+    }
+
+     function testRewardCancellationNonOwner() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OwnableUpgradeable.OwnableUnauthorizedAccount.selector, DEFAULT_DELEGATOR_ADDRESS
+            )
+        );
+
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        app.cancelRewards(true, 0, address(rewardToken));
+    }
+
     function testDelegationRewards() public {
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
@@ -206,13 +257,32 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         _claimReward(true, DEFAULT_DELEGATOR_ADDRESS, delegatorReward);
     }
 
-    function _submitUptime(bytes32 validationID, uint64 uptime) internal {
-        bytes memory uptimeMessage =
-            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
-        _mockGetUptimeWarpMessage(uptimeMessage, true);
+     function testRewardsTooEarly() public {
+        bytes32 validationID = _registerDefaultValidator();
 
-        app.submitUptimeProof(validationID, 0);
-    }
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 1,
+            rewardRecipient: address(this)
+        });
+
+        vm.warp(DEFAULT_EPOCH_DURATION);
+        _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(rewardToken);
+        
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Native721TokenStakingManager.TooEarly.selector, block.timestamp, DEFAULT_EPOCH_DURATION + REWARD_CLAIM_DELAY
+            )
+        );
+        app.claimRewards(true, 0, tokens, address(this));
+    }    
 
     function testDelegationRewardsForSameValidatorAndDelegator() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -632,9 +702,18 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         tokens[0] = address(rewardToken);
         
         vm.prank(account);
+        vm.warp(block.timestamp + REWARD_CLAIM_DELAY);
         app.claimRewards(primary, 0, tokens, account);
         
         assertApproxEqRel(expectedAmount, rewardToken.balanceOf(account) - balanceBefore, 0.1e18);
+    }
+
+    function _submitUptime(bytes32 validationID, uint64 uptime) internal {
+        bytes memory uptimeMessage =
+            ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
+        _mockGetUptimeWarpMessage(uptimeMessage, true);
+
+        app.submitUptimeProof(validationID, 0);
     }
 
     function _setUp() internal override returns (ACP99Manager) {

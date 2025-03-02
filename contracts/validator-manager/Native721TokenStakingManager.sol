@@ -692,8 +692,8 @@ contract Native721TokenStakingManager is
     ) external nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
-        if(block.timestamp < epoch * $._epochDuration + REWARD_CLAIM_DELAY){
-            revert TooEarly(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
+        if(block.timestamp < (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY){
+            revert TooEarly(block.timestamp, (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY);
         }
 
         uint256[] memory rewards = getRewards(primary, epoch, tokens);
