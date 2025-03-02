@@ -37,8 +37,6 @@ import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC72
 import {Validator, ValidatorStatus, PChainOwner} from "./ACP99Manager.sol";
 import {OwnableUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/access/OwnableUpgradeable.sol";
-import {console} from "forge-std/console.sol";
-
 /**
  * @dev Implementation of the {INative721TokenStakingManager} interface.
  *
@@ -478,7 +476,6 @@ contract Native721TokenStakingManager is
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startTime = uint64(block.timestamp);
         $._lockedNFTs[delegationID] = tokenIDs;
-        console.logBytes32(delegationID);
 
         $._posValidatorInfo[validationID].totalTokens += tokenIDs.length;
         $._posValidatorInfo[validationID].activeDelegations.push(delegationID);
@@ -554,7 +551,6 @@ contract Native721TokenStakingManager is
             $._delegatorStakes[delegationID].endTime = uint64(block.timestamp);
             emit InitiatedDelegatorRemoval(delegationID, validationID);
             if (validator.status == ValidatorStatus.Completed) {
-                console.log("HELLOOKAY");
                 uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
                 _unlockNFTs(delegator.owner, tokenIDs);
             }
@@ -582,13 +578,11 @@ contract Native721TokenStakingManager is
         bytes32 validationID = delegator.validationID;
 
         tokenIDs = $._lockedNFTs[delegationID];
-        console.logBytes32(delegationID);
 
         $._posValidatorInfo[validationID].totalTokens -= tokenIDs.length;
 
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
-        console.log(tokenIDs[0]);
         return tokenIDs;
     }
 
@@ -640,8 +634,6 @@ contract Native721TokenStakingManager is
                 uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, validationUptime));
 
                 delWeight = delegator.weight * delegationUptime / $._epochDuration;
-                console.log(delegationUptime);
-                console.log(delWeight);
             }
 
             uint256 feeWeight = (delWeight * validatorInfo.delegationFeeBips)
@@ -669,9 +661,6 @@ contract Native721TokenStakingManager is
 
         $._totalRewardWeight[epoch] += valWeight;
         $._totalRewardWeightNFT[epoch] += valWeightNFT;
-
-        console.log(validationUptime);
-        console.log(valWeight);
 
         validatorInfo.uptimeSeconds = uptime;
         
