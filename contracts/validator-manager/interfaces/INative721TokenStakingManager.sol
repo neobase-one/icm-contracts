@@ -196,8 +196,6 @@ interface INative721TokenStakingManager is IStakingManager {
     *      and registers the NFT delegation with a new validator. The NFTs are transferred from the current delegation
     *      to the new validator as part of the redelegation process.
     * @param delegationID The unique identifier of the NFT delegation to be redelegated.
-    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the redelegation process.
-    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
     * @param nextValidationID The unique identifier of the new validator to which the NFTs will be redelegated.
     *
     * Reverts if:
@@ -205,8 +203,6 @@ interface INative721TokenStakingManager is IStakingManager {
     */
     function registerNFTRedelegation(
         bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
         bytes32 nextValidationID
     ) external;
 
@@ -215,13 +211,9 @@ interface INative721TokenStakingManager is IStakingManager {
     * @dev This function calls `_initializeEndNFTDelegation` to validate and update the status of the NFT delegation.
     *      It ensures the delegation is active and optionally includes an uptime proof.
     * @param delegationID The unique identifier of the NFT delegation to be ended.
-    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the delegation termination process.
-    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
     */
     function initiateNFTDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 delegationID
     ) external;
 
     /**

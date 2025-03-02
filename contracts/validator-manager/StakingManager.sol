@@ -67,10 +67,6 @@ abstract contract StakingManager is
 
         mapping(bytes32 delegationID => uint256[]) _lockedNFTs;
 
-        bytes32[] _activeValidations;
-
-        mapping(uint64 epoch => mapping(bytes32 validationID => uint256)) _validatorUptimes;
-
         mapping(uint64 epoch => uint256) _totalRewardWeight;
         mapping(uint64 epoch => uint256) _totalRewardWeightNFT;
 
@@ -208,11 +204,6 @@ abstract contract StakingManager is
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
         }
-        ValidatorStatus status =
-            _getStakingManagerStorage()._manager.getValidator(validationID).status;
-        // if (status != ValidatorStatus.Active) {
-            // revert InvalidValidatorStatus(status);
-        // }
 
         // Uptime proofs include the absolute number of seconds the validator has been active.
         _updateUptime(validationID, messageIndex);
@@ -594,9 +585,6 @@ abstract contract StakingManager is
         if (block.timestamp < delegator.startTime + $._manager.getChurnPeriodSeconds()) {
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
-
-        // Once this function completes, the delegation is completed so we can clear it from state now.
-        delete $._delegatorStakes[delegationID];
 
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 

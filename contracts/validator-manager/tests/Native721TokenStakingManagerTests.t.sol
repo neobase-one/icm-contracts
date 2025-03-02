@@ -410,7 +410,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         vm.warp(block.timestamp + DEFAULT_MINIMUM_STAKE_DURATION + 1);
 
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);
-        app.registerNFTRedelegation(delegationID, false, 0, nextValidationID);
+        app.registerNFTRedelegation(delegationID, nextValidationID);
     }
 
     function testEndDelegationNFTBeforeUnlock() public {
@@ -531,7 +531,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         bytes32 delegationID
     ) internal virtual returns (bytes32) {
         vm.prank(delegatorAddress);
-        app.initiateNFTDelegatorRemoval(delegationID, false, 0);
+        app.initiateNFTDelegatorRemoval(delegationID);
     }
 
     function _completeNFTDelegatorRemoval(

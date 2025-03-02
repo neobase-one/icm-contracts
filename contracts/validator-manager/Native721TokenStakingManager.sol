@@ -216,11 +216,9 @@ contract Native721TokenStakingManager is
             revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
-        address owner = $._posValidatorInfo[validationID].owner;
-
         // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock(owner, weightToValue(validator.startingWeight));
-        _unlockNFTs(owner, $._posValidatorInfo[validationID].tokenIDs);
+        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
+        _unlockNFTs($._posValidatorInfo[validationID].owner, $._posValidatorInfo[validationID].tokenIDs);
 
         return validationID;
     }
@@ -249,11 +247,9 @@ contract Native721TokenStakingManager is
     *
     */
     function initiateNFTDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 delegationID
     ) external nonReentrant {
-        _initiateNFTDelegatorRemoval(delegationID, includeUptimeProof, messageIndex);
+        _initiateNFTDelegatorRemoval(delegationID);
     }
 
     /**
@@ -277,8 +273,7 @@ contract Native721TokenStakingManager is
             revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
-        uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
-        _unlockNFTs(delegator.owner, tokenIDs);
+        _unlockNFTs(delegator.owner, _completeNFTDelegatorRemoval(delegationID));
     }
 
     /**
@@ -286,19 +281,15 @@ contract Native721TokenStakingManager is
     */
     function registerNFTRedelegation(
         bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
         bytes32 nextValidationID
     ) external nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         Delegator memory delegator = $._delegatorStakes[delegationID];
 
-        _initiateNFTDelegatorRemoval(delegationID, includeUptimeProof, messageIndex);
+        _initiateNFTDelegatorRemoval(delegationID);
         uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
-
-
 
     /**
      * @notice See {INative721TokenStakingManager-erc721}.
@@ -406,7 +397,7 @@ contract Native721TokenStakingManager is
 
         // Lock the stake in the contract.
         uint64 weight = valueToWeight(_lock(stakeAmount));
-        uint64 nftWeight = valueToWeightNFT(_lockNFTs(tokenIDs));
+        valueToWeightNFT(_lockNFTs(tokenIDs));
 
         bytes32 validationID = $._manager.initiateValidatorRegistration({
             nodeID: nodeID,
@@ -507,8 +498,6 @@ contract Native721TokenStakingManager is
     *      If the validator status is valid, the delegation status is updated to `PendingRemoved`.
     *      Optionally, an uptime proof can be included during the process.
     * @param delegationID The unique identifier of the NFT delegation to be ended.
-    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the delegation termination process.
-    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
     *
     * Reverts if:
     * - The delegation is not active (`InvalidDelegatorStatus`).
@@ -517,9 +506,7 @@ contract Native721TokenStakingManager is
     * - The validator is not in a valid state to end the delegation (`InvalidValidatorStatus`).
     */
     function _initiateNFTDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 delegationID
     ) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
@@ -541,10 +528,6 @@ contract Native721TokenStakingManager is
             // Check that minimum stake duration has passed.
             if (validator.status != ValidatorStatus.Completed && block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
-            }
-
-            if (includeUptimeProof) {
-                _updateUptime(validationID, messageIndex);
             }
 
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
@@ -665,7 +648,6 @@ contract Native721TokenStakingManager is
         return uptime;
     }
 
-
     /**
      * @notice Calculates the rewards for the caller in a given epoch for the specified tokens.
      * @dev This function determines the available rewards based on the user's weight in the staking system.
@@ -679,43 +661,24 @@ contract Native721TokenStakingManager is
      * - The caller must have participated in staking or NFT delegation during the given epoch.
      * - The function calculates rewards based on the caller’s recorded weight and subtracts any already withdrawn rewards.
     */
-    function _getRewards(
+    function getRewards(
         bool primary,
         uint64 epoch,
         address[] memory tokens
-    ) internal view returns (uint256[] memory) {
+    ) public view returns (uint256[] memory) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         uint256[] memory rewards = new uint256[](tokens.length);
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
-                uint256 amount = ($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
-                 / $._totalRewardWeight[epoch];
-                rewards[i] = amount - $._rewardWithdrawn[epoch][_msgSender()][tokens[i]];
+                rewards[i] = (($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
+                    / $._totalRewardWeight[epoch]) - $._rewardWithdrawn[epoch][_msgSender()][tokens[i]];
             } else {
-                uint256 amount = ($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][_msgSender()])
-                 / $._totalRewardWeightNFT[epoch];
-
-                rewards[i] = amount - $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]];
+                rewards[i] = (($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][_msgSender()])
+                    / $._totalRewardWeightNFT[epoch]) - $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]];
             }
         }
         return rewards;
-    }
-
-    /**
-     * @notice Retrieves the rewards for the caller in a given epoch for the specified tokens.
-     * @dev This function provides an external interface for `_getRewards`, allowing users to view their rewards.
-     * @param primary A boolean indicating whether to retrieve rewards from the primary pool (true) or the NFT pool (false).
-     * @param epoch The staking epoch for which to retrieve rewards.
-     * @param tokens An array of token addresses for which to check the rewards.
-     * @return rewards An array of reward amounts corresponding to the provided token addresses.
-    */
-    function getRewards(
-        bool primary,
-        uint64 epoch,
-        address[] memory tokens
-    ) external view returns (uint256[] memory) {
-        return _getRewards(primary, epoch, tokens);
     }
 
     /**
@@ -733,7 +696,7 @@ contract Native721TokenStakingManager is
             revert TooEarly(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
         }
 
-        uint256[] memory rewards = _getRewards(primary, epoch, tokens);
+        uint256[] memory rewards = getRewards(primary, epoch, tokens);
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
                 $._rewardWithdrawn[epoch][_msgSender()][tokens[i]] += rewards[i];
