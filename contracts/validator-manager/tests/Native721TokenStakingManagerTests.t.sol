@@ -27,6 +27,10 @@ import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC72
 import {console} from "forge-std/console.sol";
 import {OwnableUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/access/OwnableUpgradeable.sol";
+import {
+    WarpMessage,
+    IWarpMessenger
+} from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver {
     Native721TokenStakingManager public app;
 
@@ -188,6 +192,69 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);
         app.submitUptimeProof(validationID, 0);
+    }
+
+     function testSubmitUptimes() public {
+        bytes32 validationID = _registerDefaultValidator();
+
+        bytes32 nextValidationID = _registerValidator({
+            nodeID: _newNodeID(),
+            subnetID: DEFAULT_SUBNET_ID,
+            weight: DEFAULT_WEIGHT,
+            registrationExpiry: DEFAULT_EXPIRY,
+            blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
+            registrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP
+        });
+
+        vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
+        
+        bytes memory uptimeMessage0 =
+            ValidatorMessages.packValidationUptimeMessage(validationID, 0);
+
+        vm.mockCall(
+            WARP_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
+            abi.encode(
+                WarpMessage({
+                    sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+                    originSenderAddress: address(0),
+                    payload: uptimeMessage0
+                }),
+                true
+            )
+        );
+        vm.expectCall(
+            WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
+        );
+
+        bytes memory uptimeMessage1 =
+            ValidatorMessages.packValidationUptimeMessage(nextValidationID, 0);
+
+        vm.mockCall(
+            WARP_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(1)),
+            abi.encode(
+                WarpMessage({
+                    sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+                    originSenderAddress: address(0),
+                    payload: uptimeMessage1
+                }),
+                true
+            )
+        );
+        vm.expectCall(
+            WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 1)
+        );
+
+        bytes32[] memory validationIDs = new bytes32[](2);
+        validationIDs[0] = validationID; 
+        validationIDs[1] = nextValidationID;
+
+        uint32[] memory messageIndexes = new uint32[](2);
+        messageIndexes[0] = 0; 
+        messageIndexes[1] = 1;
+        
+        app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
     function testRewardRegistrationNonOwner() public {

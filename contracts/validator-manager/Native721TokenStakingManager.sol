@@ -292,6 +292,122 @@ contract Native721TokenStakingManager is
     }
 
     /**
+     * @notice See {INative721TokenStakingManager-submitUptimeProofs}.
+     */
+    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external onlyOwner {
+        if(validationIDs.length != messageIndexes.length){
+            revert InvalidInputLengths(validationIDs.length, messageIndexes.length);
+        }
+        for (uint256 i = 0; i < validationIDs.length; i++) {
+            _updateUptime(validationIDs[i], messageIndexes[i]);
+        }
+    }
+
+    /**
+     * @notice Calculates the rewards for the caller in a given epoch for the specified tokens.
+     * @dev This function determines the available rewards based on the user's weight in the staking system.
+     *      It supports both primary and NFT-based reward pools.
+     * @param primary A boolean indicating whether to retrieve rewards from the primary pool (true) or the NFT pool (false).
+     * @param epoch The staking epoch for which to retrieve rewards.
+     * @param tokens An array of token addresses for which to check the rewards.
+     * @return rewards An array of reward amounts corresponding to the provided token addresses.
+     *
+     * Requirements:
+     * - The caller must have participated in staking or NFT delegation during the given epoch.
+     * - The function calculates rewards based on the caller’s recorded weight and subtracts any already withdrawn rewards.
+    */
+    function getRewards(
+        bool primary,
+        uint64 epoch,
+        address[] memory tokens
+    ) public view returns (uint256[] memory) {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        uint256[] memory rewards = new uint256[](tokens.length);
+        for(uint256 i = 0; i < tokens.length; i++){
+            if(primary){
+                rewards[i] = (($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
+                    / $._totalRewardWeight[epoch]) - $._rewardWithdrawn[epoch][_msgSender()][tokens[i]];
+            } else {
+                rewards[i] = (($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][_msgSender()])
+                    / $._totalRewardWeightNFT[epoch]) - $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]];
+            }
+        }
+        return rewards;
+    }
+
+    /**
+     * @notice See {INative721TokenStakingManager-claimRewards}.
+     */
+    function claimRewards(
+        bool primary,
+        uint64 epoch,
+        address[] memory tokens,
+        address recipient
+    ) external nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if(block.timestamp < (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY){
+            revert TooEarly(block.timestamp, (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY);
+        }
+
+        uint256[] memory rewards = getRewards(primary, epoch, tokens);
+        for(uint256 i = 0; i < tokens.length; i++){
+            if(primary){
+                $._rewardWithdrawn[epoch][_msgSender()][tokens[i]] += rewards[i];
+            } else {
+                $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]] += rewards[i];
+            }
+            emit RewardClaimed(primary, epoch, _msgSender(), tokens[i], rewards[i]);
+            IERC20(tokens[i]).transfer(recipient, rewards[i]);
+        }
+    }
+
+    /**
+     * @notice See {INative721TokenStakingManager-registerRewards}.
+     */
+    function registerRewards(
+        bool primary,
+        uint64 epoch,
+        address token,
+        uint256 amount
+    ) external onlyOwner {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if(primary){
+            $._rewardPools[epoch][token] = amount;
+        } else {
+            $._rewardPoolsNFT[epoch][token] = amount;
+        }
+        IERC20(token).transferFrom(_msgSender(), address(this), amount);
+        emit RewardRegistered(primary, epoch, token, amount);
+    }
+
+    /**
+     * @notice See {INative721TokenStakingManager-cancelRewards}.
+     */
+    function cancelRewards(
+        bool primary,
+        uint64 epoch,
+        address token
+    ) external onlyOwner {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if(block.timestamp >= epoch * $._epochDuration + REWARD_CLAIM_DELAY){
+            revert TooLate(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
+        }
+
+        if(primary){
+            IERC20(token).transfer(_msgSender(), $._rewardPools[epoch][token]);
+            $._rewardPools[epoch][token] = 0;
+        } else {
+            IERC20(token).transfer(_msgSender(), $._rewardPoolsNFT[epoch][token]);
+            $._rewardPoolsNFT[epoch][token] = 0;
+        }
+        emit RewardCancelled(primary, epoch, token);
+    }
+
+    /**
      * @notice See {INative721TokenStakingManager-erc721}.
      */
     function erc721() external view returns (IERC721) {
@@ -649,110 +765,6 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice Calculates the rewards for the caller in a given epoch for the specified tokens.
-     * @dev This function determines the available rewards based on the user's weight in the staking system.
-     *      It supports both primary and NFT-based reward pools.
-     * @param primary A boolean indicating whether to retrieve rewards from the primary pool (true) or the NFT pool (false).
-     * @param epoch The staking epoch for which to retrieve rewards.
-     * @param tokens An array of token addresses for which to check the rewards.
-     * @return rewards An array of reward amounts corresponding to the provided token addresses.
-     *
-     * Requirements:
-     * - The caller must have participated in staking or NFT delegation during the given epoch.
-     * - The function calculates rewards based on the caller’s recorded weight and subtracts any already withdrawn rewards.
-    */
-    function getRewards(
-        bool primary,
-        uint64 epoch,
-        address[] memory tokens
-    ) public view returns (uint256[] memory) {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        uint256[] memory rewards = new uint256[](tokens.length);
-        for(uint256 i = 0; i < tokens.length; i++){
-            if(primary){
-                rewards[i] = (($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
-                    / $._totalRewardWeight[epoch]) - $._rewardWithdrawn[epoch][_msgSender()][tokens[i]];
-            } else {
-                rewards[i] = (($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][_msgSender()])
-                    / $._totalRewardWeightNFT[epoch]) - $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]];
-            }
-        }
-        return rewards;
-    }
-
-    /**
-     * @notice See {INative721TokenStakingManager-claimRewards}.
-     */
-    function claimRewards(
-        bool primary,
-        uint64 epoch,
-        address[] memory tokens,
-        address recipient
-    ) external nonReentrant {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        if(block.timestamp < (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY){
-            revert TooEarly(block.timestamp, (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY);
-        }
-
-        uint256[] memory rewards = getRewards(primary, epoch, tokens);
-        for(uint256 i = 0; i < tokens.length; i++){
-            if(primary){
-                $._rewardWithdrawn[epoch][_msgSender()][tokens[i]] += rewards[i];
-            } else {
-                $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]] += rewards[i];
-            }
-            emit RewardClaimed(primary, epoch, _msgSender(), tokens[i], rewards[i]);
-            IERC20(tokens[i]).transfer(recipient, rewards[i]);
-        }
-    }
-
-    /**
-     * @notice See {INative721TokenStakingManager-registerRewards}.
-     */
-    function registerRewards(
-        bool primary,
-        uint64 epoch,
-        address token,
-        uint256 amount
-    ) external onlyOwner {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        if(primary){
-            $._rewardPools[epoch][token] = amount;
-        } else {
-            $._rewardPoolsNFT[epoch][token] = amount;
-        }
-        IERC20(token).transferFrom(_msgSender(), address(this), amount);
-        emit RewardRegistered(primary, epoch, token, amount);
-    }
-
-    /**
-     * @notice See {INative721TokenStakingManager-cancelRewards}.
-     */
-    function cancelRewards(
-        bool primary,
-        uint64 epoch,
-        address token
-    ) external onlyOwner {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        if(block.timestamp >= epoch * $._epochDuration + REWARD_CLAIM_DELAY){
-            revert TooLate(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
-        }
-
-        if(primary){
-            IERC20(token).transfer(_msgSender(), $._rewardPools[epoch][token]);
-            $._rewardPools[epoch][token] = 0;
-        } else {
-            IERC20(token).transfer(_msgSender(), $._rewardPoolsNFT[epoch][token]);
-            $._rewardPoolsNFT[epoch][token] = 0;
-        }
-        emit RewardCancelled(primary, epoch, token);
-    }
-
-    /**
      * @notice Validates the uptime proof for a given validator.
      * @dev This function checks whether the provided validation ID corresponds to a PoS validator,
      *      verifies the associated warp message, and extracts the uptime value.
@@ -804,17 +816,5 @@ contract Native721TokenStakingManager is
         }
 
         return uptime;
-    }
-
-    /**
-     * @notice See {INative721TokenStakingManager-submitUptimeProofs}.
-     */
-    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external onlyOwner {
-        if(validationIDs.length != messageIndexes.length){
-            revert InvalidInputLengths(validationIDs.length, messageIndexes.length);
-        }
-        for (uint256 i = 0; i < validationIDs.length; i++) {
-            _updateUptime(validationIDs[i], messageIndexes[i]);
-        }
     }
 }
