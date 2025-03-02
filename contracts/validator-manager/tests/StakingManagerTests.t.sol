@@ -169,70 +169,70 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         stakingManager.initiateValidatorRemoval(validationID, false, 0);
     }
 
-    // function testInvalidUptimeWarpMessage() public {
-    //     bytes32 validationID = _registerDefaultValidator();
+    function testInvalidUptimeWarpMessage() public {
+        bytes32 validationID = _registerDefaultValidator();
 
-    //     _mockGetUptimeWarpMessage(new bytes(0), false);
-    //     vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-    //     vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
-    //     stakingManager.initiateValidatorRemoval(validationID, true, 0);
-    // }
+        _mockGetUptimeWarpMessage(new bytes(0), false);
+        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
+        vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
+        stakingManager.submitUptimeProof(validationID, 0);
+    }
 
-    // function testInvalidUptimeSenderAddress() public {
-    //     bytes32 validationID = _registerDefaultValidator();
+    function testInvalidUptimeSenderAddress() public {
+        bytes32 validationID = _registerDefaultValidator();
 
-    //     vm.mockCall(
-    //         WARP_PRECOMPILE_ADDRESS,
-    //         abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
-    //         abi.encode(
-    //             WarpMessage({
-    //                 sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
-    //                 originSenderAddress: address(this),
-    //                 payload: new bytes(0)
-    //             }),
-    //             true
-    //         )
-    //     );
-    //     vm.expectCall(
-    //         WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
-    //     );
+        vm.mockCall(
+            WARP_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
+            abi.encode(
+                WarpMessage({
+                    sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+                    originSenderAddress: address(this),
+                    payload: new bytes(0)
+                }),
+                true
+            )
+        );
+        vm.expectCall(
+            WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
+        );
 
-    //     vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
-    //         )
-    //     );
-    //     stakingManager.initiateValidatorRemoval(validationID, true, 0);
-    // }
+        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
+            )
+        );
+        stakingManager.submitUptimeProof(validationID, 0);
+    }
 
-    // function testInvalidUptimeValidationID() public {
-    //     bytes32 validationID = _registerDefaultValidator();
+    function testInvalidUptimeValidationID() public {
+        bytes32 validationID = _registerDefaultValidator();
 
-    //     vm.mockCall(
-    //         WARP_PRECOMPILE_ADDRESS,
-    //         abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
-    //         abi.encode(
-    //             WarpMessage({
-    //                 sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
-    //                 originSenderAddress: address(0),
-    //                 payload: ValidatorMessages.packValidationUptimeMessage(bytes32(0), 0)
-    //             }),
-    //             true
-    //         )
-    //     );
-    //     vm.expectCall(
-    //         WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
-    //     );
+        vm.mockCall(
+            WARP_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
+            abi.encode(
+                WarpMessage({
+                    sourceChainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
+                    originSenderAddress: address(0),
+                    payload: ValidatorMessages.packValidationUptimeMessage(bytes32(0), 0)
+                }),
+                true
+            )
+        );
+        vm.expectCall(
+            WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
+        );
 
-    //     vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             StakingManager.UnexpectedValidationID.selector, bytes32(0), validationID
-    //         )
-    //     );
-    //     stakingManager.initiateValidatorRemoval(validationID, true, 0);
-    // }
+        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.UnexpectedValidationID.selector, bytes32(0), validationID
+            )
+        );
+        stakingManager.submitUptimeProof(validationID, 0);
+    }
 
     function testInitiateDelegatorRegistration() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -247,7 +247,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         });
     }
 
-    function testInitiateDelegatorRegistratioInvalidAmount() public {
+    function testInitiateDelegatorRegistrationInvalidAmount() public {
         bytes32 validationID = _registerDefaultValidator();
 
         _beforeSend(DEFAULT_MINIMUM_DELEGATION_AMOUNT / 10, DEFAULT_DELEGATOR_ADDRESS);
@@ -1388,7 +1388,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             ((DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage)
                 / 100
         );
-        // _mockGetUptimeWarpMessage(uptimeMsg, true);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit InitiatedValidatorRemoval(
@@ -1717,9 +1716,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     ) internal {
         _mockSendWarpMessage(setValidatorWeightPayload, bytes32(0));
 
-        // if (includeUptime) {
-            // _mockGetUptimeWarpMessage(uptimePayload, true);
-        // }
         _initiateDelegatorRemoval({
             sender: sender,
             delegationID: delegationID,
