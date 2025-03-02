@@ -608,22 +608,21 @@ contract Native721TokenStakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
         uint64 uptime = _validateUptime(validationID, messageIndex);
-    
         uint64 epoch = uint64(block.timestamp / $._epochDuration) - 1;
 
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
-        Validator memory validator = $._manager.getValidator(validationID);
 
         uint256 validationUptime = uptime - validatorInfo.uptimeSeconds;
         if (validationUptime * 100 / $._epochDuration >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
             validationUptime = $._epochDuration;
         }
 
-        uint256 valWeight = validator.startingWeight * validationUptime / $._epochDuration;
+        // Calculate validator weights
+        uint256 valWeight = $._manager.getValidator(validationID).startingWeight * validationUptime / $._epochDuration;
         uint256 valWeightNFT = valueToWeightNFT(validatorInfo.tokenIDs.length) * validationUptime / $._epochDuration;
 
+        // Update weights for active delegations
         bytes32[] memory delegations = validatorInfo.activeDelegations;
-
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
 
@@ -632,14 +631,11 @@ contract Native721TokenStakingManager is
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : (epoch + 1) * $._epochDuration;
                 uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, validationUptime));
-
                 delWeight = delegator.weight * delegationUptime / $._epochDuration;
             }
 
-            uint256 feeWeight = (delWeight * validatorInfo.delegationFeeBips)
-        / BIPS_CONVERSION_FACTOR;
+            uint256 feeWeight = (delWeight * validatorInfo.delegationFeeBips) / BIPS_CONVERSION_FACTOR;
 
-            // check if NFT delegation
             if($._lockedNFTs[delegations[i]].length == 0){
                 valWeight += feeWeight;
                 $._accountRewardWeight[epoch][delegator.owner] += delWeight - feeWeight;
@@ -649,16 +645,17 @@ contract Native721TokenStakingManager is
                 $._accountRewardWeightNFT[epoch][delegator.owner] += delWeight - feeWeight;
                 $._totalRewardWeightNFT[epoch] += delWeight - feeWeight;
             }
+
             if(delegator.status != DelegatorStatus.Active){
-                // _removeDelegationFromValidator(validationID, delegations[i]);
+                _removeDelegationFromValidator(validationID, delegations[i]);
                 delete $._delegatorStakes[delegations[i]];
                 delete $._lockedNFTs[delegations[i]];
             }
         }
 
+        // Update reward weights for validator owner
         $._accountRewardWeight[epoch][validatorInfo.owner] += valWeight;
         $._accountRewardWeightNFT[epoch][validatorInfo.owner] += valWeightNFT;
-
         $._totalRewardWeight[epoch] += valWeight;
         $._totalRewardWeightNFT[epoch] += valWeightNFT;
 
@@ -667,6 +664,7 @@ contract Native721TokenStakingManager is
         emit UptimeUpdated(validationID, uptime, epoch);
         return uptime;
     }
+
 
     /**
      * @notice Calculates the rewards for the caller in a given epoch for the specified tokens.
