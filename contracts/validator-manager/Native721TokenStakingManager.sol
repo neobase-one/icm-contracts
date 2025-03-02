@@ -155,7 +155,7 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice See {INativeTokenStakingManager-initiateValidatorRegistration}.
+     * @notice See {INative721TokenStakingManager-initiateValidatorRegistration}.
      */
     function initiateValidatorRegistration(
         bytes memory nodeID,
@@ -181,7 +181,7 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice See {INativeTokenStakingManager-initiateDelegatorRegistration}.
+     * @notice See {INative721TokenStakingManager-initiateDelegatorRegistration}.
      */
     function initiateDelegatorRegistration(bytes32 validationID)
         external
@@ -324,8 +324,11 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice See {StakingManager-_unlock}
-     * Note: Must be guarded with reentrancy guard for safe transfer.
+     * @notice Locks a list of ERC-721 tokens by transferring them to the contract.
+     * @dev Transfers each token in `tokenIDs` from the caller to the contract.
+     * This function is used to stake NFTs as part of the staking mechanism.
+     * @param tokenIDs The array of token IDs to be locked.
+     * @return The number of tokens successfully locked.
      */
     function _lockNFTs(uint256[] memory tokenIDs) internal returns (uint256) {
         for (uint256 i = 0; i < tokenIDs.length; i++) {
@@ -335,8 +338,11 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice See {StakingManager-_unlock}
-     * Note: Must be guarded with reentrancy guard for safe transfer.
+     * @notice Unlocks a list of ERC-721 tokens by transferring them back to the specified address.
+     * @dev Transfers each token in `tokenIDs` from the contract to the recipient.
+     * This function is used when unstaking NFTs from the staking mechanism.
+     * @param to The address that will receive the unlocked NFTs.
+     * @param tokenIDs The array of token IDs to be unlocked and transferred.
      */
     function _unlockNFTs(address to, uint256[] memory tokenIDs) internal virtual {
         for (uint256 i = 0; i < tokenIDs.length; i++) {
@@ -424,6 +430,25 @@ contract Native721TokenStakingManager is
         return validationID;
     }
 
+    /**
+     * @notice Registers an NFT-based delegation to a PoS validator.
+     * @dev This function records the delegation details, ensures the validator is active, 
+     *      updates the staking records, and emits relevant events.
+     * @param validationID The identifier of the PoS validator to delegate to.
+     * @param delegatorAddress The address of the user delegating NFTs.
+     * @param tokenIDs The array of NFT token IDs being delegated.
+     * @return delegationID A unique identifier for this delegation.
+     *
+     * Requirements:
+     * - The validator must be a valid PoS validator.
+     * - The validator must be in an active status.
+     * - The function generates a unique delegation ID based on the validation ID and nonce.
+     *
+     * Emits:
+     * - `InitiatedDelegatorRegistration` upon starting the delegation process.
+     * - `CompletedDelegatorRegistration` once the delegation is successfully recorded.
+     * - `DelegatedNFTs` containing the delegated NFT token IDs.
+     */
     function _registerNFTDelegation(
         bytes32 validationID,
         address delegatorAddress,
@@ -614,9 +639,9 @@ contract Native721TokenStakingManager is
 
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
-            
+
             uint256 delegateEffectiveWeight;
-            {   
+            {
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : (epoch + 1) * $._epochDuration;
                 uint64 uptimeP = (uptime - validatorInfo.uptimeSeconds) * 100 / $._epochDuration;
@@ -658,6 +683,19 @@ contract Native721TokenStakingManager is
         return uptime;
     }
 
+    /**
+     * @notice Calculates the rewards for the caller in a given epoch for the specified tokens.
+     * @dev This function determines the available rewards based on the user's weight in the staking system.
+     *      It supports both primary and NFT-based reward pools.
+     * @param primary A boolean indicating whether to retrieve rewards from the primary pool (true) or the NFT pool (false).
+     * @param epoch The staking epoch for which to retrieve rewards.
+     * @param tokens An array of token addresses for which to check the rewards.
+     * @return rewards An array of reward amounts corresponding to the provided token addresses.
+     *
+     * Requirements:
+     * - The caller must have participated in staking or NFT delegation during the given epoch.
+     * - The function calculates rewards based on the caller’s recorded weight and subtracts any already withdrawn rewards.
+    */
     function _getRewards(
         bool primary,
         uint64 epoch,
@@ -681,6 +719,14 @@ contract Native721TokenStakingManager is
         return rewards;
     }
 
+    /**
+     * @notice Retrieves the rewards for the caller in a given epoch for the specified tokens.
+     * @dev This function provides an external interface for `_getRewards`, allowing users to view their rewards.
+     * @param primary A boolean indicating whether to retrieve rewards from the primary pool (true) or the NFT pool (false).
+     * @param epoch The staking epoch for which to retrieve rewards.
+     * @param tokens An array of token addresses for which to check the rewards.
+     * @return rewards An array of reward amounts corresponding to the provided token addresses.
+    */
     function getRewards(
         bool primary,
         uint64 epoch,
@@ -689,6 +735,9 @@ contract Native721TokenStakingManager is
         return _getRewards(primary, epoch, tokens);
     }
 
+    /**
+     * @notice See {INative721TokenStakingManager-claimRewards}.
+     */
     function claimRewards(
         bool primary,
         uint64 epoch,
@@ -712,6 +761,9 @@ contract Native721TokenStakingManager is
         }
     }
 
+    /**
+     * @notice See {INative721TokenStakingManager-registerRewards}.
+     */
     function registerRewards(
         bool primary,
         uint64 epoch,
@@ -729,6 +781,9 @@ contract Native721TokenStakingManager is
         emit RewardRegistered(primary, epoch, token, amount);
     }
 
+    /**
+     * @notice See {INative721TokenStakingManager-cancelRewards}.
+     */
     function cancelRewards(
         bool primary,
         uint64 epoch,
@@ -749,6 +804,7 @@ contract Native721TokenStakingManager is
         }
         emit RewardCancelled(primary, epoch, token);
     }
+
 
     /**
     * @notice Calculates the effective weight of a delegator's stake based on the change in uptime over an epoch.
@@ -773,6 +829,28 @@ contract Native721TokenStakingManager is
         return (weight * duration) / epochDuration;
     }
 
+    /**
+     * @notice Validates the uptime proof for a given validator.
+     * @dev This function checks whether the provided validation ID corresponds to a PoS validator,
+     *      verifies the associated warp message, and extracts the uptime value.
+     * @param validationID The unique identifier of the validator whose uptime is being validated.
+     * @param messageIndex The index of the warp message to retrieve and validate.
+     * @return uptime The validated uptime value extracted from the warp message.
+     *
+     * Requirements:
+     * - The validation ID must belong to a PoS validator.
+     * - The referenced warp message must be valid and verified.
+     * - The source chain ID of the warp message must match the expected uptime blockchain ID.
+     * - The origin sender address of the warp message must be the zero address, ensuring direct validator signing.
+     * - The extracted validation ID from the warp message must match the provided `validationID`.
+     *
+     * Reverts:
+     * - `ValidatorNotPoS` if the validator is not a PoS validator.
+     * - `InvalidWarpMessage` if the warp message is not valid.
+     * - `InvalidWarpSourceChainID` if the message originates from an incorrect blockchain.
+     * - `InvalidWarpOriginSenderAddress` if the sender is not the zero address.
+     * - `UnexpectedValidationID` if the extracted validation ID does not match the provided one.
+     */
     function _validateUptime(bytes32 validationID, uint32 messageIndex) internal view returns (uint64) {
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
@@ -801,10 +879,13 @@ contract Native721TokenStakingManager is
         if (validationID != uptimeValidationID) {
             revert UnexpectedValidationID(uptimeValidationID, validationID);
         }
-        
+
         return uptime;
     }
 
+    /**
+     * @notice See {INative721TokenStakingManager-submitUptimeProofs}.
+     */
     function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external onlyOwner {
         if(validationIDs.length != messageIndexes.length){
             revert InvalidInputLengths(validationIDs.length, messageIndexes.length);
