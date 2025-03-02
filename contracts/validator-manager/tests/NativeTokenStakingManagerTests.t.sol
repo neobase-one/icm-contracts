@@ -88,6 +88,31 @@ contract NativeTokenStakingManagerTest is StakingManagerTest {
         app.initialize(defaultPoSSettings);
     }
 
+    function testZeroMaxStakeMultiplier() public {
+        app = new NativeTokenStakingManager(ICMInitializable.Allowed);
+        vm.expectRevert(abi.encodeWithSelector(StakingManager.InvalidStakeMultiplier.selector, 0));
+
+        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+        defaultPoSSettings.manager = validatorManager;
+        defaultPoSSettings.maximumStakeMultiplier = 0;
+        app.initialize(defaultPoSSettings);
+    }
+
+    function testMaxStakeMultiplierOverLimit() public {
+        app = new NativeTokenStakingManager(ICMInitializable.Allowed);
+        uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
+            )
+        );
+
+        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+        defaultPoSSettings.manager = validatorManager;
+        defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
+        app.initialize(defaultPoSSettings);
+    }
+
     function testZeroWeightToValueFactor() public {
         app = new NativeTokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(abi.encodeWithSelector(StakingManager.ZeroWeightToValueFactor.selector));
@@ -209,6 +234,7 @@ contract NativeTokenStakingManagerTest is StakingManagerTest {
         validatorManager = new ValidatorManager(ICMInitializable.Allowed);
 
         StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+        defaultPoSSettings.rewardCalculator = rewardCalculator;
         defaultPoSSettings.manager = validatorManager;
 
         validatorManager.initialize(_defaultSettings(address(app)));

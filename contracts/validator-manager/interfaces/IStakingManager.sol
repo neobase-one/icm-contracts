@@ -6,6 +6,7 @@
 pragma solidity 0.8.25;
 
 import {ValidatorManager} from "../ValidatorManager.sol";
+import {IRewardCalculator} from "./IRewardCalculator.sol";
 
 /**
  * @dev Delegator status
@@ -24,6 +25,7 @@ enum DelegatorStatus {
  * @notice maximumStakeAmount is the maximum amount of stake that can be staked to a validator
  * @notice minimumStakeDuration is the minimum duration that validators must stake for
  * @notice minimumDelegationFeeBips is the minimum delegation fee in basis points that validators can charge
+ * @notice maximumStakeMultiplier is the multiplier applied to validator's initial stake amount to determine
  * the maximum amount of stake a validator can have with delegations.
  * @notice weightToValueFactor is the factor used to convert validator weight to value
  * @notice rewardCalculator is the reward calculator used to calculate rewards for this validator manager
@@ -34,15 +36,12 @@ struct StakingManagerSettings {
     ValidatorManager manager;
     uint256 minimumStakeAmount;
     uint256 maximumStakeAmount;
-    uint256 maximumNFTAmount;
     uint64 minimumStakeDuration;
-    uint256 minimumDelegationAmount;
     uint16 minimumDelegationFeeBips;
+    uint8 maximumStakeMultiplier;
     uint256 weightToValueFactor;
-    address validatorRemovalAdmin;
+    IRewardCalculator rewardCalculator;
     bytes32 uptimeBlockchainID;
-    uint64 unlockDuration;
-    uint64 epochDuration;
 }
 
 /**
@@ -54,7 +53,6 @@ struct Delegator {
     bytes32 validationID;
     uint64 weight;
     uint64 startTime;
-    uint64 endTime;
     uint64 startingNonce;
     uint64 endingNonce;
 }
@@ -67,10 +65,6 @@ struct PoSValidatorInfo {
     uint16 delegationFeeBips;
     uint64 minStakeDuration;
     uint64 uptimeSeconds;
-    bytes32[] activeDelegations;
-    uint256[] tokenIDs;
-    uint64 tokenNonce;
-    uint256 totalTokens;
 }
 
 /**
@@ -130,7 +124,7 @@ interface IStakingManager {
      * @param validationID The ID of the validation period
      * @param uptime The updated uptime of the validator
      */
-    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
+    event UptimeUpdated(bytes32 indexed validationID, uint64 uptime);
 
     /**
      * @notice Updates the uptime of the validationID if the submitted proof is greated than the stored uptime.
@@ -165,6 +159,45 @@ interface IStakingManager {
         bytes32 validationID,
         bool includeUptimeProof,
         uint32 messageIndex
+    ) external;
+
+    /**
+     * @notice See {IStakingManager-initiateValidatorRemoval} for details of the first three parameters
+     * @param recipientAddress The address to receive the rewards. If the 0-address is provided, the rewards will be sent to the validator.
+     */
+    function initiateValidatorRemoval(
+        bytes32 validationID,
+        bool includeUptimeProof,
+        uint32 messageIndex,
+        address recipientAddress
+    ) external;
+
+    /**
+     * @notice Begins the process of ending an active validation period, but does not revert if the latest known uptime
+     * is not sufficient to collect uptime-based rewards. This function is used to exit the validator set when rewards are
+     * not expected.
+     * The validation period must have been previously started by a successful call to {completeValidatorRegistration} with the given validationID.
+     * Any rewards for this validation period will stop accruing when this function is called.
+     * @param validationID The ID of the validation period being ended.
+     * @param includeUptimeProof Whether or not an uptime proof is provided for the validation period. If no uptime proof is provided,
+     * the latest known uptime will be used.
+     * @param messageIndex The index of the ICM message to be received providing the uptime proof.
+     */
+    function forceInitiateValidatorRemoval(
+        bytes32 validationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) external;
+
+    /**
+     * @notice See {IStakingManager-forceInitiateValidatorRemoval} for details of the first three parameters
+     * @param recipientAddress Address to receive the rewards.
+     */
+    function forceInitiateValidatorRemoval(
+        bytes32 validationID,
+        bool includeUptimeProof,
+        uint32 messageIndex,
+        address recipientAddress
     ) external;
 
     /**
@@ -212,19 +245,46 @@ interface IStakingManager {
     ) external;
 
     /**
-     * @notice Begins the process of redelegating a delegator's stake to a new validator. The delegator must have already initiatied the
-     * removal of previous delegation. This skips the locking and unlocking of tokens.
-     * Note: This function can only be called by the address that registered the delegation.
-     * @param delegationID The ID of the delegation being redelegated.
-     * @param messageIndex The index of the ICM message to be received providing the uptime proof.
-     * @param validationID The ID of the validation period the delegation is being redelegated to.
-     * @return The ID of the redelegation.
+     * @notice See {IStakingManager-initiateDelegatorRemoval} for details of the first three parameters
+     * @param recipientAddress The address to receive the rewards. If the 0-address is provided, the rewards will be sent to the delegator.
      */
-    function initiateRedelegation(
+    function initiateDelegatorRemoval(
         bytes32 delegationID,
+        bool includeUptimeProof,
         uint32 messageIndex,
-        bytes32 validationID
-    ) external returns (bytes32);
+        address recipientAddress
+    ) external;
+
+    /**
+     * @notice Begins the process of removing a delegator from a validation period, but does not revert if the delegation is not eligible for rewards.
+     * The delegator must have been previously registered with the given validationID. For the purposes of computing delegation rewards,
+     * the delegation period is considered ended when this function is called. Uses the supplied uptime proof to calculate rewards.
+     * If none is provided in the call, the latest known uptime will be used. Reverts if the uptime is not eligible for rewards.
+     * Note: This function can only be called by the address that registered the delegation.
+     * @param delegationID The ID of the delegation being removed.
+     * @param includeUptimeProof Whether or not an uptime proof is provided for the validation period.
+     * If the validator has completed its validation period, it has already provided an uptime proof, so {includeUptimeProof}
+     * will be ignored and can be set to false. If the validator has not completed its validation period and no uptime proof
+     * is provided, the latest known uptime will be used.
+     * @param messageIndex If {includeUptimeProof} is true, the index of the ICM message to be received providing the
+     * uptime proof.
+     */
+    function forceInitiateDelegatorRemoval(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex
+    ) external;
+
+    /**
+     * @notice See {IStakingManager-forceInitiateDelegatorRemoval} for details of the first three parameters
+     * @param recipientAddress The address to receive the rewards.
+     */
+    function forceInitiateDelegatorRemoval(
+        bytes32 delegationID,
+        bool includeUptimeProof,
+        uint32 messageIndex,
+        address recipientAddress
+    ) external;
 
     /**
      * @notice Resubmits a delegator registration or delegator end message to be sent to the P-Chain.
@@ -244,4 +304,24 @@ interface IStakingManager {
      * @param messageIndex The index of the ICM message to be received providing the acknowledgement.
      */
     function completeDelegatorRemoval(bytes32 delegationID, uint32 messageIndex) external;
+
+    /**
+     * @notice Withdraws the delegation fees from completed delegations to the owner of the validator.
+     * @param validationID The ID of the validation period being ended.
+     */
+    function claimDelegationFees(bytes32 validationID) external;
+
+    /**
+     * @notice Changes the address of the recipient of the validator's rewards for a validation period. This method can be called any time before {completeEndValidation}.
+     * @param validationID The ID of the validation period being ended.
+     * @param recipient The address to receive the rewards.
+     */
+    function changeValidatorRewardRecipient(bytes32 validationID, address recipient) external;
+
+    /**
+     * @notice Changes the address of the recipient of the delegator's rewards for a delegation period. This method can be called any time before {completeDelegatorRemoval}.
+     * @param delegationID The ID of the validation period being ended.
+     * @param recipient The address to receive the rewards.
+     */
+    function changeDelegatorRewardRecipient(bytes32 delegationID, address recipient) external;
 }
