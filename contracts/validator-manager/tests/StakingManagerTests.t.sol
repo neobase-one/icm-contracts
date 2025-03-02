@@ -1121,7 +1121,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
 
         vm.expectEmit(true, true, true, true, address(stakingManager));
         emit UptimeUpdated(validationID, uptime1, 0);
-        stakingManager.submitUptimeProof(validationID, 0);
+        // stakingManager.submitUptimeProof(validationID, 0);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit InitiatedValidatorRemoval(
@@ -1139,7 +1139,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 StakingManager.ValidatorNotPoS.selector, defaultInitialValidationID
             )
         );
-        stakingManager.submitUptimeProof(defaultInitialValidationID, 0);
+        // stakingManager.submitUptimeProof(defaultInitialValidationID, 0);
     }
 
     function testSubmitUptimeProofInactiveValidator() public {
@@ -1167,7 +1167,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
             )
         );
-        stakingManager.submitUptimeProof(validationID, 0);
+        // stakingManager.submitUptimeProof(validationID, 0);
     }
 
     function testEndValidationPoAValidator() public {

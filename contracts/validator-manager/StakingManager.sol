@@ -23,7 +23,6 @@ import {ReentrancyGuardUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ReentrancyGuardUpgradeable.sol";
 import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @dev Implementation of the {IStakingManager} interface.

@@ -614,13 +614,18 @@ contract Native721TokenStakingManager is
 
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
+            
+            uint256 delegateEffectiveWeight;
+            {   
+                uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
+                uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : (epoch + 1) * $._epochDuration;
+                uint64 uptimeP = (uptime - validatorInfo.uptimeSeconds) * 100 / $._epochDuration;
 
-            uint256 delegateEffectiveWeight = _calculateEffectiveWeight(
-                delegator.weight,
-                // uint64(Math.min(delegator.endTime, (epoch + 1) * $._epochDuration)) 
-                    // - uint64(Math.max(delegator.startTime, epoch * $._epochDuration))
-                uptime - validatorInfo.uptimeSeconds 
-            );
+                delegateEffectiveWeight = _calculateEffectiveWeight(
+                    delegator.weight,
+                    (delegationEnd - delegationStart) * uptimeP / 100
+                );
+            }
 
             uint256 feeWeight = (delegateEffectiveWeight * validatorInfo.delegationFeeBips)
         / BIPS_CONVERSION_FACTOR;
@@ -661,12 +666,10 @@ contract Native721TokenStakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         uint256[] memory rewards = new uint256[](tokens.length);
-
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
                 uint256 amount = ($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
                  / $._totalRewardWeight[epoch];
-
                 rewards[i] = amount - $._rewardWithdrawn[epoch][_msgSender()][tokens[i]];
             } else {
                 uint256 amount = ($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][_msgSender()])
@@ -675,6 +678,7 @@ contract Native721TokenStakingManager is
                 rewards[i] = amount - $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]];
             }
         }
+        return rewards;
     }
 
     function getRewards(
@@ -770,6 +774,10 @@ contract Native721TokenStakingManager is
     }
 
     function _validateUptime(bytes32 validationID, uint32 messageIndex) internal view returns (uint64) {
+        if (!_isPoSValidator(validationID)) {
+            revert ValidatorNotPoS(validationID);
+        }
+
         (WarpMessage memory warpMessage, bool valid) =
             WARP_MESSENGER.getVerifiedWarpMessage(messageIndex);
         if (!valid) {
@@ -795,5 +803,14 @@ contract Native721TokenStakingManager is
         }
         
         return uptime;
+    }
+
+    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external onlyOwner {
+        if(validationIDs.length != messageIndexes.length){
+            revert InvalidInputLengths(validationIDs.length, messageIndexes.length);
+        }
+        for (uint256 i = 0; i < validationIDs.length; i++) {
+            _updateUptime(validationIDs[i], messageIndexes[i]);
+        }
     }
 }
