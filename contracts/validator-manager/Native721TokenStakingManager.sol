@@ -338,9 +338,9 @@ contract Native721TokenStakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         if(primary){
-            $._rewardPools[epoch][token] = amount;
+            $._rewardPools[epoch][token] += amount;
         } else {
-            $._rewardPoolsNFT[epoch][token] = amount;
+            $._rewardPoolsNFT[epoch][token] += amount;
         }
         IERC20(token).transferFrom(_msgSender(), address(this), amount);
         emit RewardRegistered(primary, epoch, token, amount);
@@ -693,6 +693,9 @@ contract Native721TokenStakingManager is
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : (epoch + 1) * $._epochDuration;
                 uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, validationUptime));
+                if (delegationUptime * 100 / $._epochDuration >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
+                    delegationUptime = $._epochDuration;
+                }
                 delWeight = (delegator.weight * delegationUptime) / $._epochDuration;
             }
 
