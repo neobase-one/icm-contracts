@@ -11,7 +11,6 @@ import {
 import {
     StakingManager
 } from "./StakingManager.sol";
-
 import {
     Delegator,
     DelegatorStatus,
@@ -24,13 +23,10 @@ import {INative721TokenStakingManager} from "./interfaces/INative721TokenStaking
 import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
 import {IERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/IERC20.sol";
 import {Address} from "@openzeppelin/contracts@5.0.2/utils/Address.sol";
-import {SafeERC20} from "@openzeppelin/contracts@5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable@5.0.2/proxy/utils/Initializable.sol";
-
 import {WarpMessage} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
-
 import {ValidatorMessages} from "./ValidatorMessages.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721Receiver.sol";
 
@@ -83,7 +79,6 @@ contract Native721TokenStakingManager is
         }
     }
 
-
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
@@ -100,41 +95,9 @@ contract Native721TokenStakingManager is
         StakingManagerSettings calldata settings,
         IERC721 stakingToken
     ) external reinitializer(2) {
-        __Native721TokenStakingManager_init(settings, stakingToken);
-    }
-
-    /**
-    * @notice Initializes both the PoS validator manager and the ERC721 token staking manager.
-    * @dev This function initializes the parent contract (`StakingManager`) and then calls 
-    *      the unchained initializer to set the ERC721 staking token. It ensures that the staking token 
-    *      is properly initialized and ready for use in staking.
-    * @param settings The settings for the PoS validator manager.
-    * @param stakingToken The ERC721 token to be used for staking in the contract.
-    */
-    // solhint-disable-next-line func-name-mixedcase
-    function __Native721TokenStakingManager_init(
-        StakingManagerSettings calldata settings,
-        IERC721 stakingToken
-    ) internal onlyInitializing {
         __Ownable_init(_msgSender());
         __StakingManager_init(settings);
-        __Native721TokenStakingManager_init_unchained(stakingToken);
-    }
 
-    /**
-    * @notice Initializes the ERC721 token staking manager with the provided staking token.
-    * @dev This function is called during the initialization of the contract to set the ERC721 token
-    *      that will be used for staking. It ensures that the provided staking token address is valid
-    *      and stores it in the contract's storage.
-    * @param stakingToken The ERC721 token to be used for staking in the contract.
-    *
-    * Reverts if:
-    * - The provided token address is the zero address (`InvalidTokenAddress`).
-    */
-    // solhint-disable-next-line func-name-mixedcase
-    function __Native721TokenStakingManager_init_unchained(
-        IERC721 stakingToken
-    ) internal onlyInitializing {
         Native721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
 
         if (address(stakingToken) == address(0)) {
@@ -371,7 +334,7 @@ contract Native721TokenStakingManager is
         uint64 epoch,
         address token,
         uint256 amount
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         if(primary){
@@ -390,7 +353,7 @@ contract Native721TokenStakingManager is
         bool primary,
         uint64 epoch,
         address token
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         if(block.timestamp >= epoch * $._epochDuration + REWARD_CLAIM_DELAY){
@@ -730,7 +693,7 @@ contract Native721TokenStakingManager is
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : (epoch + 1) * $._epochDuration;
                 uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, validationUptime));
-                delWeight = delegator.weight * delegationUptime / $._epochDuration;
+                delWeight = (delegator.weight * delegationUptime) / $._epochDuration;
             }
 
             uint256 feeWeight = (delWeight * validatorInfo.delegationFeeBips) / BIPS_CONVERSION_FACTOR;
