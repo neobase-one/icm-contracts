@@ -192,7 +192,6 @@ contract Native721TokenStakingManager is
     */
     function registerNFTDelegation(
         bytes32 validationID,
-        address delegatorAddress,
         uint256[] memory tokenIDs
     ) external nonReentrant returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
@@ -202,7 +201,7 @@ contract Native721TokenStakingManager is
         }
 
         _lockNFTs(tokenIDs);
-        return _registerNFTDelegation(validationID, delegatorAddress, tokenIDs);
+        return _registerNFTDelegation(validationID, _msgSender(), tokenIDs);
     }
 
     /**

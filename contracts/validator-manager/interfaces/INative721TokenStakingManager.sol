@@ -179,14 +179,12 @@ interface INative721TokenStakingManager is IStakingManager {
     *      with the given validator. The NFTs are transferred from the delegator's address to the contract, and the delegation 
     *      is recorded for the specified validator.
     * @param validationID The unique identifier of the validator to which the NFT delegation is being registered.
-    * @param delegatorAddress The address of the delegator registering the NFT delegation.
     * @param tokenIDs An array of token IDs representing the NFTs to be locked and delegated.
     * @return delegationID A unique identifier for the newly registered NFT delegation.
     *
     */
     function registerNFTDelegation(
         bytes32 validationID,
-        address delegatorAddress,
         uint256[] memory tokenIDs
     ) external returns (bytes32);
 

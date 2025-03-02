@@ -183,7 +183,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         );
 
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);
-        app.registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS, tokens);
+        app.registerNFTDelegation(validationID, tokens);
     }
 
     function testSubmitUptimeNonOwner() public {
@@ -707,7 +707,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         _beforeSendNFT(tokens[0], delegatorAddress);
 
         vm.prank(delegatorAddress);
-        return app.registerNFTDelegation(validationID, delegatorAddress, tokens);
+        return app.registerNFTDelegation(validationID, tokens);
     }
 
     function _initiateNFTDelegatorRemoval(
