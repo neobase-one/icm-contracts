@@ -24,8 +24,6 @@ import {ReentrancyGuardUpgradeable} from
 import {ContextUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/utils/ContextUpgradeable.sol";
 
-import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
-
 /**
  * @dev Implementation of the {IStakingManager} interface.
  *
@@ -46,7 +44,9 @@ abstract contract StakingManager is
         uint256 _maximumStakeAmount;
         /// @notice The minimum amount of time in seconds a validator must be staked for. Must be at least {_churnPeriodSeconds}.
         uint64 _minimumStakeDuration;
+        /// @notice The maximum amount of staked NFTs allowed to be a validator.
         uint256 _maximumNFTAmount;
+        /// @notice The minimum delegation amount
         uint256 _minimumDelegationAmount;
         /// @notice The minimum delegation fee percentage, in basis points, required to delegate to a validator.
         uint16 _minimumDelegationFeeBips;
@@ -56,24 +56,28 @@ abstract contract StakingManager is
         bytes32 _uptimeBlockchainID;
         /// @notice Validator removal admin address
         address _validatorRemovalAdmin;
-        /// @notice The reward stream balance tracker for this validator manager.
-        IBalanceTracker _balanceTracker;
-        /// @notice The reward stream balance tracker for this validator manager.
-        IBalanceTracker _balanceTrackerNFT;
         /// @notice The duration of an epoch in seconds
         uint64 _epochDuration;
+        /// @notice The duration of the unlock period in seconds
         uint64 _unlockDuration;
         /// @notice Maps the validation ID to its requirements.
         mapping(bytes32 validationID => PoSValidatorInfo) _posValidatorInfo;
         /// @notice Maps the delegation ID to the delegator information.
         mapping(bytes32 delegationID => Delegator) _delegatorStakes;
-        /// @notice Maps validation ID to array of delegation IDs
-        mapping(bytes32 validationID => bytes32[]) _validatorDelegations;
-        /// @notice Maps account to array of delegationIDs
-        mapping(address => uint256) _accountRewardBalance;
-        /// @notice Maps account to array of delegationIDs
-        mapping(address => uint256) _accountNFTRewardBalance;
+
         mapping(bytes32 delegationID => uint256[]) _lockedNFTs;
+
+        mapping(uint64 epoch => uint256) _totalRewardWeight;
+        mapping(uint64 epoch => uint256) _totalRewardWeightNFT;
+
+        mapping(uint64 epoch => mapping(address account => uint256)) _accountRewardWeight;
+        mapping(uint64 epoch => mapping(address account => uint256)) _accountRewardWeightNFT;
+
+        mapping(uint64 epoch => mapping(address account => mapping(address token => uint256))) _rewardWithdrawn;
+        mapping(uint64 epoch => mapping(address account => mapping(address token => uint256))) _rewardWithdrawnNFT;
+
+        mapping(uint64 epoch => mapping(address token => uint256)) _rewardPools; 
+        mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT; 
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -109,8 +113,6 @@ abstract contract StakingManager is
     error InvalidNonce(uint64 nonce);
     error InvalidWarpMessage();
     error UnauthorizedInitialValidatorRemoval(address sender);
-    error InvalidEpoch();
-    error ZeroDelegatorAddress();
 
     // solhint-disable ordering
     /**
@@ -141,8 +143,6 @@ abstract contract StakingManager is
             validatorRemovalAdmin: settings.validatorRemovalAdmin,
             weightToValueFactor: settings.weightToValueFactor,
             uptimeBlockchainID: settings.uptimeBlockchainID,
-            balanceTracker: settings.balanceTracker,
-            balanceTrackerNFT: settings.balanceTrackerNFT,
             unlockDuration: settings.unlockDuration,
             epochDuration: settings.epochDuration,
             maximumNFTAmount: settings.maximumNFTAmount
@@ -162,9 +162,7 @@ abstract contract StakingManager is
         uint256 weightToValueFactor,
         bytes32 uptimeBlockchainID,
         uint64 unlockDuration,
-        uint64 epochDuration,
-        IBalanceTracker balanceTracker,
-        IBalanceTracker balanceTrackerNFT
+        uint64 epochDuration
     ) internal onlyInitializing {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -177,10 +175,6 @@ abstract contract StakingManager is
         // Minimum stake duration should be at least one churn period in order to prevent churn tracker abuse.
         if (minimumStakeDuration < manager.getChurnPeriodSeconds()) {
             revert InvalidMinStakeDuration(minimumStakeDuration);
-        }
-        // Check in accordance with reward streams contracts
-        if (epochDuration < 7 days || epochDuration > 10 * 7 days) {
-            revert InvalidEpoch();
         }
         if (weightToValueFactor == 0) {
             revert ZeroWeightToValueFactor();
@@ -201,8 +195,6 @@ abstract contract StakingManager is
         $._uptimeBlockchainID = uptimeBlockchainID;
         $._unlockDuration = unlockDuration;
         $._epochDuration = epochDuration;
-        $._balanceTracker = balanceTracker;
-        $._balanceTrackerNFT = balanceTrackerNFT;
     }
 
     /**
@@ -211,11 +203,6 @@ abstract contract StakingManager is
     function submitUptimeProof(bytes32 validationID, uint32 messageIndex) external {
         if (!_isPoSValidator(validationID)) {
             revert ValidatorNotPoS(validationID);
-        }
-        ValidatorStatus status =
-            _getStakingManagerStorage()._manager.getValidator(validationID).status;
-        if (status != ValidatorStatus.Active) {
-            revert InvalidValidatorStatus(status);
         }
 
         // Uptime proofs include the absolute number of seconds the validator has been active.
@@ -231,18 +218,14 @@ abstract contract StakingManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initiatePoSValidatorRemoval(validationID, includeUptimeProof, messageIndex);
+        _initiatePoSValidatorRemoval(validationID);
     }
 
     /**
      * @dev Helper function that initiates the end of a PoS validation period.
-     * Returns false if it is possible for the validator to claim rewards, but it is not eligible.
-     * Returns true otherwise.
      */
     function _initiatePoSValidatorRemoval(
-        bytes32 validationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 validationID
     ) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
@@ -272,14 +255,6 @@ abstract contract StakingManager is
                 < validator.startTime + $._posValidatorInfo[validationID].minStakeDuration
         ) {
             revert MinStakeDurationNotPassed(validator.endTime);
-        }
-
-        // Uptime proofs include the absolute number of seconds the validator has been active.
-        uint64 uptimeSeconds;
-        if (includeUptimeProof) {
-            uptimeSeconds = _updateUptime(validationID, messageIndex);
-        } else {
-            uptimeSeconds = $._posValidatorInfo[validationID].uptimeSeconds;
         }
 
         return;
@@ -482,9 +457,6 @@ abstract contract StakingManager is
         if (delegationAmount < $._minimumDelegationAmount) {
             revert InvalidStakeAmount(delegationAmount);
         }
-        if (delegatorAddress == address(0)){
-            revert ZeroDelegatorAddress();
-        }
         // Update the validator weight
         uint64 newValidatorWeight = validator.weight + weight;
         if (newValidatorWeight > valueToWeight($._maximumStakeAmount)) {
@@ -561,7 +533,7 @@ abstract contract StakingManager is
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startTime = uint64(block.timestamp);
 
-        $._validatorDelegations[validationID].push(delegationID);
+        $._posValidatorInfo[validationID].activeDelegations.push(delegationID);
 
         emit CompletedDelegatorRegistration({
             delegationID: delegationID,
@@ -613,10 +585,6 @@ abstract contract StakingManager is
         if (block.timestamp < delegator.startTime + $._manager.getChurnPeriodSeconds()) {
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
-
-        // Once this function completes, the delegation is completed so we can clear it from state now.
-        delete $._delegatorStakes[delegationID];
-        _removeDelegationFromValidator(delegationID, validationID);
 
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
@@ -673,7 +641,7 @@ abstract contract StakingManager is
         bool includeUptimeProof,
         uint32 messageIndex
     ) external {
-        _initiateDelegatorRemoval(delegationID, includeUptimeProof, messageIndex);
+        _initiateDelegatorRemoval(delegationID);
     }
 
     /**
@@ -682,9 +650,7 @@ abstract contract StakingManager is
      * Returns true otherwise.
      */
     function _initiateDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 delegationID
     ) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
@@ -705,11 +671,6 @@ abstract contract StakingManager is
             // Check that minimum stake duration has passed.
             if (block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
-            }
-
-            if (includeUptimeProof) {
-                // Uptime proofs include the absolute number of seconds the validator has been active.
-                _updateUptime(validationID, messageIndex);
             }
 
             // Set the delegator status to pending removed, so that it can be properly removed in
@@ -821,9 +782,6 @@ abstract contract StakingManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
-        // Once this function completes, the delegation is completed so we can clear it from state now.
-        delete $._delegatorStakes[delegationID];
-
         // Unlock the delegator's stake.
         _unlock(delegator.owner, weightToValue(delegator.weight));
 
@@ -851,7 +809,7 @@ abstract contract StakingManager is
      */
     function _removeDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
-        bytes32[] storage delegations = $._validatorDelegations[validationID];
+        bytes32[] storage delegations = $._posValidatorInfo[validationID].activeDelegations;
 
         // Find and remove the delegation ID
         for (uint256 i = 0; i < delegations.length; i++) {

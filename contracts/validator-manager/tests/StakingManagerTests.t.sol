@@ -16,8 +16,7 @@ import {
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {PChainOwner} from "../ACP99Manager.sol";
-
-import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
+import {console} from "forge-std/console.sol";
 
 abstract contract StakingManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
@@ -176,7 +175,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         _mockGetUptimeWarpMessage(new bytes(0), false);
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
         vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
-        stakingManager.initiateValidatorRemoval(validationID, true, 0);
+        stakingManager.submitUptimeProof(validationID, 0);
     }
 
     function testInvalidUptimeSenderAddress() public {
@@ -204,7 +203,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
             )
         );
-        stakingManager.initiateValidatorRemoval(validationID, true, 0);
+        stakingManager.submitUptimeProof(validationID, 0);
     }
 
     function testInvalidUptimeValidationID() public {
@@ -232,7 +231,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 StakingManager.UnexpectedValidationID.selector, bytes32(0), validationID
             )
         );
-        stakingManager.initiateValidatorRemoval(validationID, true, 0);
+        stakingManager.submitUptimeProof(validationID, 0);
     }
 
     function testInitiateDelegatorRegistration() public {
@@ -248,7 +247,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         });
     }
 
-    function testInitiateDelegatorRegistratioInvalidAmount() public {
+    function testInitiateDelegatorRegistrationInvalidAmount() public {
         bytes32 validationID = _registerDefaultValidator();
 
         _beforeSend(DEFAULT_MINIMUM_DELEGATION_AMOUNT / 10, DEFAULT_DELEGATOR_ADDRESS);
@@ -1104,45 +1103,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         });
     }
 
-    function testInitializeEndValidationUseStoredUptime() public {
-        bytes32 validationID = _registerDefaultValidator();
-
-        vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
-        bytes memory setValidatorWeightPayload =
-            ValidatorMessages.packL1ValidatorWeightMessage(validationID, 1, 0);
-        _mockSendWarpMessage(setValidatorWeightPayload, bytes32(0));
-
-        // Submit an uptime proof via submitUptime
-        uint64 uptimePercentage1 = 80;
-        uint64 uptime1 = (
-            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage1
-        ) / 100;
-        bytes memory uptimeMsg1 =
-            ValidatorMessages.packValidationUptimeMessage(validationID, uptime1);
-        _mockGetUptimeWarpMessage(uptimeMsg1, true);
-
-        vm.expectEmit(true, true, true, true, address(stakingManager));
-        emit UptimeUpdated(validationID, uptime1, 0);
-        stakingManager.submitUptimeProof(validationID, 0);
-
-        // Submit a second uptime proof via initiateValidatorRemoval. This one is not sufficient for rewards
-        // Submit an uptime proof via submitUptime
-        uint64 uptimePercentage2 = 79;
-        uint64 uptime2 = (
-            (DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage2
-        ) / 100;
-        bytes memory uptimeMsg2 =
-            ValidatorMessages.packValidationUptimeMessage(validationID, uptime2);
-        _mockGetUptimeWarpMessage(uptimeMsg2, true);
-
-        vm.expectEmit(true, true, true, true, address(validatorManager));
-        emit InitiatedValidatorRemoval(
-            validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_COMPLETION_TIMESTAMP
-        );
-
-        _initiateValidatorRemoval(validationID, true, address(0));
-    }
-
     function testInitializeEndValidationWithoutNewUptime() public {
         bytes32 validationID = _registerDefaultValidator();
 
@@ -1162,11 +1122,13 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
 
         vm.expectEmit(true, true, true, true, address(stakingManager));
         emit UptimeUpdated(validationID, uptime1, 0);
+
+        vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
         stakingManager.submitUptimeProof(validationID, 0);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit InitiatedValidatorRemoval(
-            validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_COMPLETION_TIMESTAMP
+            validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION
         );
 
         _initiateValidatorRemoval(validationID, false, address(0));
@@ -1181,34 +1143,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             )
         );
         stakingManager.submitUptimeProof(defaultInitialValidationID, 0);
-    }
-
-    function testSubmitUptimeProofInactiveValidator() public {
-        bytes32 validationID = _registerDefaultValidator();
-
-        bytes memory setWeightMessage =
-            ValidatorMessages.packL1ValidatorWeightMessage(validationID, 1, 0);
-        bytes memory uptimeMessage = ValidatorMessages.packValidationUptimeMessage(
-            validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        );
-
-        _initiateValidatorRemoval({
-            validationID: validationID,
-            completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
-            setWeightMessage: setWeightMessage,
-            includeUptime: true,
-            uptimeMessage: uptimeMessage,
-            force: false
-        });
-
-        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_WEIGHT), DEFAULT_DELEGATOR_ADDRESS);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
-            )
-        );
-        stakingManager.submitUptimeProof(validationID, 0);
     }
 
     function testEndValidationPoAValidator() public {
@@ -1454,7 +1388,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             ((DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP) * uptimePercentage)
                 / 100
         );
-        _mockGetUptimeWarpMessage(uptimeMsg, true);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit InitiatedValidatorRemoval(
@@ -1783,9 +1716,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     ) internal {
         _mockSendWarpMessage(setValidatorWeightPayload, bytes32(0));
 
-        if (includeUptime) {
-            _mockGetUptimeWarpMessage(uptimePayload, true);
-        }
         _initiateDelegatorRemoval({
             sender: sender,
             delegationID: delegationID,
@@ -2051,8 +1981,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
             epochDuration: DEFAULT_EPOCH_DURATION,
-            balanceTracker: IBalanceTracker(address(0)),
-            balanceTrackerNFT: IBalanceTracker(address(0)),
             unlockDuration: DEFAULT_UNLOCK_DURATION
         });
     }

@@ -6,8 +6,6 @@
 pragma solidity 0.8.25;
 
 import {ValidatorManager} from "../ValidatorManager.sol";
-import {IBalanceTracker} from "@euler-xyz/reward-streams@1.0.0/interfaces/IBalanceTracker.sol";
-
 
 /**
  * @dev Delegator status
@@ -45,8 +43,6 @@ struct StakingManagerSettings {
     bytes32 uptimeBlockchainID;
     uint64 unlockDuration;
     uint64 epochDuration;
-    IBalanceTracker balanceTracker;
-    IBalanceTracker balanceTrackerNFT;
 }
 
 /**
@@ -61,7 +57,6 @@ struct Delegator {
     uint64 endTime;
     uint64 startingNonce;
     uint64 endingNonce;
-    uint256 rewardBalance;
 }
 
 /**
@@ -72,13 +67,10 @@ struct PoSValidatorInfo {
     uint16 delegationFeeBips;
     uint64 minStakeDuration;
     uint64 uptimeSeconds;
-    uint64 currentEpoch;
-    uint64 nftNonce;
-    uint64 prevEpochUptimeSeconds;
-    uint256 rewardBalance;
-    uint256 rewardBalanceNFT;
+    bytes32[] activeDelegations;
     uint256[] tokenIDs;
-    uint256 delegatedTokens;
+    uint64 tokenNonce;
+    uint256 totalTokens;
 }
 
 /**

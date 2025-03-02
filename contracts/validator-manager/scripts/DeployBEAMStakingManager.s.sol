@@ -8,13 +8,11 @@ import {
     Native721TokenStakingManager
 } from "../Native721TokenStakingManager.sol";
 import {ValidatorManager} from "../ValidatorManager.sol";
-import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
+import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
 import {console} from "forge-std/console.sol";
-import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
-import {EthereumVaultConnector} from "evc/EthereumVaultConnector.sol";
-import {ProxyAdmin} from "openzeppelin-contracts/proxy/transparent/ProxyAdmin.sol";
-import {TransparentUpgradeableProxy} from "openzeppelin-contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ITransparentUpgradeableProxy} from "openzeppelin-contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts@5.0.2/proxy/transparent/ProxyAdmin.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts@5.0.2/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts@5.0.2/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
  * @notice Script to deploy and initialize Native721TokenStakingManager with a new proxy
@@ -49,14 +47,6 @@ contract DeployBEAMStakingManager is Script {
         // Start broadcasting transactions
         vm.startBroadcast();
 
-        // Deploy EVC and balance trackers
-        EthereumVaultConnector evc = new EthereumVaultConnector();
-        console.log("Deployed EVC at:", address(evc));
-
-        TrackingRewardStreams balanceTracker = new TrackingRewardStreams(address(evc), 7 days);
-        TrackingRewardStreams balanceTrackerNFT = new TrackingRewardStreams(address(evc), 7 days);
-        console.log("Deployed balance trackers at:", address(balanceTracker), address(balanceTrackerNFT));
-
         // Deploy implementation
         Native721TokenStakingManager implementation = new Native721TokenStakingManager(ICMInitializable.Disallowed);
         console.log("Deployed implementation at:", address(implementation));
@@ -74,8 +64,6 @@ contract DeployBEAMStakingManager is Script {
             validatorRemovalAdmin: ADMIN_ADDRESS,
             uptimeBlockchainID: UPTIME_BLOCKCHAIN_ID,
             epochDuration: EPOCH_DURATION,
-            balanceTracker: balanceTracker,
-            balanceTrackerNFT: balanceTrackerNFT,
             unlockDuration: UNLOCK_PERIOD
         });
 

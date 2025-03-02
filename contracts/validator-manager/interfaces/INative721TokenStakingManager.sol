@@ -27,6 +27,40 @@ interface INative721TokenStakingManager is IStakingManager {
     );
 
     /**
+     * @notice Event emitted when reward is registered
+     * @param primary True if the reward is primary, false if secondary
+     * @param epoch The epoch for which the reward is being registered
+     * @param token The reward token
+     * @param amount The amount of the reward
+    **/
+    event RewardRegistered(
+        bool primary,
+        uint64 epoch,
+        address token,
+        uint256 amount
+    );
+
+    /**
+    * @notice Event emitted when a reward is cancelled
+    * @param primary True if the reward is primary, false if secondary
+    * @param epoch The epoch for which the reward is being cancelled
+    * @param token The reward token
+    **/
+    event RewardCancelled(
+        bool primary,
+        uint64 epoch,
+        address token
+    );
+
+    event RewardClaimed(
+        bool primary,
+        uint64 epoch,
+        address account,
+        address token,
+        uint256 amount
+    );
+
+    /**
      * @notice Begins the validator registration process. Locks the provided native asset in the contract as the stake.
      * @param nodeID The ID of the node to add to the L1.
      * @param blsPublicKey The BLS public key of the validator.
@@ -48,9 +82,96 @@ interface INative721TokenStakingManager is IStakingManager {
     ) external payable returns (bytes32 validationID);
 
     /**
-     * @notice Returns the ERC721 token contract used for staking
+     * @notice Initiates the registration of a delegator for staking with a validator.
+     * @dev Calls the internal function `_initiateDelegatorRegistration` to handle the registration process.
+     * The function locks the sent Ether as stake and associates it with the validator.
+     * @param validationID The unique identifier of the validator to delegate to.
+     * @return The delegation ID, which uniquely identifies this delegation.
      */
-    function erc721() external view returns (IERC721);
+    function initiateDelegatorRegistration(
+        bytes32 validationID
+    ) external payable returns (bytes32);
+
+    /**
+     * @notice Claims rewards for the caller from a specified epoch and transfers them to a recipient.
+     * @dev The function ensures the claim period has started before allowing withdrawals.
+     * @param primary A boolean indicating whether to claim from the primary reward pool (true) or the NFT pool (false).
+     * @param epoch The staking epoch for which to claim rewards.
+     * @param tokens An array of token addresses to claim rewards for.
+     * @param recipient The address that will receive the claimed rewards.
+     *
+     * Requirements:
+     * - The claim period must have started (i.e., `block.timestamp` must be past the reward claim delay).
+     * - The caller must have earned rewards in the specified epoch.
+     * - The function updates the withdrawn reward balance to prevent double claims.
+     *
+     * Emits:
+     * - Transfers the claimed rewards to the recipient.
+     */
+    function claimRewards(
+        bool primary,
+        uint64 epoch,
+        address[] memory tokens,
+        address recipient
+    ) external;
+
+    /**
+     * @notice Registers a reward amount for a specific epoch and token.
+     * @dev This function allows the contract owner to deposit rewards into the system.
+     * @param primary A boolean indicating whether to register in the primary reward pool (true) or the NFT pool (false).
+     * @param epoch The staking epoch for which rewards are being registered.
+     * @param token The address of the token being allocated as a reward.
+     * @param amount The amount of the token to be distributed as rewards.
+     *
+     * Requirements:
+     * - Only the contract owner can call this function.
+     * - The function transfers the specified reward amount from the sender to the contract.
+     *
+     * Emits:
+     * - `RewardRegistered` event upon successfully registering the reward.
+     */
+    function registerRewards(
+        bool primary,
+        uint64 epoch,
+        address token,
+        uint256 amount
+    ) external;
+
+    /**
+     * @notice Cancels previously registered rewards before the claim period starts.
+     * @dev The function allows the contract owner to withdraw unclaimed rewards if the claim period has not begun.
+     * @param primary A boolean indicating whether to cancel from the primary reward pool (true) or the NFT pool (false).
+     * @param epoch The staking epoch for which rewards should be canceled.
+     * @param token The address of the token whose rewards should be canceled.
+     *
+     * Requirements:
+     * - Only the contract owner can call this function.
+     * - The cancellation must happen before the claim period starts (`block.timestamp` must be before the reward claim delay).
+     *
+     * Emits:
+     * - `RewardCancelled` event upon successfully canceling the reward.
+     */
+    function cancelRewards(
+        bool primary,
+        uint64 epoch,
+        address token
+    ) external;
+
+    /**
+     * @notice Submits multiple uptime proofs for validation and processing.
+     * @dev This function iterates through a list of validation IDs and their corresponding warp message indexes,
+     *      calling `_updateUptime` for each one to update their recorded uptime.
+     * @param validationIDs An array of validator IDs whose uptime proofs are being submitted.
+     * @param messageIndexes An array of corresponding warp message indexes containing the uptime proofs.
+     *
+     * Requirements:
+     * - The `validationIDs` and `messageIndexes` arrays must have the same length.
+     * - The function can only be called by the contract owner.
+     *
+     * Reverts:
+     * - `InvalidInputLengths` if the input arrays have different lengths.
+     */
+    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external;
 
     /**
     * @notice Registers an NFT delegation for a specified validator and delegator.
@@ -75,8 +196,6 @@ interface INative721TokenStakingManager is IStakingManager {
     *      and registers the NFT delegation with a new validator. The NFTs are transferred from the current delegation
     *      to the new validator as part of the redelegation process.
     * @param delegationID The unique identifier of the NFT delegation to be redelegated.
-    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the redelegation process.
-    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
     * @param nextValidationID The unique identifier of the new validator to which the NFTs will be redelegated.
     *
     * Reverts if:
@@ -84,8 +203,6 @@ interface INative721TokenStakingManager is IStakingManager {
     */
     function registerNFTRedelegation(
         bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex,
         bytes32 nextValidationID
     ) external;
 
@@ -94,13 +211,9 @@ interface INative721TokenStakingManager is IStakingManager {
     * @dev This function calls `_initializeEndNFTDelegation` to validate and update the status of the NFT delegation.
     *      It ensures the delegation is active and optionally includes an uptime proof.
     * @param delegationID The unique identifier of the NFT delegation to be ended.
-    * @param includeUptimeProof A boolean indicating whether to include an uptime proof during the delegation termination process.
-    * @param messageIndex The index of the Warp message for obtaining the uptime proof, if `includeUptimeProof` is `true`.
     */
     function initiateNFTDelegatorRemoval(
-        bytes32 delegationID,
-        bool includeUptimeProof,
-        uint32 messageIndex
+        bytes32 delegationID
     ) external;
 
     /**
@@ -114,4 +227,9 @@ interface INative721TokenStakingManager is IStakingManager {
     function completeNFTDelegatorRemoval(
         bytes32 delegationID
     ) external;
+
+    /**
+     * @notice Returns the ERC721 token contract used for staking
+     */
+    function erc721() external view returns (IERC721);
 }

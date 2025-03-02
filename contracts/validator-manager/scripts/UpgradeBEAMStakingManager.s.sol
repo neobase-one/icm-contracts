@@ -2,15 +2,14 @@
 pragma solidity 0.8.25;
 
 import {Script} from "forge-std/Script.sol";
-import {ProxyAdmin} from "openzeppelin-contracts/proxy/transparent/ProxyAdmin.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts@5.0.2/proxy/transparent/ProxyAdmin.sol";
 import {Native721TokenStakingManager} from "../Native721TokenStakingManager.sol";
 import {ICMInitializable} from "@utilities/ICMInitializable.sol";
 import {console} from "forge-std/console.sol";
 import {StakingManagerSettings} from "../Native721TokenStakingManager.sol";
 import {ValidatorManager} from "../ValidatorManager.sol";
-import {IERC721} from "openzeppelin-contracts/token/ERC721/IERC721.sol";
-import {TrackingRewardStreams} from "@euler-xyz/reward-streams@1.0.0/TrackingRewardStreams.sol";
-import {ITransparentUpgradeableProxy} from "openzeppelin-contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
+import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts@5.0.2/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
  * @notice Script to upgrade the Native721TokenStakingManager implementation
@@ -69,8 +68,6 @@ contract UpgradeBEAMStakingManager is Script {
             validatorRemovalAdmin: _ADMIN_ADDRESS,
             uptimeBlockchainID: _UPTIME_BLOCKCHAIN_ID,
             epochDuration: _EPOCH_DURATION,
-            balanceTracker: TrackingRewardStreams(address(0xE553B8ded1A9E31C9C88A1633dE3Bb2F1d6Cb545)),
-            balanceTrackerNFT: TrackingRewardStreams(address(0xef96f6EaBF5c2dB0b37aD8A38b168887B894b6F8)),
             unlockDuration: _UNLOCK_PERIOD
         });
 
