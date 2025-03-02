@@ -77,6 +77,15 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.initialize(defaultPoSSettings, stakingToken);
     }
 
+    function testInvalidTokenAddress() public {
+        app = new Native721TokenStakingManager(ICMInitializable.Allowed);
+        vm.expectRevert(abi.encodeWithSelector(Native721TokenStakingManager.InvalidTokenAddress.selector, address(0)));
+
+        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+        defaultPoSSettings.manager = validatorManager;
+        app.initialize(defaultPoSSettings, IERC721(address(0)));
+    }
+
     function testZeroMinimumDelegationFee() public {
         app = new Native721TokenStakingManager(ICMInitializable.Allowed);
         vm.expectRevert(abi.encodeWithSelector(StakingManager.InvalidDelegationFee.selector, 0));
@@ -209,7 +218,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
         
         bytes memory uptimeMessage0 =
-            ValidatorMessages.packValidationUptimeMessage(validationID, 0);
+            ValidatorMessages.packValidationUptimeMessage(validationID, DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
 
         vm.mockCall(
             WARP_PRECOMPILE_ADDRESS,
@@ -228,7 +237,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         );
 
         bytes memory uptimeMessage1 =
-            ValidatorMessages.packValidationUptimeMessage(nextValidationID, 0);
+            ValidatorMessages.packValidationUptimeMessage(nextValidationID, DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
 
         vm.mockCall(
             WARP_PRECOMPILE_ADDRESS,
@@ -254,6 +263,23 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         messageIndexes[0] = 0; 
         messageIndexes[1] = 1;
         
+        app.submitUptimeProofs(validationIDs, messageIndexes);
+    }
+
+    function testSubmitUptimesInvalidInput() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32[] memory validationIDs = new bytes32[](1);
+        validationIDs[0] = validationID; 
+
+        uint32[] memory messageIndexes = new uint32[](2);
+        messageIndexes[0] = 0; 
+        messageIndexes[1] = 1; 
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Native721TokenStakingManager.InvalidInputLengths.selector, 1, 2
+            )
+        ); 
         app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
@@ -288,6 +314,28 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);
         app.cancelRewards(true, 0, address(rewardToken));
+    }
+
+    function testCancelRewards() public {
+        app.cancelRewards(true, 0, address(rewardToken));    
+        app.cancelRewards(false, 0, address(rewardToken));    
+    }
+
+    function testDelegatorNFTRemoval() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP);
+
+        _initiateNFTDelegatorRemoval({
+            delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
+            delegationID: delegationID
+        });
+
+        vm.warp(block.timestamp + DEFAULT_UNLOCK_DURATION);
+        _completeNFTDelegatorRemoval(DEFAULT_DELEGATOR_ADDRESS, delegationID);
+
+        _expectNFTStakeUnlock(DEFAULT_DELEGATOR_ADDRESS, 1);
     }
 
     function testDelegationRewards() public {
@@ -427,7 +475,6 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
     }
 
     function testDoubleDelegationRewards() public {
-
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerDefaultDelegator(validationID);
 
