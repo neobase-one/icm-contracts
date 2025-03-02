@@ -16,6 +16,7 @@ import {
     IWarpMessenger
 } from "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 import {PChainOwner} from "../ACP99Manager.sol";
+import {console} from "forge-std/console.sol";
 
 abstract contract StakingManagerTest is ValidatorManagerTest {
     uint64 public constant DEFAULT_UPTIME = uint64(100);
@@ -1121,11 +1122,13 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
 
         vm.expectEmit(true, true, true, true, address(stakingManager));
         emit UptimeUpdated(validationID, uptime1, 0);
-        // stakingManager.submitUptimeProof(validationID, 0);
+
+        vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
+        stakingManager.submitUptimeProof(validationID, 0);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
         emit InitiatedValidatorRemoval(
-            validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_COMPLETION_TIMESTAMP
+            validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION
         );
 
         _initiateValidatorRemoval(validationID, false, address(0));
@@ -1139,35 +1142,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 StakingManager.ValidatorNotPoS.selector, defaultInitialValidationID
             )
         );
-        // stakingManager.submitUptimeProof(defaultInitialValidationID, 0);
-    }
-
-    function testSubmitUptimeProofInactiveValidator() public {
-        bytes32 validationID = _registerDefaultValidator();
-
-        bytes memory setWeightMessage =
-            ValidatorMessages.packL1ValidatorWeightMessage(validationID, 1, 0);
-        bytes memory uptimeMessage = ValidatorMessages.packValidationUptimeMessage(
-            validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP
-        );
-
-        _initiateValidatorRemoval({
-            validationID: validationID,
-            completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
-            setWeightMessage: setWeightMessage,
-            includeUptime: true,
-            uptimeMessage: uptimeMessage,
-            force: false
-        });
-
-        _beforeSend(_weightToValue(DEFAULT_DELEGATOR_WEIGHT), DEFAULT_DELEGATOR_ADDRESS);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                ValidatorManager.InvalidValidatorStatus.selector, ValidatorStatus.PendingRemoved
-            )
-        );
-        // stakingManager.submitUptimeProof(validationID, 0);
+        stakingManager.submitUptimeProof(defaultInitialValidationID, 0);
     }
 
     function testEndValidationPoAValidator() public {

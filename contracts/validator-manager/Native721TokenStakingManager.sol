@@ -37,6 +37,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC72
 import {Validator, ValidatorStatus, PChainOwner} from "./ACP99Manager.sol";
 import {OwnableUpgradeable} from
     "@openzeppelin/contracts-upgradeable@5.0.2/access/OwnableUpgradeable.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @dev Implementation of the {INative721TokenStakingManager} interface.
@@ -477,6 +478,7 @@ contract Native721TokenStakingManager is
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startTime = uint64(block.timestamp);
         $._lockedNFTs[delegationID] = tokenIDs;
+        console.logBytes32(delegationID);
 
         $._posValidatorInfo[validationID].totalTokens += tokenIDs.length;
         $._posValidatorInfo[validationID].activeDelegations.push(delegationID);
@@ -552,10 +554,9 @@ contract Native721TokenStakingManager is
             $._delegatorStakes[delegationID].endTime = uint64(block.timestamp);
             emit InitiatedDelegatorRemoval(delegationID, validationID);
             if (validator.status == ValidatorStatus.Completed) {
+                console.log("HELLOOKAY");
                 uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
                 _unlockNFTs(delegator.owner, tokenIDs);
-                // If the validator has completed, then no further uptimes may be submitted, so we always
-                // end the delegation.
             }
         } else {
             revert InvalidValidatorStatus(validator.status);
@@ -581,15 +582,13 @@ contract Native721TokenStakingManager is
         bytes32 validationID = delegator.validationID;
 
         tokenIDs = $._lockedNFTs[delegationID];
+        console.logBytes32(delegationID);
 
         $._posValidatorInfo[validationID].totalTokens -= tokenIDs.length;
 
-        // Once this function completes, the delegation is completed so we can clear it from state now.
-        delete $._delegatorStakes[delegationID];
-        delete $._lockedNFTs[delegationID];
-
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
+        console.log(tokenIDs[0]);
         return tokenIDs;
     }
 
@@ -621,53 +620,47 @@ contract Native721TokenStakingManager is
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
         Validator memory validator = $._manager.getValidator(validationID);
 
-        if(validator.startTime > (epoch + 1) * $._epochDuration - 1){
-            return uptime;
+        uint256 validationUptime = uptime - validatorInfo.uptimeSeconds;
+        if (validationUptime * 100 / $._epochDuration >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
+            validationUptime = $._epochDuration;
         }
 
-        uint256 valWeight = _calculateEffectiveWeight(
-            validator.startingWeight,
-            uptime - validatorInfo.uptimeSeconds
-        );
-
-        uint256 valWeightNFT = _calculateEffectiveWeight(
-            valueToWeightNFT(validatorInfo.tokenIDs.length),
-            uptime - validatorInfo.uptimeSeconds
-        );
+        uint256 valWeight = validator.startingWeight * validationUptime / $._epochDuration;
+        uint256 valWeightNFT = valueToWeightNFT(validatorInfo.tokenIDs.length) * validationUptime / $._epochDuration;
 
         bytes32[] memory delegations = validatorInfo.activeDelegations;
 
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
 
-            uint256 delegateEffectiveWeight;
+            uint256 delWeight;
             {
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : (epoch + 1) * $._epochDuration;
-                uint64 uptimeP = (uptime - validatorInfo.uptimeSeconds) * 100 / $._epochDuration;
+                uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, validationUptime));
 
-                delegateEffectiveWeight = _calculateEffectiveWeight(
-                    delegator.weight,
-                    (delegationEnd - delegationStart) * uptimeP / 100
-                );
+                delWeight = delegator.weight * delegationUptime / $._epochDuration;
+                console.log(delegationUptime);
+                console.log(delWeight);
             }
 
-            uint256 feeWeight = (delegateEffectiveWeight * validatorInfo.delegationFeeBips)
+            uint256 feeWeight = (delWeight * validatorInfo.delegationFeeBips)
         / BIPS_CONVERSION_FACTOR;
 
             // check if NFT delegation
             if($._lockedNFTs[delegations[i]].length == 0){
                 valWeight += feeWeight;
-                $._accountRewardWeight[epoch][delegator.owner] += delegateEffectiveWeight - feeWeight;
-                $._totalRewardWeight[epoch] += delegateEffectiveWeight - feeWeight;
+                $._accountRewardWeight[epoch][delegator.owner] += delWeight - feeWeight;
+                $._totalRewardWeight[epoch] += delWeight - feeWeight;
             } else {
                 valWeightNFT += feeWeight;
-                $._accountRewardWeightNFT[epoch][delegator.owner] += delegateEffectiveWeight - feeWeight;
-                $._totalRewardWeightNFT[epoch] += delegateEffectiveWeight - feeWeight;
+                $._accountRewardWeightNFT[epoch][delegator.owner] += delWeight - feeWeight;
+                $._totalRewardWeightNFT[epoch] += delWeight - feeWeight;
             }
             if(delegator.status != DelegatorStatus.Active){
-                _removeDelegationFromValidator(validationID, delegations[i]);
+                // _removeDelegationFromValidator(validationID, delegations[i]);
                 delete $._delegatorStakes[delegations[i]];
+                delete $._lockedNFTs[delegations[i]];
             }
         }
 
@@ -676,6 +669,9 @@ contract Native721TokenStakingManager is
 
         $._totalRewardWeight[epoch] += valWeight;
         $._totalRewardWeightNFT[epoch] += valWeightNFT;
+
+        console.log(validationUptime);
+        console.log(valWeight);
 
         validatorInfo.uptimeSeconds = uptime;
         
@@ -757,6 +753,7 @@ contract Native721TokenStakingManager is
             } else {
                 $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]] += rewards[i];
             }
+            emit RewardClaimed(primary, epoch, _msgSender(), tokens[i], rewards[i]);
             IERC20(tokens[i]).transfer(recipient, rewards[i]);
         }
     }
@@ -803,30 +800,6 @@ contract Native721TokenStakingManager is
             $._rewardPoolsNFT[epoch][token] = 0;
         }
         emit RewardCancelled(primary, epoch, token);
-    }
-
-
-    /**
-    * @notice Calculates the effective weight of a delegator's stake based on the change in uptime over an epoch.
-    * @dev This function computes the effective weight by considering the delegator's stake (`weight`) and the
-    *      difference between the current uptime and the previous epoch's uptime, normalized by the epoch duration.
-    *      If the current uptime is zero or less than the previous uptime, the effective weight is zero.
-    * @param weight The original weight of the delegator's stake.
-    * @param duration The duration of uptime
-    * @return effectiveWeight The effective weight of the delegator's stake based on uptime and epoch duration.
-    */
-    function _calculateEffectiveWeight(
-         uint256 weight,
-         uint256 duration
-    ) internal view returns (uint256) {
-        uint64 epochDuration = _getStakingManagerStorage()._epochDuration;
-
-        // Return full weight if uptime is above threshold
-        if((duration * 100) / epochDuration > UPTIME_REWARDS_THRESHOLD_PERCENTAGE) {
-            return weight;
-        }
-        // Calculate effective weight based on both weight and time period
-        return (weight * duration) / epochDuration;
     }
 
     /**

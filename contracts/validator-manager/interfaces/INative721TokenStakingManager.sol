@@ -52,6 +52,14 @@ interface INative721TokenStakingManager is IStakingManager {
         address token
     );
 
+    event RewardClaimed(
+        bool primary,
+        uint64 epoch,
+        address account,
+        address token,
+        uint256 amount
+    );
+
     /**
      * @notice Begins the validator registration process. Locks the provided native asset in the contract as the stake.
      * @param nodeID The ID of the node to add to the L1.
