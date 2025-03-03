@@ -21,8 +21,8 @@ import {Native721TokenStakingManager} from "../Native721TokenStakingManager.sol"
  */
 contract TransferOwnerScript is Script {
     // Environment variables
-    address constant VALIDATOR_MANAGER = address(0xfAcadE0000000000000000000000000000000000); // TODO: Replace with actual address
-    address constant STAKING_MANAGER = address(0x5aFf8556344baDbAF3a48a7e75eF89990b00a60e);   // TODO: Replace with actual address
+    address constant VALIDATOR_MANAGER = address(0x4Cdb47265E754990F26C649d924BA8C6eaa2B990); // TODO: Replace with actual address
+    address constant STAKING_MANAGER = address(0x098889002184723Ba7FEdDd24c007dBed038441D);   // TODO: Replace with actual address
 
     function run() external {
         
