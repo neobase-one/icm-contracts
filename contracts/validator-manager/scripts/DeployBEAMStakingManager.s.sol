@@ -30,18 +30,19 @@ import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts@5.0.2/proxy/
  */
 contract DeployBEAMStakingManager is Script {
     // Initialization parameters
-    address constant NFT_TOKEN_ADDRESS = address(0xA74e49F3fB56b2Eaa61AC74FBe300b8ff2003098);
-    address constant ADMIN_ADDRESS = address(0xa02d3B70696a4c0dB5DE93eF6C68eFf37a6A7eE1);
-    address constant VALIDATOR_MANAGER_ADDRESS = address(0xfAcadE0000000000000000000000000000000000); // Replace with actual address
+    address constant NFT_TOKEN_ADDRESS = address(0x732080D7aD6A9C50039d7Ad7F5BD0a79670f7654);
+    address constant ADMIN_ADDRESS = address(0xd68F802fD0B6f56524F379805DD8FcC152DB9d5c);
+    address constant VALIDATOR_MANAGER_ADDRESS = address(0x4Cdb47265E754990F26C649d924BA8C6eaa2B990); // Replace with actual address
     uint64 constant MINIMUM_STAKE_DURATION = 1 hours;
-    uint256 constant MINIMUM_STAKE_AMOUNT = 20e18;
-    uint256 constant MAXIMUM_STAKE_AMOUNT = 50e24;
+    uint256 constant MINIMUM_STAKE_AMOUNT = 1e18;
+    uint256 constant MAXIMUM_STAKE_AMOUNT = 500_000_000e18;
     uint64 constant UNLOCK_PERIOD = 1 hours;
     uint16 constant MINIMUM_DELEGATION_FEE = 100; // 0.1% in basis points
     uint64 constant EPOCH_DURATION = 7 days;
     uint256 constant MAXIMUM_NFT_AMOUNT = 1000;
     uint256 constant MINIMUM_DELEGATION_AMOUNT = 1e18;
-    bytes32 constant UPTIME_BLOCKCHAIN_ID = bytes32(hex"0d5c3cfbccc694b3d5490a2de71d43d391f6c73dac86ed5169572d7646c7ece2");
+    uint256 constant WEIGHT_TO_VALUE_FACTOR = 1e18;
+    bytes32 constant UPTIME_BLOCKCHAIN_ID = bytes32(hex"7f78fe8ca06cefa186ef29c15231e45e1056cd8319ceca0695ca61099e610355");
 
     function run() external {
         // Start broadcasting transactions
@@ -60,7 +61,7 @@ contract DeployBEAMStakingManager is Script {
             minimumStakeDuration: MINIMUM_STAKE_DURATION,
             minimumDelegationAmount: MINIMUM_DELEGATION_AMOUNT,
             minimumDelegationFeeBips: MINIMUM_DELEGATION_FEE,
-            weightToValueFactor: 1,
+            weightToValueFactor: WEIGHT_TO_VALUE_FACTOR,
             validatorRemovalAdmin: ADMIN_ADDRESS,
             uptimeBlockchainID: UPTIME_BLOCKCHAIN_ID,
             epochDuration: EPOCH_DURATION,

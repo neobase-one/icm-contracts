@@ -419,14 +419,6 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice Converts a token value to a weight.
-     * @param value Token value to convert.
-     */
-    function valueToWeightNFT(uint256 value) public pure returns (uint64) {
-        return uint64(value * (10**6));
-    }
-
-    /**
      * @notice See {StakingManager-_reward}
      * @dev Distributes ERC20 rewards to stakers
      */
@@ -475,7 +467,7 @@ contract Native721TokenStakingManager is
 
         // Lock the stake in the contract.
         uint64 weight = valueToWeight(_lock(stakeAmount));
-        valueToWeightNFT(_lockNFTs(tokenIDs));
+        _lockNFTs(tokenIDs);
 
         bytes32 validationID = $._manager.initiateValidatorRegistration({
             nodeID: nodeID,
@@ -523,7 +515,7 @@ contract Native721TokenStakingManager is
         uint256[] memory tokenIDs
     ) internal returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
-        uint64 weight = valueToWeightNFT(tokenIDs.length);
+        uint64 weight = uint64(tokenIDs.length * (10 ** 6));
 
         // Ensure the validation period is active
         Validator memory validator = $._manager.getValidator(validationID);
@@ -680,7 +672,7 @@ contract Native721TokenStakingManager is
 
         // Calculate validator weights
         uint256 valWeight = $._manager.getValidator(validationID).startingWeight * validationUptime / $._epochDuration;
-        uint256 valWeightNFT = valueToWeightNFT(validatorInfo.tokenIDs.length) * validationUptime / $._epochDuration;
+        uint256 valWeightNFT = (validatorInfo.tokenIDs.length * (10 ** 6)) * validationUptime / $._epochDuration;
 
         // Update weights for active delegations
         bytes32[] memory delegations = validatorInfo.activeDelegations;
