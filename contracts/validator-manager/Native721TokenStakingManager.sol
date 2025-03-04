@@ -704,8 +704,6 @@ contract Native721TokenStakingManager is
 
             if(delegator.status != DelegatorStatus.Active){
                 _removeDelegationFromValidator(validationID, delegations[i]);
-                delete $._delegatorStakes[delegations[i]];
-                delete $._lockedNFTs[delegations[i]];
             }
         }
 
