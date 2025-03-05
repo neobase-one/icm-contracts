@@ -601,6 +601,26 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         bytes32 validationID = _registerDefaultValidator();
         bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
 
+        vm.warp(block.timestamp + DEFAULT_MINIMUM_STAKE_DURATION + 1);
+
+        _initiateNFTDelegatorRemoval({
+            delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
+            delegationID: delegationID
+        });
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.UnlockDurationNotPassed.selector, block.timestamp
+            )
+        );
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        app.completeNFTDelegatorRemoval(delegationID); 
+    }
+
+    function testRevertDoubleCompletion() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerNFTDelegation(validationID, DEFAULT_DELEGATOR_ADDRESS);
+
         _endValidationWithChecks({
             validationID: validationID,
             validatorOwner: address(this),
@@ -613,6 +633,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.warp(block.timestamp + DEFAULT_MINIMUM_STAKE_DURATION + 1);
 
+        // completes the delegation as validation already ended
         _initiateNFTDelegatorRemoval({
             delegatorAddress: DEFAULT_DELEGATOR_ADDRESS,
             delegationID: delegationID
@@ -620,7 +641,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                StakingManager.UnlockDurationNotPassed.selector, 272801
+                StakingManager.InvalidDelegatorStatus.selector, 4
             )
         );
         vm.prank(DEFAULT_DELEGATOR_ADDRESS);
