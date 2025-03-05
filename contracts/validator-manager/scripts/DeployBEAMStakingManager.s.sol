@@ -32,13 +32,13 @@ contract DeployBEAMStakingManager is Script {
     // Initialization parameters
     address constant NFT_TOKEN_ADDRESS = address(0x732080D7aD6A9C50039d7Ad7F5BD0a79670f7654);
     address constant ADMIN_ADDRESS = address(0xd68F802fD0B6f56524F379805DD8FcC152DB9d5c);
-    address constant VALIDATOR_MANAGER_ADDRESS = address(0x4Cdb47265E754990F26C649d924BA8C6eaa2B990); // Replace with actual address
+    address constant VALIDATOR_MANAGER_ADDRESS = address(0x33B9785E20ec582d5009965FB3346F1716e8A423); // Replace with actual address
     uint64 constant MINIMUM_STAKE_DURATION = 1 hours;
-    uint256 constant MINIMUM_STAKE_AMOUNT = 1e18;
-    uint256 constant MAXIMUM_STAKE_AMOUNT = 500_000_000e18;
+    uint256 constant MINIMUM_STAKE_AMOUNT = 20_000e18;
+    uint256 constant MAXIMUM_STAKE_AMOUNT = 200_000_000e18;
     uint64 constant UNLOCK_PERIOD = 1 hours;
     uint16 constant MINIMUM_DELEGATION_FEE = 100; // 0.1% in basis points
-    uint64 constant EPOCH_DURATION = 7 days;
+    uint64 constant EPOCH_DURATION = 1 days;
     uint256 constant MAXIMUM_NFT_AMOUNT = 1000;
     uint256 constant MINIMUM_DELEGATION_AMOUNT = 1e18;
     uint256 constant WEIGHT_TO_VALUE_FACTOR = 1e18;
