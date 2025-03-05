@@ -782,6 +782,8 @@ abstract contract StakingManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
+        $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
+
         // Unlock the delegator's stake.
         _unlock(delegator.owner, weightToValue(delegator.weight));
 

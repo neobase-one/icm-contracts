@@ -633,6 +633,7 @@ contract Native721TokenStakingManager is
         tokenIDs = $._lockedNFTs[delegationID];
 
         $._posValidatorInfo[validationID].totalTokens -= tokenIDs.length;
+        $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
 
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
