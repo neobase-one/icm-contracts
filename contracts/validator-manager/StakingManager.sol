@@ -586,6 +586,7 @@ abstract contract StakingManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
+        $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
         // Ensure the validation period is active
