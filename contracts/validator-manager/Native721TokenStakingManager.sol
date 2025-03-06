@@ -195,10 +195,6 @@ contract Native721TokenStakingManager is
         uint256[] memory tokenIDs
     ) external nonReentrant returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
- 
-        if ($._posValidatorInfo[validationID].totalTokens + tokenIDs.length > $._maximumNFTAmount) {
-            revert InvalidNFTAmount(uint64($._posValidatorInfo[validationID].totalTokens + tokenIDs.length));
-        }
 
         _lockNFTs(tokenIDs);
         return _registerNFTDelegation(validationID, _msgSender(), tokenIDs);
@@ -525,6 +521,10 @@ contract Native721TokenStakingManager is
         }
         if (validator.status != ValidatorStatus.Active) {
             revert InvalidValidatorStatus(validator.status);
+        }
+
+        if ($._posValidatorInfo[validationID].totalTokens + tokenIDs.length > $._maximumNFTAmount) {
+            revert InvalidNFTAmount(uint64($._posValidatorInfo[validationID].totalTokens + tokenIDs.length));
         }
 
         uint64 nonce = ++$._posValidatorInfo[validationID].tokenNonce;
