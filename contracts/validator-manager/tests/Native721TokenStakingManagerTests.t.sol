@@ -34,7 +34,7 @@ import {
 contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver {
     Native721TokenStakingManager public app;
 
-    IERC721 public stakingToken;
+    ExampleERC721 public stakingToken;
     IERC20 public rewardToken;
 
     uint128 public constant REWARD_PER_EPOCH = 100e18;
@@ -173,8 +173,15 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
     function testNFTDelegationOverWeightLimit() public {
         bytes32 validationID = _registerDefaultValidator();
 
+        uint256 tokenID = 6;
         uint256[] memory tokens = new uint256[](DEFAULT_MAXIMUM_NFT_AMOUNT);
+        for(uint256 i = 0; i<DEFAULT_MAXIMUM_NFT_AMOUNT; i++){
+            stakingToken.mint(DEFAULT_DELEGATOR_ADDRESS, ++tokenID);
+            tokens[i] = tokenID;
+        }
 
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        stakingToken.setApprovalForAll(address(app), true);
 
         vm.expectRevert(
             abi.encodeWithSelector(
