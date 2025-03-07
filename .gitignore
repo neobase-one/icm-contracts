@@ -43,3 +43,6 @@ server.log
 # Forge documentation
 docs/
 coverage/
+
+.env
+broadcast/

@@ -10,3 +10,4 @@ See `audits/historical` for older audits. These audits may now be obsolete, and 
 | Jan 2024    | `9fcdf42d` | Louis        | Some contracts in `contracts/teleporter/registry` and `contracts/utilities`, see audit for details | [🔗](./Teleporter%20Upgradeable%20Audit%20(January%2010th%202024)%20-%20Louis.pdf) |
 | Jun 2024    | `9e03a1e5` | OpenZeppelin | All contracts in `contracts/ictt/` excluding `mocks/` | [🔗](./ICTT%20Audit%20(June%2026th%202024)%20-%20OpenZeppelin.pdf) |
 | Oct 2024    | `93920df6` | OpenZeppelin | All contracts in `contracts/validator-manager/` | [🔗](./Validator%20Manager%20Audit%20(October%2030th%202024)%20-%20OpenZeppelin.pdf) |
+| Mar 2025    | `49b32d7`  | Quantstamp   | `contracts/validator-manager/Native721TokenStakingManager` | [🔗](./Native721TokenStakingManager%20Audit%20(March%206th%202025)%20-%20Quantstamp.pdf) |
