@@ -586,6 +586,7 @@ abstract contract StakingManager is
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
 
+        $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
         // Ensure the validation period is active
@@ -781,6 +782,8 @@ abstract contract StakingManager is
         if (block.timestamp < delegator.startTime + $._manager.getChurnPeriodSeconds()) {
             revert MinStakeDurationNotPassed(uint64(block.timestamp));
         }
+
+        $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
 
         // Unlock the delegator's stake.
         _unlock(delegator.owner, weightToValue(delegator.weight));

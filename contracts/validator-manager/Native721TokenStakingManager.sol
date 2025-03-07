@@ -195,10 +195,6 @@ contract Native721TokenStakingManager is
         uint256[] memory tokenIDs
     ) external nonReentrant returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
- 
-        if ($._posValidatorInfo[validationID].totalTokens + tokenIDs.length > $._maximumNFTAmount) {
-            revert InvalidNFTAmount(uint64($._posValidatorInfo[validationID].totalTokens + tokenIDs.length));
-        }
 
         _lockNFTs(tokenIDs);
         return _registerNFTDelegation(validationID, _msgSender(), tokenIDs);
@@ -527,6 +523,10 @@ contract Native721TokenStakingManager is
             revert InvalidValidatorStatus(validator.status);
         }
 
+        if ($._posValidatorInfo[validationID].totalTokens + tokenIDs.length > $._maximumNFTAmount) {
+            revert InvalidNFTAmount(uint64($._posValidatorInfo[validationID].totalTokens + tokenIDs.length));
+        }
+
         uint64 nonce = ++$._posValidatorInfo[validationID].tokenNonce;
         
         // Update the delegation status
@@ -633,6 +633,7 @@ contract Native721TokenStakingManager is
         tokenIDs = $._lockedNFTs[delegationID];
 
         $._posValidatorInfo[validationID].totalTokens -= tokenIDs.length;
+        $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
 
         emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
@@ -704,8 +705,6 @@ contract Native721TokenStakingManager is
 
             if(delegator.status != DelegatorStatus.Active){
                 _removeDelegationFromValidator(validationID, delegations[i]);
-                delete $._delegatorStakes[delegations[i]];
-                delete $._lockedNFTs[delegations[i]];
             }
         }
 
