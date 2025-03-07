@@ -30,19 +30,19 @@ import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts@5.0.2/proxy/
  */
 contract DeployBEAMStakingManager is Script {
     // Initialization parameters
-    address constant NFT_TOKEN_ADDRESS = address(0x732080D7aD6A9C50039d7Ad7F5BD0a79670f7654);
-    address constant ADMIN_ADDRESS = address(0xd68F802fD0B6f56524F379805DD8FcC152DB9d5c);
-    address constant VALIDATOR_MANAGER_ADDRESS = address(0x33B9785E20ec582d5009965FB3346F1716e8A423); // Replace with actual address
+    address constant NFT_TOKEN_ADDRESS = address(0x2CB343FAD3a2221824E9E4137b636C31300A8BF0);
+    address constant ADMIN_ADDRESS = address(0x277280e8337E64a3A8E8b795D4E8E5e00BF6e203);
+    address constant VALIDATOR_MANAGER_ADDRESS = address(0x46d5a1B62095cE9497C6Cc7Ab1BDb8a09D7e3c36);
     uint64 constant MINIMUM_STAKE_DURATION = 1 hours;
     uint256 constant MINIMUM_STAKE_AMOUNT = 20_000e18;
     uint256 constant MAXIMUM_STAKE_AMOUNT = 200_000_000e18;
-    uint64 constant UNLOCK_PERIOD = 1 hours;
-    uint16 constant MINIMUM_DELEGATION_FEE = 100; // 0.1% in basis points
-    uint64 constant EPOCH_DURATION = 1 days;
+    uint64 constant UNLOCK_PERIOD = 21 days;
+    uint16 constant MINIMUM_DELEGATION_FEE = 100;
+    uint64 constant EPOCH_DURATION = 30 days;
     uint256 constant MAXIMUM_NFT_AMOUNT = 1000;
-    uint256 constant MINIMUM_DELEGATION_AMOUNT = 1e18;
+    uint256 constant MINIMUM_DELEGATION_AMOUNT = 100e18;
     uint256 constant WEIGHT_TO_VALUE_FACTOR = 1e18;
-    bytes32 constant UPTIME_BLOCKCHAIN_ID = bytes32(hex"7f78fe8ca06cefa186ef29c15231e45e1056cd8319ceca0695ca61099e610355");
+    bytes32 constant UPTIME_BLOCKCHAIN_ID = bytes32(hex"f94107902c8418dfcdf51d3f95429688abc7109e0f5b0e806c7e204d542e0761"); //mainnet
 
     function run() external {
         // Start broadcasting transactions
