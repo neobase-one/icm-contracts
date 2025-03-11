@@ -554,6 +554,8 @@ abstract contract StakingManager is
             revert InvalidDelegatorStatus(delegator.status);
         }
 
+        $._unlocked[delegationID] = true;
+
         // Ensure the validation period is active
         Validator memory validator = $._manager.getValidator(validationID);
         // Check that the validation ID is a PoS validator
