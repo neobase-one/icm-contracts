@@ -165,27 +165,28 @@ contract Native721TokenStakingManager is
     {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
-        // Check if the validator has been already been removed from the validator manager.
-        bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
+        return $._manager.completeValidatorRemoval(messageIndex);
+    }
+
+    function unlockValidator(
+        bytes32 validationID
+    ) external override nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
         Validator memory validator = $._manager.getValidator(validationID);
 
-        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
-        // or the validator was part of the initial validator set.
-        if (!_isPoSValidator(validationID)) {
-            return validationID;
+        if(block.timestamp < validator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
-        if(block.timestamp < validator.endTime + $._unlockDuration) {
+        if (validator.status != ValidatorStatus.Unlocked) {
             revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
         _unlockNFTs($._posValidatorInfo[validationID].owner, $._posValidatorInfo[validationID].tokenIDs);
-
-        return validationID;
     }
-
+    
     /**
     * @notice See {INative721TokenStakingManager-registerNFTDelegation}.
     *

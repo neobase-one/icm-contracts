@@ -32,7 +32,8 @@ enum ValidatorStatus {
     Active,
     PendingRemoved,
     Completed,
-    Invalidated
+    Invalidated,
+    Unlocked
 }
 
 /**

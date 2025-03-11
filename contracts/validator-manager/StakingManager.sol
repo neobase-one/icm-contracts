@@ -725,7 +725,7 @@ abstract contract StakingManager is
         _completeDelegatorRemoval(delegationID);
     }
 
-    function unLockDelegation(
+    function unLockDelegator(
         bytes32 delegationID
     ) external nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
@@ -743,9 +743,9 @@ abstract contract StakingManager is
         _unlock(delegator.owner, weightToValue(delegator.weight));
     }
 
-    function unlockValidation(
+    function unlockValidator(
         bytes32 validationID
-    ) external nonReentrant {
+    ) external virtual nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         Validator memory validator = $._manager.getValidator(validationID);
 
@@ -765,6 +765,7 @@ abstract contract StakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         Delegator memory delegator = $._delegatorStakes[delegationID];
+        bytes32 validationID = delegator.validationID;
 
         // To prevent churn tracker abuse, check that one full churn period has passed,
         // so a delegator may not stake twice in the same churn period.
@@ -774,7 +775,7 @@ abstract contract StakingManager is
 
         $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
 
-        emit CompletedDelegatorRemoval(delegationID, delegator.validationID, 0, 0);
+        emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
     }
 
     /**
