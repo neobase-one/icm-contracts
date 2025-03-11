@@ -273,19 +273,6 @@ abstract contract StakingManager is
 
         // Check if the validator has been already been removed from the validator manager.
         bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
-        Validator memory validator = $._manager.getValidator(validationID);
-
-        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
-        // or the validator was part of the initial validator set.
-        if (!_isPoSValidator(validationID)) {
-            return validationID;
-        }
-
-        address owner = $._posValidatorInfo[validationID].owner;
-
-        // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock(owner, weightToValue(validator.startingWeight));
-
         return validationID;
     }
 
@@ -556,38 +543,9 @@ abstract contract StakingManager is
         // Ensure the delegator is pending removed. Since anybody can call this function once
         // end delegation has been initiated, we need to make sure that this function is only
         // callable after that has been done.
-        if (delegator.status != DelegatorStatus.PendingRemoved) {
+        if (delegator.status != DelegatorStatus.Removed) {
             revert InvalidDelegatorStatus(delegator.status);
         }
-
-        // We only expect an ICM message if we haven't received a weight update with a nonce greater than the delegation's ending nonce
-        if (
-            $._manager.getValidator(delegator.validationID).status != ValidatorStatus.Completed
-                && $._manager.getValidator(delegator.validationID).receivedNonce < delegator.endingNonce
-        ) {
-            (bytes32 unpackedValidationID, uint64 unpackedNonce) =
-                $._manager.completeValidatorWeightUpdate(messageIndex);
-            if (delegator.validationID != unpackedValidationID) {
-                revert UnexpectedValidationID(unpackedValidationID, delegator.validationID);
-            }
-
-            // The received nonce should be at least as high as the delegation's ending nonce. This allows a weight
-            // update using a higher nonce (which implicitly includes the delegation's weight update) to be used to
-            // complete delisting for an earlier delegation. This is necessary because the P-Chain is only willing
-            // to sign the latest weight update.
-            if (delegator.endingNonce > unpackedNonce) {
-                revert InvalidNonce(unpackedNonce);
-            }
-        }
-
-        // To prevent churn tracker abuse, check that one full churn period has passed,
-        // so a delegator may not stake twice in the same churn period.
-        if (block.timestamp < delegator.startTime + $._manager.getChurnPeriodSeconds()) {
-            revert MinStakeDurationNotPassed(uint64(block.timestamp));
-        }
-
-        $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
-        emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
 
         // Ensure the validation period is active
         // Ensure the validation period is active
@@ -764,18 +722,49 @@ abstract contract StakingManager is
             }
         }
 
+        _completeDelegatorRemoval(delegationID);
+    }
+
+    function unLockDelegation(
+        bytes32 delegationID
+    ) external nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Delegator memory delegator = $._delegatorStakes[delegationID]; 
+
         if(block.timestamp < delegator.endTime + $._unlockDuration) {
             revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
-        _completeDelegatorRemoval(delegationID);
+        if (delegator.status != DelegatorStatus.Removed) {
+            revert InvalidDelegatorStatus(delegator.status);
+        }
+
+        // Unlock the delegator's stake.
+        _unlock(delegator.owner, weightToValue(delegator.weight));
+    }
+
+    function unlockValidation(
+        bytes32 validationID
+    ) external nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Validator memory validator = $._manager.getValidator(validationID);
+
+        if(block.timestamp < validator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
+        if (validator.status != ValidatorStatus.Completed) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
+        // The stake is unlocked whether the validation period is completed or invalidated.
+        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
     }
 
     function _completeDelegatorRemoval(bytes32 delegationID) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         Delegator memory delegator = $._delegatorStakes[delegationID];
-        bytes32 validationID = delegator.validationID;
 
         // To prevent churn tracker abuse, check that one full churn period has passed,
         // so a delegator may not stake twice in the same churn period.
@@ -785,10 +774,7 @@ abstract contract StakingManager is
 
         $._delegatorStakes[delegationID].status = DelegatorStatus.Removed;
 
-        // Unlock the delegator's stake.
-        _unlock(delegator.owner, weightToValue(delegator.weight));
-
-        emit CompletedDelegatorRemoval(delegationID, validationID, 0, 0);
+        emit CompletedDelegatorRemoval(delegationID, delegator.validationID, 0, 0);
     }
 
     /**
