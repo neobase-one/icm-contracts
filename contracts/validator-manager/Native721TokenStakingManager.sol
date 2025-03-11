@@ -164,8 +164,15 @@ contract Native721TokenStakingManager is
         returns (bytes32)
     {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
+        bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
 
-        return $._manager.completeValidatorRemoval(messageIndex);
+        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
+        // or the validator was part of the initial validator set.
+        if (!_isPoSValidator(validationID)) {
+            return validationID;
+        }
+
+        return validationID;
     }
 
     /**
@@ -231,33 +238,16 @@ contract Native721TokenStakingManager is
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
 
-    function unlockDelegator(
-        bytes32 delegationID
-    ) external nonReentrant {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        Delegator memory delegator = $._delegatorStakes[delegationID]; 
-
-        if (delegator.status != DelegatorStatus.Removed) {
-            revert InvalidDelegatorStatus(delegator.status);
-        }
-
-        if(block.timestamp < delegator.endTime + $._unlockDuration) {
-            revert UnlockDurationNotPassed(uint64(block.timestamp));
-        }
-
-        delegator.status = DelegatorStatus.Unlocked;
-
-        // Unlock the delegator's stake.
-        _unlock(delegator.owner, weightToValue(delegator.weight));
-    }
-
     function unlockValidator(
         bytes32 validationID
-    ) external virtual nonReentrant {
+    ) external override nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         Validator memory validator = $._manager.getValidator(validationID);
 
-        if (validator.status != ValidatorStatus.Completed) {
+        if (
+            (validator.status != ValidatorStatus.Completed && validator.status != ValidatorStatus.Invalidated) 
+                || $._unlocked[validationID]
+        ) {
             revert InvalidValidatorStatus(validator.status);
         }
 
@@ -265,7 +255,7 @@ contract Native721TokenStakingManager is
             revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
-        validator.status = ValidatorStatus.Unlocked;
+        $._unlocked[validationID] = true;
 
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));

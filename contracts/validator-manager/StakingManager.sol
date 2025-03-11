@@ -77,7 +77,9 @@ abstract contract StakingManager is
         mapping(uint64 epoch => mapping(address account => mapping(address token => uint256))) _rewardWithdrawnNFT;
 
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPools; 
-        mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT; 
+        mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT;
+
+        mapping(bytes32 ID => bool) _unlocked;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -273,6 +275,13 @@ abstract contract StakingManager is
 
         // Check if the validator has been already been removed from the validator manager.
         bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
+
+         // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
+        // or the validator was part of the initial validator set.
+        if (!_isPoSValidator(validationID)) {
+            return validationID;
+        }
+
         return validationID;
     }
 
@@ -540,14 +549,11 @@ abstract contract StakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         Delegator memory delegator = $._delegatorStakes[delegationID];
 
-        // Ensure the delegator is pending removed. Since anybody can call this function once
-        // end delegation has been initiated, we need to make sure that this function is only
-        // callable after that has been done.
-        if (delegator.status != DelegatorStatus.Removed) {
+        // Ensure the delegator is removed and tokens are not unlocked yet
+        if (delegator.status != DelegatorStatus.Removed || $._unlocked[delegationID]) {
             revert InvalidDelegatorStatus(delegator.status);
         }
 
-        // Ensure the validation period is active
         // Ensure the validation period is active
         Validator memory validator = $._manager.getValidator(validationID);
         // Check that the validation ID is a PoS validator
@@ -723,6 +729,49 @@ abstract contract StakingManager is
         }
 
         _completeDelegatorRemoval(delegationID);
+    }
+
+    function unlockValidator(
+        bytes32 validationID
+    ) external virtual nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Validator memory validator = $._manager.getValidator(validationID);
+
+        if (
+            (validator.status != ValidatorStatus.Completed && validator.status != ValidatorStatus.Invalidated) 
+                || $._unlocked[validationID]
+        ) {
+            revert InvalidValidatorStatus(validator.status);
+        }
+
+        if(block.timestamp < validator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
+        $._unlocked[validationID] = true;
+
+        // The stake is unlocked whether the validation period is completed or invalidated.
+        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
+    }
+    
+    function unlockDelegator(
+        bytes32 delegationID
+    ) external nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Delegator memory delegator = $._delegatorStakes[delegationID]; 
+
+        if (delegator.status != DelegatorStatus.Removed || $._unlocked[delegationID]) {
+            revert InvalidDelegatorStatus(delegator.status);
+        }
+
+        if(block.timestamp < delegator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
+        $._unlocked[delegationID] = true;
+
+        // Unlock the delegator's stake.
+        _unlock(delegator.owner, weightToValue(delegator.weight));
     }
 
     function _completeDelegatorRemoval(bytes32 delegationID) internal {
