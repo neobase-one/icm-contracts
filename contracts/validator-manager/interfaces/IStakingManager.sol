@@ -15,7 +15,8 @@ enum DelegatorStatus {
     PendingAdded,
     Active,
     PendingRemoved,
-    Removed
+    Removed,
+    Unlocked
 }
 
 /**

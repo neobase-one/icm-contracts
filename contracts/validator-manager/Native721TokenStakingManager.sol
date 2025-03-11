@@ -168,25 +168,6 @@ contract Native721TokenStakingManager is
         return $._manager.completeValidatorRemoval(messageIndex);
     }
 
-    function unlockValidator(
-        bytes32 validationID
-    ) external override nonReentrant {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        Validator memory validator = $._manager.getValidator(validationID);
-
-        if(block.timestamp < validator.endTime + $._unlockDuration) {
-            revert UnlockDurationNotPassed(uint64(block.timestamp));
-        }
-
-        if (validator.status != ValidatorStatus.Unlocked) {
-            revert UnlockDurationNotPassed(uint64(block.timestamp));
-        }
-
-        // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
-        _unlockNFTs($._posValidatorInfo[validationID].owner, $._posValidatorInfo[validationID].tokenIDs);
-    }
-    
     /**
     * @notice See {INative721TokenStakingManager-registerNFTDelegation}.
     *
@@ -248,6 +229,47 @@ contract Native721TokenStakingManager is
         _initiateNFTDelegatorRemoval(delegationID);
         uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
+    }
+
+    function unlockDelegator(
+        bytes32 delegationID
+    ) external nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Delegator memory delegator = $._delegatorStakes[delegationID]; 
+
+        if (delegator.status != DelegatorStatus.Removed) {
+            revert InvalidDelegatorStatus(delegator.status);
+        }
+
+        if(block.timestamp < delegator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
+        delegator.status = DelegatorStatus.Unlocked;
+
+        // Unlock the delegator's stake.
+        _unlock(delegator.owner, weightToValue(delegator.weight));
+    }
+
+    function unlockValidator(
+        bytes32 validationID
+    ) external virtual nonReentrant {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Validator memory validator = $._manager.getValidator(validationID);
+
+        if (validator.status != ValidatorStatus.Completed) {
+            revert InvalidValidatorStatus(validator.status);
+        }
+
+        if(block.timestamp < validator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
+        validator.status = ValidatorStatus.Unlocked;
+
+        // The stake is unlocked whether the validation period is completed or invalidated.
+        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
+        _unlockNFTs($._posValidatorInfo[validationID].owner, $._posValidatorInfo[validationID].tokenIDs);
     }
 
     /**

@@ -725,42 +725,6 @@ abstract contract StakingManager is
         _completeDelegatorRemoval(delegationID);
     }
 
-    function unLockDelegator(
-        bytes32 delegationID
-    ) external nonReentrant {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        Delegator memory delegator = $._delegatorStakes[delegationID]; 
-
-        if(block.timestamp < delegator.endTime + $._unlockDuration) {
-            revert UnlockDurationNotPassed(uint64(block.timestamp));
-        }
-
-        if (delegator.status != DelegatorStatus.Removed) {
-            revert InvalidDelegatorStatus(delegator.status);
-        }
-
-        // Unlock the delegator's stake.
-        _unlock(delegator.owner, weightToValue(delegator.weight));
-    }
-
-    function unlockValidator(
-        bytes32 validationID
-    ) external virtual nonReentrant {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        Validator memory validator = $._manager.getValidator(validationID);
-
-        if(block.timestamp < validator.endTime + $._unlockDuration) {
-            revert UnlockDurationNotPassed(uint64(block.timestamp));
-        }
-
-        if (validator.status != ValidatorStatus.Completed) {
-            revert UnlockDurationNotPassed(uint64(block.timestamp));
-        }
-
-        // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
-    }
-
     function _completeDelegatorRemoval(bytes32 delegationID) internal {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
