@@ -276,7 +276,7 @@ abstract contract StakingManager is
         // Check if the validator has been already been removed from the validator manager.
         bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
 
-         // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
+        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
         // or the validator was part of the initial validator set.
         if (!_isPoSValidator(validationID)) {
             return validationID;
@@ -734,24 +734,7 @@ abstract contract StakingManager is
     function unlockValidator(
         bytes32 validationID
     ) external virtual nonReentrant {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        Validator memory validator = $._manager.getValidator(validationID);
-
-        if (
-            (validator.status != ValidatorStatus.Completed && validator.status != ValidatorStatus.Invalidated) 
-                || $._unlocked[validationID]
-        ) {
-            revert InvalidValidatorStatus(validator.status);
-        }
-
-        if(block.timestamp < validator.endTime + $._unlockDuration) {
-            revert UnlockDurationNotPassed(uint64(block.timestamp));
-        }
-
-        $._unlocked[validationID] = true;
-
-        // The stake is unlocked whether the validation period is completed or invalidated.
-        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight));
+        _unlockValidator(validationID);
     }
     
     function unlockDelegator(
@@ -772,6 +755,29 @@ abstract contract StakingManager is
 
         // Unlock the delegator's stake.
         _unlock(delegator.owner, weightToValue(delegator.weight));
+    }
+
+    function _unlockValidator(bytes32 validationID) internal {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        Validator memory validator = $._manager.getValidator(validationID);
+
+        if ((validator.status != ValidatorStatus.Completed && validator.status != ValidatorStatus.Invalidated) 
+                || $._unlocked[validationID]) {
+            revert InvalidValidatorStatus(validator.status);
+        }
+
+        if (!_isPoSValidator(validationID)) {
+            revert ValidatorNotPoS(validationID);
+        }
+
+        if(block.timestamp < validator.endTime + $._unlockDuration) {
+            revert UnlockDurationNotPassed(uint64(block.timestamp));
+        }
+
+        $._unlocked[validationID] = true;
+
+        // The stake is unlocked whether the validation period is completed or invalidated.
+        _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight)); 
     }
 
     function _completeDelegatorRemoval(bytes32 delegationID) internal {
