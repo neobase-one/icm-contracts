@@ -726,15 +726,11 @@ abstract contract StakingManager is
         _completeDelegatorRemoval(delegationID);
     }
 
-    function unlockValidator(
-        bytes32 validationID
-    ) external virtual nonReentrant {
+    function unlockValidator(bytes32 validationID) external virtual nonReentrant {
         _unlockValidator(validationID);
     }
     
-    function unlockDelegator(
-        bytes32 delegationID
-    ) external nonReentrant {
+    function unlockDelegator(bytes32 delegationID) external nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         Delegator memory delegator = $._delegatorStakes[delegationID]; 
 

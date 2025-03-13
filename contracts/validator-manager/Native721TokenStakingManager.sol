@@ -240,9 +240,7 @@ contract Native721TokenStakingManager is
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
 
-    function unlockValidator(
-        bytes32 validationID
-    ) external override nonReentrant {
+    function unlockValidator(bytes32 validationID) external override nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         _unlockValidator(validationID);
