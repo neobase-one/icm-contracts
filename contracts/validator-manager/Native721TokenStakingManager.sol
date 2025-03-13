@@ -678,6 +678,8 @@ contract Native721TokenStakingManager is
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
 
+            // skip if delegation started after this epoch
+            if(delegator.startTime > (epoch + 1) * $._epochDuration){ continue; }
             uint256 delWeight;
             {
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
