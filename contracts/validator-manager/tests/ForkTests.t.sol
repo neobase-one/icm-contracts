@@ -23,10 +23,15 @@ import {console} from "forge-std/console.sol";
 import {WarpMessage, IWarpMessenger} from
     "@avalabs/subnet-evm-contracts@1.2.0/contracts/interfaces/IWarpMessenger.sol";
 
+import {ExampleERC20} from "@mocks/ExampleERC20.sol";
+
 contract ForkTest is Test {
     Native721TokenStakingManager public app;
+    ExampleERC20 public rewardToken;
+
     uint256 mainnetFork;
-    string MAINNET_RPC_URL = "https://build.onbeam.com/rpc/testnet";
+    // string MAINNET_RPC_URL = "https://build.onbeam.com/rpc/testnet";
+    string MAINNET_RPC_URL = "https://build.onbeam.com/rpc";
     
     address public constant WARP_PRECOMPILE_ADDRESS = 0x0200000000000000000000000000000000000005;
 
@@ -34,21 +39,39 @@ contract ForkTest is Test {
         mainnetFork = vm.createFork(MAINNET_RPC_URL);
         vm.selectFork(mainnetFork);
 
-        app = Native721TokenStakingManager(0xF4B5869AabE19a106C0df25E1537d855b54EEcBD);
+        vm.etch(
+            address(0x2FD428A5484d113294b44E69Cb9f269abC1d5B54),
+            address(new Native721TokenStakingManager(ICMInitializable.Disallowed)).code
+        );
+
+        // app = Native721TokenStakingManager(0xF4B5869AabE19a106C0df25E1537d855b54EEcBD);
+        app = Native721TokenStakingManager(0x2FD428A5484d113294b44E69Cb9f269abC1d5B54);
+
+        rewardToken = new ExampleERC20();
+        rewardToken.mint(0x277280e8337E64a3A8E8b795D4E8E5e00BF6e203, 100000e18);
+        
+        vm.prank(0x277280e8337E64a3A8E8b795D4E8E5e00BF6e203);
+        rewardToken.approve(address(app), 100000e18);
+
+        vm.prank(0x277280e8337E64a3A8E8b795D4E8E5e00BF6e203);
+        app.registerRewards(false, 673, address(rewardToken), 100000e18);
+        // app.registerRewards(true, 673, address(rewardToken), 100000e18);
+
+        vm.warp(1748803326);
     }
 
     function testFork() public {
-        bytes32 validationID = 0x5f53702ebf9e5702affadf341d85760d899af644851087ffa364a8887137be77;
+        bytes32 validationID = 0x3320d740f6bf69a6f2fe6306231f9bdf1d8b6f4a60023c7343744e53a46139c5;
 
         bytes memory uptimeMessage =
-            ValidatorMessages.packValidationUptimeMessage(validationID, 10000);
+            ValidatorMessages.packValidationUptimeMessage(validationID, 1000000);
 
         vm.mockCall(
             WARP_PRECOMPILE_ADDRESS,
             abi.encodeWithSelector(IWarpMessenger.getVerifiedWarpMessage.selector, uint32(0)),
             abi.encode(
                 WarpMessage({
-                    sourceChainID: bytes32(hex"7f78fe8ca06cefa186ef29c15231e45e1056cd8319ceca0695ca61099e610355"),
+                    sourceChainID: bytes32(hex"f94107902c8418dfcdf51d3f95429688abc7109e0f5b0e806c7e204d542e0761"),
                     originSenderAddress: address(0),
                     payload: uptimeMessage
                 }),
@@ -59,10 +82,26 @@ contract ForkTest is Test {
             WARP_PRECOMPILE_ADDRESS, abi.encodeCall(IWarpMessenger.getVerifiedWarpMessage, 0)
         );
 
-        // console.log(app.validateUptime(validationID, 0));
-        // console.log(address(app.erc721()));
-
-        vm.prank(0xd68F802fD0B6f56524F379805DD8FcC152DB9d5c);
+        vm.prank(0x277280e8337E64a3A8E8b795D4E8E5e00BF6e203);
         app.submitUptimeProof(validationID, 0);
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(rewardToken);
+
+        vm.prank(0xbC2aC150FA9459aEda7a4773bd209b57bE2b3fF1);
+        app.claimRewards(false, 673, tokens, 0xbC2aC150FA9459aEda7a4773bd209b57bE2b3fF1);
+        // console.log(app.getRewards(false, 673, tokens)[0]);
+
+        vm.prank(0xF607A84D55Ba18B80C72b259283E9EC3EF0B49cD);
+        app.claimRewards(false, 673, tokens, 0xF607A84D55Ba18B80C72b259283E9EC3EF0B49cD);
+
+        vm.prank(0x9F1576651cd40D1eA5542622DAad4B95f779E023);
+        app.claimRewards(false, 673, tokens, 0xF607A84D55Ba18B80C72b259283E9EC3EF0B49cD);
+        vm.prank(0xDE0eD312c2a3F9A105A00A2c65D4487Be7249e18);
+        app.claimRewards(false, 673, tokens, 0xDE0eD312c2a3F9A105A00A2c65D4487Be7249e18);
+        vm.prank(0xc00667d8B00f35B3565A5c4458Dff1Cd718E3527);
+        app.claimRewards(false, 673, tokens, 0xc00667d8B00f35B3565A5c4458Dff1Cd718E3527);
+        vm.prank(0xbBA6Bc5c6eAfC06b5640C1cdD731e86811910a20);
+        app.claimRewards(false, 673, tokens, 0xbBA6Bc5c6eAfC06b5640C1cdD731e86811910a20);
     }
 }
