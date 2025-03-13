@@ -217,13 +217,11 @@ interface IStakingManager {
      * removal of previous delegation. This skips the locking and unlocking of tokens.
      * Note: This function can only be called by the address that registered the delegation.
      * @param delegationID The ID of the delegation being redelegated.
-     * @param messageIndex The index of the ICM message to be received providing the uptime proof.
      * @param validationID The ID of the validation period the delegation is being redelegated to.
      * @return The ID of the redelegation.
      */
     function initiateRedelegation(
         bytes32 delegationID,
-        uint32 messageIndex,
         bytes32 validationID
     ) external returns (bytes32);
 

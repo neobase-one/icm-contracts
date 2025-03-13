@@ -276,12 +276,6 @@ abstract contract StakingManager is
         // Check if the validator has been already been removed from the validator manager.
         bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
 
-        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
-        // or the validator was part of the initial validator set.
-        if (!_isPoSValidator(validationID)) {
-            return validationID;
-        }
-
         return validationID;
     }
 
@@ -543,7 +537,6 @@ abstract contract StakingManager is
      */
     function initiateRedelegation(
         bytes32 delegationID,
-        uint32 messageIndex,
         bytes32 validationID
     ) external returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
@@ -749,7 +742,7 @@ abstract contract StakingManager is
             revert InvalidDelegatorStatus(delegator.status);
         }
 
-        if(block.timestamp < delegator.endTime + $._unlockDuration) {
+        if(delegator.startTime != 0 && block.timestamp < delegator.endTime + $._unlockDuration) {
             revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
@@ -772,7 +765,7 @@ abstract contract StakingManager is
             revert ValidatorNotPoS(validationID);
         }
 
-        if(block.timestamp < validator.endTime + $._unlockDuration) {
+        if(validator.startTime != 0 && block.timestamp < validator.endTime + $._unlockDuration) {
             revert UnlockDurationNotPassed(uint64(block.timestamp));
         }
 
