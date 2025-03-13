@@ -576,6 +576,18 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         _completeDefaultDelegator(validationID, delegationID);
     }
 
+    function testDelegationDoubleUnlock() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerDefaultDelegator(validationID);
+
+        _completeDefaultDelegator(validationID, delegationID);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(StakingManager.InvalidDelegatorStatus.selector, DelegatorStatus.Removed)
+        );
+        stakingManager.unlockDelegator(delegationID);
+    }
+
     // Delegator registration is not allowed when Validator is pending removed.
     function testInitiateDelegatorRegistrationValidatorPendingRemoved() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -1026,6 +1038,18 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             validatorWeight: DEFAULT_WEIGHT,
             rewardRecipient: validatorOwner
         });
+    }
+
+    function testValidationDoubleUnlock() public virtual {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerDefaultDelegator(validationID);
+
+        _endDefaultValidatorWithChecks(validationID, 2);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(StakingManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed)
+        );
+        stakingManager.unlockValidator(validationID); 
     }
 
     function testCompleteEndValidationWithNonValidatorRewardRecipient() public virtual {
