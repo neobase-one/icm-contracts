@@ -171,7 +171,7 @@ interface INative721TokenStakingManager is IStakingManager {
      * Reverts:
      * - `InvalidInputLengths` if the input arrays have different lengths.
      */
-    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external;
+    // function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external;
 
     /**
     * @notice Registers an NFT delegation for a specified validator and delegator.

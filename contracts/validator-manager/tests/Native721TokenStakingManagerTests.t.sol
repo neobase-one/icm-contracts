@@ -270,7 +270,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         messageIndexes[0] = 0; 
         messageIndexes[1] = 1;
         
-        app.submitUptimeProofs(validationIDs, messageIndexes);
+        // app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
     function testSubmitUptimesInvalidInput() public {
@@ -287,7 +287,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
                 Native721TokenStakingManager.InvalidInputLengths.selector, 1, 2
             )
         ); 
-        app.submitUptimeProofs(validationIDs, messageIndexes);
+        // app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
     function testRewardRegistrationNonOwner() public {
