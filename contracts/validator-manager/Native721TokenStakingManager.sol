@@ -94,7 +94,7 @@ contract Native721TokenStakingManager is
     function initialize(
         StakingManagerSettings calldata settings,
         IERC721 stakingToken
-    ) external reinitializer(2) {
+    ) external reinitializer(3) {
         __Ownable_init(_msgSender());
         __StakingManager_init(settings);
 
@@ -278,6 +278,13 @@ contract Native721TokenStakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         uint256[] memory rewards = new uint256[](tokens.length);
+
+        if(primary && $._totalRewardWeight[epoch] == 0){
+            return rewards;
+        }
+        if(!primary && $._totalRewardWeightNFT[epoch] == 0){
+            return rewards;
+        }
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
                 rewards[i] = (($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
@@ -676,12 +683,12 @@ contract Native721TokenStakingManager is
         for (uint256 i = 0; i < delegations.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegations[i]];
 
-            // skip if delegation started after this epoch
-            if(delegator.startTime > (epoch + 1) * $._epochDuration){ continue; }
             uint256 delWeight;
             {
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epoch * $._epochDuration));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : (epoch + 1) * $._epochDuration;
+                // skip if delegation started after this epoch
+                if (delegationEnd < delegationStart) { continue; }
                 uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, validationUptime));
                 if (delegationUptime * 100 / $._epochDuration >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
                     delegationUptime = $._epochDuration;
