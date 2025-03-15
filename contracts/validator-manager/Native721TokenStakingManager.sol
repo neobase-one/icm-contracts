@@ -94,7 +94,7 @@ contract Native721TokenStakingManager is
     function initialize(
         StakingManagerSettings calldata settings,
         IERC721 stakingToken
-    ) external reinitializer(2) {
+    ) external reinitializer(3) {
         __Ownable_init(_msgSender());
         __StakingManager_init(settings);
 
@@ -278,6 +278,13 @@ contract Native721TokenStakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         uint256[] memory rewards = new uint256[](tokens.length);
+
+        if(primary && $._totalRewardWeight[epoch] == 0){
+            return rewards;
+        }
+        if(!primary && $._totalRewardWeightNFT[epoch] == 0){
+            return rewards;
+        }
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
                 rewards[i] = (($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])

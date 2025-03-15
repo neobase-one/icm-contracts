@@ -40,6 +40,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     uint256 public constant SECONDS_IN_YEAR = 31536000;
     uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 50;
     uint48 public constant DEFAULT_EPOCH_DURATION = 30 days;
+    uint64 public constant DEFAULT_UNLOCK_DURATION = 21 days;
 
 
     StakingManager public stakingManager;
@@ -588,6 +589,39 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         stakingManager.unlockDelegator(delegationID);
     }
 
+    function testDoubleUnlockRedelegation() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerDefaultDelegator(validationID);
+
+        bytes32 nextValidationID = _registerValidator({
+            nodeID: _newNodeID(),
+            subnetID: DEFAULT_SUBNET_ID,
+            weight: DEFAULT_WEIGHT,
+            registrationExpiry: DEFAULT_EXPIRY,
+            blsPublicKey: DEFAULT_BLS_PUBLIC_KEY,
+            registrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP
+        });
+        
+        _endDefaultValidatorWithChecks(validationID, 2);
+
+        vm.expectEmit(true, true, true, true, address(stakingManager));
+        emit CompletedDelegatorRemoval(
+            delegationID, validationID, 0, 0
+        );
+
+        vm.warp(DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP);
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        stakingManager.initiateDelegatorRemoval(delegationID, false, 0);
+
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        bytes32 delegationID2 = stakingManager.initiateRedelegation(delegationID, nextValidationID);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(StakingManager.InvalidDelegatorStatus.selector, DelegatorStatus.Removed)
+        );
+        stakingManager.unlockDelegator(delegationID);
+    }
+
     // Delegator registration is not allowed when Validator is pending removed.
     function testInitiateDelegatorRegistrationValidatorPendingRemoved() public {
         bytes32 validationID = _registerDefaultValidator();
@@ -1042,13 +1076,35 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
 
     function testValidationDoubleUnlock() public virtual {
         bytes32 validationID = _registerDefaultValidator();
-        bytes32 delegationID = _registerDefaultDelegator(validationID);
 
-        _endDefaultValidatorWithChecks(validationID, 2);
+        _endDefaultValidatorWithChecks(validationID, 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(StakingManager.InvalidValidatorStatus.selector, ValidatorStatus.Completed)
         );
+        stakingManager.unlockValidator(validationID); 
+    }
+
+    function testInvalidatedValidatonUnlock() public virtual {
+        bytes32 validationID = _setUpInitializeValidatorRegistration(
+            DEFAULT_NODE_ID,
+            DEFAULT_SUBNET_ID,
+            DEFAULT_WEIGHT,
+            DEFAULT_EXPIRY,
+            DEFAULT_BLS_PUBLIC_KEY
+        );
+
+        bytes memory l1ValidatorRegistrationMessage =
+            ValidatorMessages.packL1ValidatorRegistrationMessage(validationID, false);
+
+        _mockGetPChainWarpMessage(l1ValidatorRegistrationMessage, true);
+
+        vm.expectEmit(true, true, true, true, address(validatorManager));
+        emit CompletedValidatorRemoval(validationID);
+
+        _completeValidatorRemoval(0);
+
+        _expectStakeUnlock(address(this), _weightToValue(DEFAULT_WEIGHT));
         stakingManager.unlockValidator(validationID); 
     }
 
