@@ -185,8 +185,6 @@ contract Native721TokenStakingManager is
         bytes32 validationID,
         uint256[] memory tokenIDs
     ) external nonReentrant returns (bytes32) {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
         _lockNFTs(tokenIDs);
         return _registerNFTDelegation(validationID, _msgSender(), tokenIDs);
     }
