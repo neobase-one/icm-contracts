@@ -685,7 +685,7 @@ contract Native721TokenStakingManager is
         return uptime;
     }
 
-    function calculateRewards(bytes32[] memory delegationIDs) external onlyOwner {
+    function resolveRewards(bytes32[] memory delegationIDs) external onlyOwner {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
         uint64 epoch = uint64(block.timestamp / $._epochDuration) - 1;

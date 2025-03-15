@@ -270,7 +270,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         messageIndexes[0] = 0; 
         messageIndexes[1] = 1;
         
-        // app.submitUptimeProofs(validationIDs, messageIndexes);
+        app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
     function testSubmitUptimesInvalidInput() public {
@@ -287,7 +287,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
                 Native721TokenStakingManager.InvalidInputLengths.selector, 1, 2
             )
         ); 
-        // app.submitUptimeProofs(validationIDs, messageIndexes);
+        app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
     function testRewardRegistrationNonOwner() public {
@@ -372,6 +372,10 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
         _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
 
+        bytes32[] memory delegationIDs = new bytes32[](1);
+        delegationIDs[0] = delegationID;
+        _resolveRewards(delegationIDs);
+
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
 
@@ -394,6 +398,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.warp(DEFAULT_EPOCH_DURATION);
         _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
+
 
         address[] memory tokens = new address[](1);
         tokens[0] = address(rewardToken);
@@ -442,6 +447,10 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
         _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
 
+        bytes32[] memory delegationIDs = new bytes32[](1);
+        delegationIDs[0] = delegationID;
+        _resolveRewards(delegationIDs);
+
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
 
@@ -473,6 +482,10 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
         _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
+
+        bytes32[] memory delegationIDs = new bytes32[](1);
+        delegationIDs[0] = delegationID;
+        _resolveRewards(delegationIDs);
 
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             1e6, 1e6, DEFAULT_DELEGATION_FEE_BIPS);
@@ -527,6 +540,11 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
         _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
 
+        bytes32[] memory delegationIDs = new bytes32[](2);
+        delegationIDs[0] = delegationID;
+        delegationIDs[1] = newDelegationID;
+        _resolveRewards(delegationIDs);
+
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT * 2, DEFAULT_DELEGATION_FEE_BIPS);
 
@@ -569,6 +587,11 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
 
         vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
         _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
+
+        bytes32[] memory delegationIDs = new bytes32[](2);
+        delegationIDs[0] = delegationID;
+        delegationIDs[1] = nftDelegationID;
+        _resolveRewards(delegationIDs);
 
         (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
             DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
@@ -856,6 +879,10 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         _mockGetUptimeWarpMessage(uptimeMessage, true);
 
         app.submitUptimeProof(validationID, 0);
+    }
+
+    function _resolveRewards(bytes32[] memory delegationIDs) internal {
+        app.resolveRewards(delegationIDs);
     }
 
     function _setUp() internal override returns (ACP99Manager) {
