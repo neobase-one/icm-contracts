@@ -116,6 +116,11 @@ contract Native721TokenStakingManager is
         return this.onERC721Received.selector;
     }
 
+    function setEpochOffset(uint64 epochOffset) external onlyOwner {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        $._epochOffset = epochOffset;
+    }
+
     /**
      * @notice See {INative721TokenStakingManager-initiateValidatorRegistration}.
      */
@@ -424,6 +429,11 @@ contract Native721TokenStakingManager is
     function _reward(address account, uint256 amount) internal virtual override {
     }
 
+    function _getEpoch() internal view virtual returns (uint64) {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        return uint64((block.timestamp + $._epochOffset) / $._epochDuration);
+    }
+
     /**
      * @notice Initiates validator registration. Extends the functionality of {ACP99Manager-_initiateValidatorRegistration}
      * by locking stake and setting staking and delegation parameters.
@@ -665,7 +675,7 @@ contract Native721TokenStakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
         uint64 uptime = _validateUptime(validationID, messageIndex);
-        uint64 epoch = uint64(block.timestamp / $._epochDuration) - 1;
+        uint64 epoch = _getEpoch() - 1;
 
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
 
@@ -695,7 +705,7 @@ contract Native721TokenStakingManager is
     function resolveRewards(bytes32[] memory delegationIDs) external onlyOwner {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
-        uint64 epoch = uint64(block.timestamp / $._epochDuration) - 1;
+        uint64 epoch = _getEpoch() - 1;
         for (uint256 i = 0; i < delegationIDs.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegationIDs[i]];
             PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[delegator.validationID];
@@ -706,7 +716,6 @@ contract Native721TokenStakingManager is
             if(delegator.startTime > epochEnd || delegator.endTime < epochStart){
                 continue;
             }
-
             uint64 delegationStart = uint64(Math.max(delegator.startTime, epochStart));
             uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : epochEnd;
             uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, $._validationUptimes[epoch][delegator.validationID]));
