@@ -80,6 +80,9 @@ abstract contract StakingManager is
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT;
 
         mapping(bytes32 ID => bool) _unlocked;
+        mapping(uint64 epoch => mapping(bytes32 validationID => uint256)) _validationUptimes;
+        
+        uint64 _epochOffset;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -800,25 +803,5 @@ abstract contract StakingManager is
     function _isPoSValidator(bytes32 validationID) internal view returns (bool) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         return $._posValidatorInfo[validationID].owner != address(0);
-    }
-
-        /**
-     * @dev Removes a delegation ID from a validator's delegation list
-     * @param validationID The validator's ID
-     * @param delegationID The delegation ID to remove
-     */
-    function _removeDelegationFromValidator(bytes32 validationID, bytes32 delegationID) internal {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        bytes32[] storage delegations = $._posValidatorInfo[validationID].activeDelegations;
-
-        // Find and remove the delegation ID
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i] == delegationID) {
-                // Move the last element to this position and pop
-                delegations[i] = delegations[delegations.length - 1];
-                delegations.pop();
-                break;
-            }
-        }
     }
 }
