@@ -79,10 +79,10 @@ abstract contract StakingManager is
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPools; 
         mapping(uint64 epoch => mapping(address token => uint256)) _rewardPoolsNFT;
 
+        uint64 _epochOffset;
+
         mapping(bytes32 ID => bool) _unlocked;
         mapping(uint64 epoch => mapping(bytes32 validationID => uint256)) _validationUptimes;
-        
-        uint64 _epochOffset;
     }
     // solhint-enable private-vars-leading-underscore
 
