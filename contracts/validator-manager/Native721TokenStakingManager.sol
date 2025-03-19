@@ -278,8 +278,8 @@ contract Native721TokenStakingManager is
     function getRewards(
         bool primary,
         uint64 epoch,
-        address account,
-        address[] memory tokens
+        address[] memory tokens,
+        address account
     ) public view returns (uint256[] memory) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
@@ -316,7 +316,7 @@ contract Native721TokenStakingManager is
         }
         
         address sender = _msgSender();
-        uint256[] memory rewards = getRewards(primary, epoch, sender, tokens);
+        uint256[] memory rewards = getRewards(primary, epoch, tokens, sender);
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
                 $._rewardWithdrawn[epoch][sender][tokens[i]] += rewards[i];
@@ -523,7 +523,7 @@ contract Native721TokenStakingManager is
         uint256[] memory tokenIDs
     ) internal returns (bytes32) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
-        uint64 weight = uint64(tokenIDs.length * (10 ** 6));
+        uint64 weight = uint64(tokenIDs.length * 1e6);
 
         // Ensure the validation period is active
         Validator memory validator = $._manager.getValidator(validationID);
@@ -675,17 +675,18 @@ contract Native721TokenStakingManager is
         
         uint64 uptime = _validateUptime(validationID, messageIndex);
         uint64 epoch = _getEpoch() - 1;
+        uint64 dur = $._epochDuration;
 
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
 
         uint256 validationUptime = uptime - validatorInfo.uptimeSeconds;
-        if (validationUptime * 100 / $._epochDuration >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
-            validationUptime = $._epochDuration;
+        if (validationUptime * 100 / dur >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
+            validationUptime = dur;
         }
 
         // Calculate validator weights
-        uint256 valWeight = $._manager.getValidator(validationID).startingWeight * validationUptime / $._epochDuration;
-        uint256 valWeightNFT = (validatorInfo.tokenIDs.length * (10 ** 6)) * validationUptime / $._epochDuration;
+        uint256 valWeight = $._manager.getValidator(validationID).startingWeight * validationUptime / dur;
+        uint256 valWeightNFT = (validatorInfo.tokenIDs.length * 1e6) * validationUptime / dur;
 
         // Update reward weights for validator owner
         $._accountRewardWeight[epoch][validatorInfo.owner] += valWeight;
@@ -695,7 +696,7 @@ contract Native721TokenStakingManager is
 
         validatorInfo.uptimeSeconds = uptime;
 
-        $._validationUptimes[epoch][validationID] = validationUptime;
+        $._validationUptimes[epoch][validationID] += validationUptime;
         
         emit UptimeUpdated(validationID, uptime, epoch);
         return uptime;
@@ -705,23 +706,27 @@ contract Native721TokenStakingManager is
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
         uint64 epoch = _getEpoch() - 1;
+        uint64 dur = $._epochDuration;
+
         for (uint256 i = 0; i < delegationIDs.length; i++) {
             Delegator memory delegator = $._delegatorStakes[delegationIDs[i]];
             PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[delegator.validationID];
 
-            uint64 epochStart = epoch * $._epochDuration;
-            uint64 epochEnd = epochStart + $._epochDuration;
+            uint64 epochStart = epoch * dur;
+            uint64 epochEnd = epochStart + dur;
 
-            uint64 delegationStart = uint64(Math.max(delegator.startTime, epochStart));
-            uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : epochEnd;
-            if (delegationStart > delegationEnd){ continue; }
-            uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, $._validationUptimes[epoch][delegator.validationID]));
+            uint64 delegationUptime;
+            {
+                uint64 delegationStart = uint64(Math.max(delegator.startTime, epochStart));
+                uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : epochEnd;
+                if (delegationStart > delegationEnd){ continue; }
+                delegationUptime = uint64(Math.min(delegationEnd - delegationStart, $._validationUptimes[epoch][delegator.validationID]));
 
-            if (delegationUptime * 100 / $._epochDuration >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
-                delegationUptime = $._epochDuration;
+                if (delegationUptime * 100 / dur >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
+                    delegationUptime = dur;
+                }
             }
-
-            uint256 delWeight = (delegator.weight * delegationUptime) / $._epochDuration;
+            uint256 delWeight = (delegator.weight * delegationUptime) / dur;
             uint256 feeWeight = (delWeight * validatorInfo.delegationFeeBips) / BIPS_CONVERSION_FACTOR;
 
             if ($._lockedNFTs[delegationIDs[i]].length == 0){
