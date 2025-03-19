@@ -136,6 +136,8 @@ interface IStakingManager {
     event UnlockedValidation(bytes32 indexed validationID);
 
     event UnlockedDelegation(bytes32 indexed delegationID);
+    
+    event RewardResolved(bytes32 indexed delegationID, uint64 epoch);
 
     /**
      * @notice Updates the uptime of the validationID if the submitted proof is greated than the stored uptime.

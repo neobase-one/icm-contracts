@@ -738,6 +738,7 @@ contract Native721TokenStakingManager is
                 $._accountRewardWeightNFT[epoch][delegator.owner] += delWeight - feeWeight;
                 $._totalRewardWeightNFT[epoch] += delWeight;
             }
+            emit RewardResolved(delegationIDs[i], epoch);
         }        
     }
 
