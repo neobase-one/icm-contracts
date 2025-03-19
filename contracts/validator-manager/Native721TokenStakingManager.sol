@@ -94,8 +94,8 @@ contract Native721TokenStakingManager is
     function initialize(
         StakingManagerSettings calldata settings,
         IERC721 stakingToken
-    ) external reinitializer(3) {
-        __Ownable_init(_msgSender());
+    ) external reinitializer(4) {
+        __Ownable_init(settings.validatorRemovalAdmin);
         __StakingManager_init(settings);
 
         Native721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
@@ -278,25 +278,23 @@ contract Native721TokenStakingManager is
     function getRewards(
         bool primary,
         uint64 epoch,
+        address account,
         address[] memory tokens
     ) public view returns (uint256[] memory) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
         uint256[] memory rewards = new uint256[](tokens.length);
 
-        if(primary && $._totalRewardWeight[epoch] == 0){
-            return rewards;
-        }
-        if(!primary && $._totalRewardWeightNFT[epoch] == 0){
-            return rewards;
-        }
+        if(primary && $._totalRewardWeight[epoch] == 0){ return rewards; }
+        if(!primary && $._totalRewardWeightNFT[epoch] == 0){ return rewards; }
+
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
-                rewards[i] = (($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][_msgSender()])
-                    / $._totalRewardWeight[epoch]) - $._rewardWithdrawn[epoch][_msgSender()][tokens[i]];
+                rewards[i] = (($._rewardPools[epoch][tokens[i]] * $._accountRewardWeight[epoch][account])
+                    / $._totalRewardWeight[epoch]) - $._rewardWithdrawn[epoch][account][tokens[i]];
             } else {
-                rewards[i] = (($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][_msgSender()])
-                    / $._totalRewardWeightNFT[epoch]) - $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]];
+                rewards[i] = (($._rewardPoolsNFT[epoch][tokens[i]] * $._accountRewardWeightNFT[epoch][account])
+                    / $._totalRewardWeightNFT[epoch]) - $._rewardWithdrawnNFT[epoch][account][tokens[i]];
             }
         }
         return rewards;
@@ -316,15 +314,16 @@ contract Native721TokenStakingManager is
         if(block.timestamp < (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY){
             revert TooEarly(block.timestamp, (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY);
         }
-
-        uint256[] memory rewards = getRewards(primary, epoch, tokens);
+        
+        address sender = _msgSender();
+        uint256[] memory rewards = getRewards(primary, epoch, sender, tokens);
         for(uint256 i = 0; i < tokens.length; i++){
             if(primary){
-                $._rewardWithdrawn[epoch][_msgSender()][tokens[i]] += rewards[i];
+                $._rewardWithdrawn[epoch][sender][tokens[i]] += rewards[i];
             } else {
-                $._rewardWithdrawnNFT[epoch][_msgSender()][tokens[i]] += rewards[i];
+                $._rewardWithdrawnNFT[epoch][sender][tokens[i]] += rewards[i];
             }
-            emit RewardClaimed(primary, epoch, _msgSender(), tokens[i], rewards[i]);
+            emit RewardClaimed(primary, epoch, sender, tokens[i], rewards[i]);
             IERC20(tokens[i]).transfer(recipient, rewards[i]);
         }
     }
@@ -711,11 +710,11 @@ contract Native721TokenStakingManager is
             PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[delegator.validationID];
 
             uint64 epochStart = epoch * $._epochDuration;
-            uint64 epochEnd = (epoch + 1) * $._epochDuration;
+            uint64 epochEnd = epochStart + $._epochDuration;
 
             uint64 delegationStart = uint64(Math.max(delegator.startTime, epochStart));
             uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : epochEnd;
-            if(delegationStart > delegationEnd){ continue; }
+            if (delegationStart > delegationEnd){ continue; }
             uint64 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, $._validationUptimes[epoch][delegator.validationID]));
 
             if (delegationUptime * 100 / $._epochDuration >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
@@ -725,7 +724,7 @@ contract Native721TokenStakingManager is
             uint256 delWeight = (delegator.weight * delegationUptime) / $._epochDuration;
             uint256 feeWeight = (delWeight * validatorInfo.delegationFeeBips) / BIPS_CONVERSION_FACTOR;
 
-            if($._lockedNFTs[delegationIDs[i]].length == 0){
+            if ($._lockedNFTs[delegationIDs[i]].length == 0){
                 $._accountRewardWeight[epoch][validatorInfo.owner] += feeWeight;
                 $._accountRewardWeight[epoch][delegator.owner] += delWeight - feeWeight;
                 $._totalRewardWeight[epoch] += delWeight;

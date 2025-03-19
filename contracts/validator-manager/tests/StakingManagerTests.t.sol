@@ -1218,7 +1218,6 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             validationID, bytes32(0), DEFAULT_WEIGHT, DEFAULT_COMPLETION_TIMESTAMP
         );
 
-        vm.prank(DEFAULT_VALIDATOR_REMOVAL_ADMIN);
         _initiateValidatorRemoval(validationID, false, address(0));
 
         uint256 balanceBefore = _getStakeAssetBalance(address(this));
@@ -2036,7 +2035,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         });
     }
 
-    function _defaultPoSSettings() internal pure returns (StakingManagerSettings memory) {
+    function _defaultPoSSettings() internal view returns (StakingManagerSettings memory) {
         return StakingManagerSettings({
             manager: ValidatorManager(address(0)),
             minimumStakeAmount: DEFAULT_MINIMUM_STAKE_AMOUNT,
@@ -2045,7 +2044,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
             minimumDelegationAmount: DEFAULT_MINIMUM_DELEGATION_AMOUNT,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
-            validatorRemovalAdmin: DEFAULT_VALIDATOR_REMOVAL_ADMIN,
+            validatorRemovalAdmin: address(this),
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
             epochDuration: DEFAULT_EPOCH_DURATION,

@@ -551,6 +551,7 @@ abstract contract StakingManager is
         }
 
         $._unlocked[delegationID] = true;
+        emit UnlockedDelegation(delegationID);
 
         // Ensure the validation period is active
         Validator memory validator = $._manager.getValidator(validationID);
@@ -747,6 +748,7 @@ abstract contract StakingManager is
 
         $._unlocked[delegationID] = true;
 
+        emit UnlockedDelegation(delegationID);
         // Unlock the delegator's stake.
         _unlock(delegator.owner, weightToValue(delegator.weight));
     }
@@ -770,6 +772,7 @@ abstract contract StakingManager is
 
         $._unlocked[validationID] = true;
 
+        emit UnlockedValidation(validationID);
         // The stake is unlocked whether the validation period is completed or invalidated.
         _unlock($._posValidatorInfo[validationID].owner, weightToValue(validator.startingWeight)); 
     }

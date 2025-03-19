@@ -133,6 +133,10 @@ interface IStakingManager {
      */
     event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
+    event UnlockedValidation(bytes32 indexed validationID);
+
+    event UnlockedDelegation(bytes32 indexed delegationID);
+
     /**
      * @notice Updates the uptime of the validationID if the submitted proof is greated than the stored uptime.
      * Anybody may call this function to ensure the stored uptime is accurate. Callable only when the validation period is active.
