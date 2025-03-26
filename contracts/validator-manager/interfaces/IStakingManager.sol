@@ -134,10 +134,23 @@ interface IStakingManager {
      */
     event UptimeUpdated(bytes32 indexed validationID, uint64 uptime, uint64 epoch);
 
+    /**
+     * @notice Event emitted when the validator stake is unlocked
+     * @param validationID The ID of the validation period
+     */
     event UnlockedValidation(bytes32 indexed validationID);
 
+    /**
+     * @notice Event emitted when the delegator stake is unlocked
+     * @param delegationID The ID of the delegation period
+     */
     event UnlockedDelegation(bytes32 indexed delegationID);
-    
+
+    /**
+     * @notice Event emitted when the delegator reward weight is resolved
+     * @param delegationID The ID of the delegation period
+     * @param epoch The current reward epoch
+     */ 
     event RewardResolved(bytes32 indexed delegationID, uint64 epoch);
 
     /**

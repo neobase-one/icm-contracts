@@ -80,8 +80,7 @@ contract Native721TokenStakingManager is
     }
 
     modifier onlyUptimeKeeper {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        if ($._uptimeKeeper != _msgSender()) {
+        if (_getStakingManagerStorage()._uptimeKeeper != _msgSender()) {
             revert OwnableUnauthorizedAccount(_msgSender());
         }
         _;
@@ -124,6 +123,10 @@ contract Native721TokenStakingManager is
         return this.onERC721Received.selector;
     }
 
+    /**
+     * @notice Sets the epoch offset, only to be called by the owner
+     * @param epochOffset The epoch offset applied to the current timestamp to calculate the staking epoch.
+     */
     function setEpochOffset(uint64 epochOffset) external onlyOwner {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         $._epochOffset = epochOffset;
@@ -251,6 +254,10 @@ contract Native721TokenStakingManager is
         _registerNFTDelegation(nextValidationID, delegator.owner, tokenIDs);
     }
 
+    /**
+     * @notice unlocks the validator stake, to be called after removal and passing of unlock duration
+     * @param validationID The unique identifier of the validator to unlock.
+     */ 
     function unlockValidator(bytes32 validationID) external override nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
@@ -277,6 +284,7 @@ contract Native721TokenStakingManager is
      * @param primary A boolean indicating whether to retrieve rewards from the primary pool (true) or the NFT pool (false).
      * @param epoch The staking epoch for which to retrieve rewards.
      * @param tokens An array of token addresses for which to check the rewards.
+     * @param account The account for which the rewards are being queried.
      * @return rewards An array of reward amounts corresponding to the provided token addresses.
      *
      * Requirements:
@@ -686,6 +694,10 @@ contract Native721TokenStakingManager is
 
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
 
+        if(validatorInfo.uptimeSeconds >= uptime ){
+            return validatorInfo.uptimeSeconds;
+        }
+
         uint256 validationUptime = uptime - validatorInfo.uptimeSeconds;
         if (validationUptime * 100 / dur >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
             validationUptime = dur;
@@ -709,6 +721,11 @@ contract Native721TokenStakingManager is
         return uptime;
     }
 
+    /**
+    * @notice Calculated and updates the reward weight of the given delegations for the previous epoch after successfully 
+    *         submitting the uptime of the respective validators
+    * @param delegationIDs An array of delegation IDs associated with the staking process.
+    */
     function resolveRewards(bytes32[] memory delegationIDs) external onlyUptimeKeeper {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
@@ -726,7 +743,7 @@ contract Native721TokenStakingManager is
             {
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epochStart));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : epochEnd;
-                if (delegationStart > delegationEnd){ continue; }
+            if (delegationStart > delegationEnd){ continue; }
                 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, $._validationUptimes[epoch][delegator.validationID]));
 
                 if (delegationUptime * 100 / dur >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
