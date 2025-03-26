@@ -54,8 +54,8 @@ abstract contract StakingManager is
         uint256 _weightToValueFactor;
         /// @notice The ID of the blockchain that submits uptime proofs. This must be a blockchain validated by the subnetID that this contract manages.
         bytes32 _uptimeBlockchainID;
-        /// @notice Validator removal admin address
-        address _validatorRemovalAdmin;
+        /// @notice admin address
+        address _admin;
         /// @notice The duration of an epoch in seconds
         uint64 _epochDuration;
         /// @notice The duration of the unlock period in seconds
@@ -83,6 +83,8 @@ abstract contract StakingManager is
 
         mapping(bytes32 ID => bool) _unlocked;
         mapping(uint64 epoch => mapping(bytes32 validationID => uint256)) _validationUptimes;
+
+        address _uptimeKeeper;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -117,7 +119,6 @@ abstract contract StakingManager is
     error InvalidValidatorStatus(ValidatorStatus status);
     error InvalidNonce(uint64 nonce);
     error InvalidWarpMessage();
-    error UnauthorizedInitialValidatorRemoval(address sender);
 
     // solhint-disable ordering
     /**
@@ -145,12 +146,13 @@ abstract contract StakingManager is
             minimumStakeDuration: settings.minimumStakeDuration,
             minimumDelegationAmount: settings.minimumDelegationAmount,
             minimumDelegationFeeBips: settings.minimumDelegationFeeBips,
-            validatorRemovalAdmin: settings.validatorRemovalAdmin,
+            admin: settings.admin,
             weightToValueFactor: settings.weightToValueFactor,
             uptimeBlockchainID: settings.uptimeBlockchainID,
             unlockDuration: settings.unlockDuration,
             epochDuration: settings.epochDuration,
-            maximumNFTAmount: settings.maximumNFTAmount
+            maximumNFTAmount: settings.maximumNFTAmount,
+            uptimeKeeper: settings.uptimeKeeper
         });
     }
 
@@ -163,11 +165,12 @@ abstract contract StakingManager is
         uint64 minimumStakeDuration,
         uint256 minimumDelegationAmount,
         uint16 minimumDelegationFeeBips,
-        address validatorRemovalAdmin,
+        address admin,
         uint256 weightToValueFactor,
         bytes32 uptimeBlockchainID,
         uint64 unlockDuration,
-        uint64 epochDuration
+        uint64 epochDuration,
+        address uptimeKeeper
     ) internal onlyInitializing {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -195,11 +198,12 @@ abstract contract StakingManager is
         $._minimumStakeDuration = minimumStakeDuration;
         $._minimumDelegationAmount = minimumDelegationAmount;
         $._minimumDelegationFeeBips = minimumDelegationFeeBips;
-        $._validatorRemovalAdmin = validatorRemovalAdmin;
+        $._admin = admin;
         $._weightToValueFactor = weightToValueFactor;
         $._uptimeBlockchainID = uptimeBlockchainID;
         $._unlockDuration = unlockDuration;
         $._epochDuration = epochDuration;
+        $._uptimeKeeper = uptimeKeeper;
     }
 
     /**
@@ -243,8 +247,8 @@ abstract contract StakingManager is
         // Non-PoS validators are required to boostrap the network, but are not eligible for rewards.
         if (!_isPoSValidator(validationID)) {
             // Initial Validators can only be removed by the removal admin
-            if ($._validatorRemovalAdmin != _msgSender()) {
-                revert UnauthorizedInitialValidatorRemoval(_msgSender());
+            if ($._admin != _msgSender()) {
+                revert UnauthorizedOwner(_msgSender());
             }
             return;
         }
@@ -525,8 +529,6 @@ abstract contract StakingManager is
         // Update the delegation status
         $._delegatorStakes[delegationID].status = DelegatorStatus.Active;
         $._delegatorStakes[delegationID].startTime = uint64(block.timestamp);
-
-        $._posValidatorInfo[validationID].activeDelegations.push(delegationID);
 
         emit CompletedDelegatorRegistration({
             delegationID: delegationID,

@@ -2044,11 +2044,12 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             minimumStakeDuration: DEFAULT_MINIMUM_STAKE_DURATION,
             minimumDelegationAmount: DEFAULT_MINIMUM_DELEGATION_AMOUNT,
             minimumDelegationFeeBips: DEFAULT_MINIMUM_DELEGATION_FEE_BIPS,
-            validatorRemovalAdmin: address(this),
+            admin: address(this),
             weightToValueFactor: DEFAULT_WEIGHT_TO_VALUE_FACTOR,
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
             epochDuration: DEFAULT_EPOCH_DURATION,
-            unlockDuration: DEFAULT_UNLOCK_DURATION
+            unlockDuration: DEFAULT_UNLOCK_DURATION,
+            uptimeKeeper: address(this)
         });
     }
 

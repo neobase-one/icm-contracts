@@ -40,10 +40,11 @@ struct StakingManagerSettings {
     uint256 minimumDelegationAmount;
     uint16 minimumDelegationFeeBips;
     uint256 weightToValueFactor;
-    address validatorRemovalAdmin;
+    address admin;
     bytes32 uptimeBlockchainID;
     uint64 unlockDuration;
     uint64 epochDuration;
+    address uptimeKeeper;
 }
 
 /**

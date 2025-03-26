@@ -79,6 +79,14 @@ contract Native721TokenStakingManager is
         }
     }
 
+    modifier onlyUptimeKeeper {
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        if ($._uptimeKeeper != _msgSender()) {
+            revert OwnableUnauthorizedAccount(_msgSender());
+        }
+        _;
+    }
+
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
@@ -95,7 +103,7 @@ contract Native721TokenStakingManager is
         StakingManagerSettings calldata settings,
         IERC721 stakingToken
     ) external reinitializer(4) {
-        __Ownable_init(settings.validatorRemovalAdmin);
+        __Ownable_init(settings.admin);
         __StakingManager_init(settings);
 
         Native721TokenStakingManagerStorage storage $ = _getERC721StakingManagerStorage();
@@ -551,7 +559,6 @@ contract Native721TokenStakingManager is
         $._lockedNFTs[delegationID] = tokenIDs;
 
         $._posValidatorInfo[validationID].totalTokens += tokenIDs.length;
-        $._posValidatorInfo[validationID].activeDelegations.push(delegationID);
 
         emit InitiatedDelegatorRegistration({
             delegationID: delegationID,
@@ -670,7 +677,7 @@ contract Native721TokenStakingManager is
     * Emits:
     * - `UptimeUpdated` event when the uptime is successfully updated for a validator.
     */
-    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override onlyOwner() returns (uint64) {
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override onlyUptimeKeeper returns (uint64) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
         uint64 uptime = _validateUptime(validationID, messageIndex);
@@ -702,7 +709,7 @@ contract Native721TokenStakingManager is
         return uptime;
     }
 
-    function resolveRewards(bytes32[] memory delegationIDs) external onlyOwner {
+    function resolveRewards(bytes32[] memory delegationIDs) external onlyUptimeKeeper {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         
         uint64 epoch = _getEpoch() - 1;
