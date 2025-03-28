@@ -119,6 +119,7 @@ abstract contract StakingManager is
     error InvalidValidatorStatus(ValidatorStatus status);
     error InvalidNonce(uint64 nonce);
     error InvalidWarpMessage();
+    error ZeroEpochDuration();
 
     // solhint-disable ordering
     /**
@@ -179,6 +180,9 @@ abstract contract StakingManager is
         }
         if (minimumStakeAmount > maximumStakeAmount) {
             revert InvalidStakeAmount(minimumStakeAmount);
+        }
+        if (epochDuration == 0) {
+            revert ZeroEpochDuration();
         }
         // Minimum stake duration should be at least one churn period in order to prevent churn tracker abuse.
         if (minimumStakeDuration < manager.getChurnPeriodSeconds()) {

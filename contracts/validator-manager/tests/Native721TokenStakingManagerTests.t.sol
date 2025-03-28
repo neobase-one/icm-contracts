@@ -170,6 +170,19 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         app.initialize(_defaultPoSSettings(), stakingToken); // settings.manager is not set
     }
 
+    function testInvalidEpochDuration() public {
+        app = new Native721TokenStakingManager(ICMInitializable.Allowed);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakingManager.ZeroEpochDuration.selector
+            )
+        );
+
+        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
+        defaultPoSSettings.epochDuration = 0;
+        app.initialize(defaultPoSSettings, stakingToken);
+    }
+
     function testNFTDelegationOverWeightLimit() public {
         bytes32 validationID = _registerDefaultValidator();
 
@@ -270,6 +283,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         messageIndexes[0] = 0; 
         messageIndexes[1] = 1;
         
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
@@ -878,10 +892,12 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
             ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
         _mockGetUptimeWarpMessage(uptimeMessage, true);
 
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         app.submitUptimeProof(validationID, 0);
     }
 
     function _resolveRewards(bytes32[] memory delegationIDs) internal {
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         app.resolveRewards(delegationIDs);
     }
 
