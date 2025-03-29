@@ -259,7 +259,7 @@ contract Native721TokenStakingManager is
     /**
      * @notice See {INative721TokenStakingManager-submitUptimeProofs}.
      */
-    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external onlyOwner {
+    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external {
         if(validationIDs.length != messageIndexes.length){
             revert InvalidInputLengths(validationIDs.length, messageIndexes.length);
         }

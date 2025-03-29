@@ -41,6 +41,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
     uint256 public constant DEFAULT_MAXIMUM_NFT_AMOUNT = 50;
     uint48 public constant DEFAULT_EPOCH_DURATION = 30 days;
     uint64 public constant DEFAULT_UNLOCK_DURATION = 21 days;
+    address public constant DEFAULT_UPTIME_KEEPER = address(0xabc);
 
 
     StakingManager public stakingManager;
@@ -176,6 +177,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         _mockGetUptimeWarpMessage(new bytes(0), false);
         vm.warp(DEFAULT_COMPLETION_TIMESTAMP);
         vm.expectRevert(ValidatorManager.InvalidWarpMessage.selector);
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         stakingManager.submitUptimeProof(validationID, 0);
     }
 
@@ -204,6 +206,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 ValidatorManager.InvalidWarpOriginSenderAddress.selector, address(this)
             )
         );
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         stakingManager.submitUptimeProof(validationID, 0);
     }
 
@@ -232,6 +235,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 StakingManager.UnexpectedValidationID.selector, bytes32(0), validationID
             )
         );
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         stakingManager.submitUptimeProof(validationID, 0);
     }
 
@@ -1184,6 +1188,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
         emit UptimeUpdated(validationID, uptime1, 0);
 
         vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         stakingManager.submitUptimeProof(validationID, 0);
 
         vm.expectEmit(true, true, true, true, address(validatorManager));
@@ -1202,6 +1207,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
                 StakingManager.ValidatorNotPoS.selector, defaultInitialValidationID
             )
         );
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         stakingManager.submitUptimeProof(defaultInitialValidationID, 0);
     }
 
@@ -2049,7 +2055,7 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
             epochDuration: DEFAULT_EPOCH_DURATION,
             unlockDuration: DEFAULT_UNLOCK_DURATION,
-            uptimeKeeper: address(this),
+            uptimeKeeper: DEFAULT_UPTIME_KEEPER,
             epochOffset: 0
         });
     }
