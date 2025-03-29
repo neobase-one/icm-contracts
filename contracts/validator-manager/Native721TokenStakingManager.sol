@@ -79,13 +79,6 @@ contract Native721TokenStakingManager is
         }
     }
 
-    modifier onlyUptimeKeeper {
-        if (_getStakingManagerStorage()._uptimeKeeper != _msgSender()) {
-            revert OwnableUnauthorizedAccount(_msgSender());
-        }
-        _;
-    }
-
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
@@ -312,8 +305,9 @@ contract Native721TokenStakingManager is
     ) external nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
-        if(block.timestamp < (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY){
-            revert TooEarly(block.timestamp, (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY);
+        uint64 claimStart = (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY;
+        if(block.timestamp < claimStart){
+            revert TooEarly(block.timestamp, claimStart);
         }
         
         address sender = _msgSender();
@@ -359,8 +353,9 @@ contract Native721TokenStakingManager is
     ) external onlyOwner nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
-        if(block.timestamp >= epoch * $._epochDuration + REWARD_CLAIM_DELAY){
-            revert TooLate(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
+        uint64 claimStart = epoch * $._epochDuration + REWARD_CLAIM_DELAY;
+        if(block.timestamp >= claimStart){
+            revert TooLate(block.timestamp, claimStart);
         }
 
         if(primary){
@@ -669,8 +664,12 @@ contract Native721TokenStakingManager is
     * Emits:
     * - `UptimeUpdated` event when the uptime is successfully updated for a validator.
     */
-    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override onlyUptimeKeeper returns (uint64) {
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if ($._uptimeKeeper != _msgSender()) {
+            revert OwnableUnauthorizedAccount(_msgSender());
+        }
         
         uint64 uptime = _validateUptime(validationID, messageIndex);
         uint64 epoch = _getEpoch() - 1;
@@ -710,8 +709,12 @@ contract Native721TokenStakingManager is
     *         submitting the uptime of the respective validators
     * @param delegationIDs An array of delegation IDs associated with the staking process.
     */
-    function resolveRewards(bytes32[] memory delegationIDs) external onlyUptimeKeeper {
+    function resolveRewards(bytes32[] memory delegationIDs) external {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if ($._uptimeKeeper != _msgSender()) {
+            revert OwnableUnauthorizedAccount(_msgSender());
+        }
         
         uint64 epoch = _getEpoch() - 1;
         uint64 dur = $._epochDuration;
