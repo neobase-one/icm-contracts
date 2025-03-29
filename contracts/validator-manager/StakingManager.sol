@@ -152,7 +152,8 @@ abstract contract StakingManager is
             unlockDuration: settings.unlockDuration,
             epochDuration: settings.epochDuration,
             maximumNFTAmount: settings.maximumNFTAmount,
-            uptimeKeeper: settings.uptimeKeeper
+            uptimeKeeper: settings.uptimeKeeper,
+            epochOffset: settings.epochOffset
         });
     }
 
@@ -170,7 +171,8 @@ abstract contract StakingManager is
         bytes32 uptimeBlockchainID,
         uint64 unlockDuration,
         uint64 epochDuration,
-        address uptimeKeeper
+        address uptimeKeeper,
+        uint64 epochOffset
     ) internal onlyInitializing {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -204,6 +206,7 @@ abstract contract StakingManager is
         $._unlockDuration = unlockDuration;
         $._epochDuration = epochDuration;
         $._uptimeKeeper = uptimeKeeper;
+        $._epochOffset = epochOffset;
     }
 
     /**
@@ -633,7 +636,7 @@ abstract contract StakingManager is
             revert UnauthorizedOwner(_msgSender());
         }
 
-        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.PendingRemoved) {
+        if (validator.status == ValidatorStatus.Active) {
             // Check that minimum stake duration has passed.
             if (block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
@@ -652,6 +655,7 @@ abstract contract StakingManager is
             emit InitiatedDelegatorRemoval({delegationID: delegationID, validationID: validationID});
             return;
         } else if (validator.status == ValidatorStatus.Completed) {
+            $._delegatorStakes[delegationID].endTime = validator.endTime; 
             _completeDelegatorRemoval(delegationID);
             // If the validator has completed, then no further uptimes may be submitted, so we always
             // end the delegation.

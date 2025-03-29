@@ -79,13 +79,6 @@ contract Native721TokenStakingManager is
         }
     }
 
-    modifier onlyUptimeKeeper {
-        if (_getStakingManagerStorage()._uptimeKeeper != _msgSender()) {
-            revert OwnableUnauthorizedAccount(_msgSender());
-        }
-        _;
-    }
-
     constructor(ICMInitializable init) {
         if (init == ICMInitializable.Disallowed) {
             _disableInitializers();
@@ -121,15 +114,6 @@ contract Native721TokenStakingManager is
         bytes memory
     ) public virtual returns (bytes4) {
         return this.onERC721Received.selector;
-    }
-
-    /**
-     * @notice Sets the epoch offset, only to be called by the owner
-     * @param epochOffset The epoch offset applied to the current timestamp to calculate the staking epoch.
-     */
-    function setEpochOffset(uint64 epochOffset) external onlyOwner {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        $._epochOffset = epochOffset;
     }
 
     /**
@@ -183,12 +167,6 @@ contract Native721TokenStakingManager is
 
         // Check if the validator has been already been removed from the validator manager.
         bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
-
-        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
-        // or the validator was part of the initial validator set.
-        if (!_isPoSValidator(validationID)) {
-            return validationID;
-        }
 
         return validationID;
     }
@@ -268,7 +246,7 @@ contract Native721TokenStakingManager is
     /**
      * @notice See {INative721TokenStakingManager-submitUptimeProofs}.
      */
-    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external onlyOwner {
+    function submitUptimeProofs(bytes32[] memory validationIDs, uint32[] memory messageIndexes) external {
         if(validationIDs.length != messageIndexes.length){
             revert InvalidInputLengths(validationIDs.length, messageIndexes.length);
         }
@@ -327,8 +305,9 @@ contract Native721TokenStakingManager is
     ) external nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
-        if(block.timestamp < (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY){
-            revert TooEarly(block.timestamp, (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY);
+        uint64 claimStart = (epoch + 1) * $._epochDuration + REWARD_CLAIM_DELAY;
+        if(block.timestamp < claimStart){
+            revert TooEarly(block.timestamp, claimStart);
         }
         
         address sender = _msgSender();
@@ -374,8 +353,9 @@ contract Native721TokenStakingManager is
     ) external onlyOwner nonReentrant {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
 
-        if(block.timestamp >= epoch * $._epochDuration + REWARD_CLAIM_DELAY){
-            revert TooLate(block.timestamp, epoch * $._epochDuration + REWARD_CLAIM_DELAY);
+        uint64 claimStart = epoch * $._epochDuration + REWARD_CLAIM_DELAY;
+        if(block.timestamp >= claimStart){
+            revert TooLate(block.timestamp, claimStart);
         }
 
         if(primary){
@@ -593,7 +573,6 @@ contract Native721TokenStakingManager is
     * @notice Initiates the process of ending an NFT delegation for a given delegation ID.
     * @dev This function ensures that the delegation is active and validates that the caller is authorized to end it.
     *      If the validator status is valid, the delegation status is updated to `PendingRemoved`.
-    *      Optionally, an uptime proof can be included during the process.
     * @param delegationID The unique identifier of the NFT delegation to be ended.
     *
     * Reverts if:
@@ -621,7 +600,7 @@ contract Native721TokenStakingManager is
             revert UnauthorizedOwner(_msgSender());
         }
 
-        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed || validator.status == ValidatorStatus.PendingRemoved) {
+        if (validator.status == ValidatorStatus.Active) {
             // Check that minimum stake duration has passed.
             if (validator.status != ValidatorStatus.Completed && block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
@@ -630,10 +609,10 @@ contract Native721TokenStakingManager is
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
             $._delegatorStakes[delegationID].endTime = uint64(block.timestamp);
             emit InitiatedDelegatorRemoval(delegationID, validationID);
-            if (validator.status == ValidatorStatus.Completed) {
-                uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
-                _unlockNFTs(delegator.owner, tokenIDs);
-            }
+         } else if (validator.status == ValidatorStatus.Completed) {
+            $._delegatorStakes[delegationID].endTime = validator.endTime; 
+            uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
+            _unlockNFTs(delegator.owner, tokenIDs);
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
@@ -685,8 +664,12 @@ contract Native721TokenStakingManager is
     * Emits:
     * - `UptimeUpdated` event when the uptime is successfully updated for a validator.
     */
-    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override onlyUptimeKeeper returns (uint64) {
+    function _updateUptime(bytes32 validationID, uint32 messageIndex) internal override returns (uint64) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if ($._uptimeKeeper != _msgSender()) {
+            revert OwnableUnauthorizedAccount(_msgSender());
+        }
         
         uint64 uptime = _validateUptime(validationID, messageIndex);
         uint64 epoch = _getEpoch() - 1;
@@ -726,8 +709,12 @@ contract Native721TokenStakingManager is
     *         submitting the uptime of the respective validators
     * @param delegationIDs An array of delegation IDs associated with the staking process.
     */
-    function resolveRewards(bytes32[] memory delegationIDs) external onlyUptimeKeeper {
+    function resolveRewards(bytes32[] memory delegationIDs) external {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
+
+        if ($._uptimeKeeper != _msgSender()) {
+            revert OwnableUnauthorizedAccount(_msgSender());
+        }
         
         uint64 epoch = _getEpoch() - 1;
         uint64 dur = $._epochDuration;
@@ -743,7 +730,7 @@ contract Native721TokenStakingManager is
             {
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epochStart));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : epochEnd;
-            if (delegationStart > delegationEnd){ continue; }
+                if (epochStart > delegationEnd){ continue; }
                 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, $._validationUptimes[epoch][delegator.validationID]));
 
                 if (delegationUptime * 100 / dur >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){

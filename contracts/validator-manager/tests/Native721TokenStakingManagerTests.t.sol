@@ -269,7 +269,8 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         uint32[] memory messageIndexes = new uint32[](2);
         messageIndexes[0] = 0; 
         messageIndexes[1] = 1;
-        
+
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
@@ -287,6 +288,7 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
                 Native721TokenStakingManager.InvalidInputLengths.selector, 1, 2
             )
         ); 
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         app.submitUptimeProofs(validationIDs, messageIndexes);
     }
 
@@ -878,10 +880,12 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
             ValidatorMessages.packValidationUptimeMessage(validationID, uptime);
         _mockGetUptimeWarpMessage(uptimeMessage, true);
 
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         app.submitUptimeProof(validationID, 0);
     }
 
     function _resolveRewards(bytes32[] memory delegationIDs) internal {
+        vm.prank(DEFAULT_UPTIME_KEEPER);
         app.resolveRewards(delegationIDs);
     }
 
