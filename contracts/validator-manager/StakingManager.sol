@@ -633,7 +633,7 @@ abstract contract StakingManager is
             revert UnauthorizedOwner(_msgSender());
         }
 
-        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.PendingRemoved) {
+        if (validator.status == ValidatorStatus.Active) {
             // Check that minimum stake duration has passed.
             if (block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
@@ -652,6 +652,7 @@ abstract contract StakingManager is
             emit InitiatedDelegatorRemoval({delegationID: delegationID, validationID: validationID});
             return;
         } else if (validator.status == ValidatorStatus.Completed) {
+            $._delegatorStakes[delegationID].endTime = validator.endTime; 
             _completeDelegatorRemoval(delegationID);
             // If the validator has completed, then no further uptimes may be submitted, so we always
             // end the delegation.

@@ -621,7 +621,7 @@ contract Native721TokenStakingManager is
             revert UnauthorizedOwner(_msgSender());
         }
 
-        if (validator.status == ValidatorStatus.Active || validator.status == ValidatorStatus.Completed || validator.status == ValidatorStatus.PendingRemoved) {
+        if (validator.status == ValidatorStatus.Active) {
             // Check that minimum stake duration has passed.
             if (validator.status != ValidatorStatus.Completed && block.timestamp < delegator.startTime + $._minimumStakeDuration) {
                 revert MinStakeDurationNotPassed(uint64(block.timestamp));
@@ -630,10 +630,10 @@ contract Native721TokenStakingManager is
             $._delegatorStakes[delegationID].status = DelegatorStatus.PendingRemoved;
             $._delegatorStakes[delegationID].endTime = uint64(block.timestamp);
             emit InitiatedDelegatorRemoval(delegationID, validationID);
-            if (validator.status == ValidatorStatus.Completed) {
-                uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
-                _unlockNFTs(delegator.owner, tokenIDs);
-            }
+         } else if (validator.status == ValidatorStatus.Completed) {
+            $._delegatorStakes[delegationID].endTime = validator.endTime; 
+            uint256[] memory tokenIDs = _completeNFTDelegatorRemoval(delegationID);
+            _unlockNFTs(delegator.owner, tokenIDs);
         } else {
             revert InvalidValidatorStatus(validator.status);
         }
