@@ -175,12 +175,6 @@ contract Native721TokenStakingManager is
         // Check if the validator has been already been removed from the validator manager.
         bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
 
-        // Return now if this was originally a PoA validator that was later migrated to this PoS manager,
-        // or the validator was part of the initial validator set.
-        if (!_isPoSValidator(validationID)) {
-            return validationID;
-        }
-
         return validationID;
     }
 
