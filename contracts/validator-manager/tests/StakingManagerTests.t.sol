@@ -2049,7 +2049,8 @@ abstract contract StakingManagerTest is ValidatorManagerTest {
             uptimeBlockchainID: DEFAULT_SOURCE_BLOCKCHAIN_ID,
             epochDuration: DEFAULT_EPOCH_DURATION,
             unlockDuration: DEFAULT_UNLOCK_DURATION,
-            uptimeKeeper: address(this)
+            uptimeKeeper: address(this),
+            epochOffset: 0
         });
     }
 

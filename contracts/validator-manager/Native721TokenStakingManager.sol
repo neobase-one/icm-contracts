@@ -124,15 +124,6 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice Sets the epoch offset, only to be called by the owner
-     * @param epochOffset The epoch offset applied to the current timestamp to calculate the staking epoch.
-     */
-    function setEpochOffset(uint64 epochOffset) external onlyOwner {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-        $._epochOffset = epochOffset;
-    }
-
-    /**
      * @notice See {INative721TokenStakingManager-initiateValidatorRegistration}.
      */
     function initiateValidatorRegistration(

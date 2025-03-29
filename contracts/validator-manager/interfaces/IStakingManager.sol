@@ -45,6 +45,7 @@ struct StakingManagerSettings {
     uint64 unlockDuration;
     uint64 epochDuration;
     address uptimeKeeper;
+    uint64 epochOffset;
 }
 
 /**

@@ -152,7 +152,8 @@ abstract contract StakingManager is
             unlockDuration: settings.unlockDuration,
             epochDuration: settings.epochDuration,
             maximumNFTAmount: settings.maximumNFTAmount,
-            uptimeKeeper: settings.uptimeKeeper
+            uptimeKeeper: settings.uptimeKeeper,
+            epochOffset: settings.epochOffset
         });
     }
 
@@ -170,7 +171,8 @@ abstract contract StakingManager is
         bytes32 uptimeBlockchainID,
         uint64 unlockDuration,
         uint64 epochDuration,
-        address uptimeKeeper
+        address uptimeKeeper,
+        uint64 epochOffset
     ) internal onlyInitializing {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         if (minimumDelegationFeeBips == 0 || minimumDelegationFeeBips > MAXIMUM_DELEGATION_FEE_BIPS)
@@ -204,6 +206,7 @@ abstract contract StakingManager is
         $._unlockDuration = unlockDuration;
         $._epochDuration = epochDuration;
         $._uptimeKeeper = uptimeKeeper;
+        $._epochOffset = epochOffset;
     }
 
     /**
