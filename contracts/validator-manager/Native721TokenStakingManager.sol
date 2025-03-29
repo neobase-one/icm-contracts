@@ -734,7 +734,7 @@ contract Native721TokenStakingManager is
             {
                 uint64 delegationStart = uint64(Math.max(delegator.startTime, epochStart));
                 uint64 delegationEnd = delegator.endTime != 0 ? delegator.endTime : epochEnd;
-            if (delegationStart > delegationEnd){ continue; }
+                if (epochStart > delegationEnd){ continue; }
                 delegationUptime = uint64(Math.min(delegationEnd - delegationStart, $._validationUptimes[epoch][delegator.validationID]));
 
                 if (delegationUptime * 100 / dur >= UPTIME_REWARDS_THRESHOLD_PERCENTAGE){
