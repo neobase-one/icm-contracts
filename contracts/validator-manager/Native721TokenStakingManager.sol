@@ -584,7 +584,6 @@ contract Native721TokenStakingManager is
     * @notice Initiates the process of ending an NFT delegation for a given delegation ID.
     * @dev This function ensures that the delegation is active and validates that the caller is authorized to end it.
     *      If the validator status is valid, the delegation status is updated to `PendingRemoved`.
-    *      Optionally, an uptime proof can be included during the process.
     * @param delegationID The unique identifier of the NFT delegation to be ended.
     *
     * Reverts if:
