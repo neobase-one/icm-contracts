@@ -614,10 +614,13 @@ abstract contract StakingManager is
     }
 
     /**
-     * @dev Helper function that initiates the end of a PoS delegation period.
-     * Returns false if it is possible for the delegator to claim rewards, but it is not eligible.
-     * Returns true otherwise.
-     */
+    * @notice Initiates the process of ending an delegation for a given delegation ID.
+    * @dev This function ensures that the delegation is active and validates that the caller is authorized to end it.
+    *      If the validator status is valid, the delegation status is updated to `PendingRemoved`. If the validator
+    *      is complete, then removal is completed directly. Status is updated to `Completed` and initate
+    *      `InitiatedDelegatorRemoval` is not emitted. 
+    * @param delegationID The unique identifier of the delegation to be ended.
+    **/
     function _initiateDelegatorRemoval(
         bytes32 delegationID
     ) internal {
