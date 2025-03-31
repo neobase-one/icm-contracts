@@ -80,7 +80,8 @@ contract DeployBEAMStakingManager is Script {
             uptimeBlockchainID: UPTIME_BLOCKCHAIN_ID,
             epochDuration: EPOCH_DURATION,
             unlockDuration: UNLOCK_PERIOD,
-            uptimeKeeper: ADMIN_ADDRESS
+            uptimeKeeper: ADMIN_ADDRESS,
+            epochOffset: 0
         });
 
         bytes memory initData = abi.encodeWithSelector(

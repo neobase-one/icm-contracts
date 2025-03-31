@@ -70,19 +70,20 @@ contract UpgradeBEAMStakingManager is Script {
             uptimeBlockchainID: UPTIME_BLOCKCHAIN_ID,
             epochDuration: EPOCH_DURATION,
             unlockDuration: UNLOCK_PERIOD,
-            uptimeKeeper: ADMIN_ADDRESS
+            uptimeKeeper: ADMIN_ADDRESS,
+            epochOffset: 0
         });
 
        // Get ProxyAdmin instance
         ProxyAdmin proxyAdmin = ProxyAdmin(_PROXY_ADMIN_ADDRESS);
         
-        bytes memory selector;
+        // bytes memory selector;
         // Upgrade proxy to new implementation
         proxyAdmin.upgradeAndCall(
             ITransparentUpgradeableProxy(_PROXY_ADDRESS),
             address(newImplementation),
-            selector
-            // abi.encodeWithSelector(Native721TokenStakingManager.initialize.selector, settings, address(NFT_TOKEN_ADDRESS))
+            // selector
+            abi.encodeWithSelector(Native721TokenStakingManager.initialize.selector, settings, address(NFT_TOKEN_ADDRESS))
         );
         console.log("Upgraded proxy to new implementation");
 
