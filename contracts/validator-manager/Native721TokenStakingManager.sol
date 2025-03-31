@@ -155,23 +155,6 @@ contract Native721TokenStakingManager is
     }
 
     /**
-     * @notice See {IStakingManager-completeValidatorRemoval}.
-     * Extends the functionality of {ACP99Manager-completeValidatorRemoval} by unlocking staking rewards.
-     */
-    function completeValidatorRemoval(uint32 messageIndex)
-        external override (IStakingManager, StakingManager)
-        nonReentrant
-        returns (bytes32)
-    {
-        StakingManagerStorage storage $ = _getStakingManagerStorage();
-
-        // Check if the validator has been already been removed from the validator manager.
-        bytes32 validationID = $._manager.completeValidatorRemoval(messageIndex);
-
-        return validationID;
-    }
-
-    /**
     * @notice See {INative721TokenStakingManager-registerNFTDelegation}.
     *
     */
