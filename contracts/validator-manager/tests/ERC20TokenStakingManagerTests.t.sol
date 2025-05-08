@@ -105,16 +105,6 @@ contract ERC20TokenStakingManagerTest is StakingManagerTest {
         app.initialize(defaultPoSSettings, token);
     }
 
-    function testZeroMaxStakeMultiplier() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
-        vm.expectRevert(abi.encodeWithSelector(StakingManager.InvalidStakeMultiplier.selector, 0));
-
-        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.manager = validatorManager;
-        defaultPoSSettings.maximumStakeMultiplier = 0;
-        app.initialize(defaultPoSSettings, token);
-    }
-
     function testMinStakeDurationTooLow() public {
         app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
         uint64 minimumStakeDuration = DEFAULT_CHURN_PERIOD - 1;
@@ -127,21 +117,6 @@ contract ERC20TokenStakingManagerTest is StakingManagerTest {
         StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
         defaultPoSSettings.manager = validatorManager;
         defaultPoSSettings.minimumStakeDuration = minimumStakeDuration;
-        app.initialize(defaultPoSSettings, token);
-    }
-
-    function testMaxStakeMultiplierOverLimit() public {
-        app = new ERC20TokenStakingManager(ICMInitializable.Allowed);
-        uint8 maximumStakeMultiplier = app.MAXIMUM_STAKE_MULTIPLIER_LIMIT() + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                StakingManager.InvalidStakeMultiplier.selector, maximumStakeMultiplier
-            )
-        );
-
-        StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.manager = validatorManager;
-        defaultPoSSettings.maximumStakeMultiplier = maximumStakeMultiplier;
         app.initialize(defaultPoSSettings, token);
     }
 
@@ -279,7 +254,6 @@ contract ERC20TokenStakingManagerTest is StakingManagerTest {
         validatorManager = new ValidatorManager(ICMInitializable.Allowed);
 
         StakingManagerSettings memory defaultPoSSettings = _defaultPoSSettings();
-        defaultPoSSettings.rewardCalculator = rewardCalculator;
         defaultPoSSettings.manager = validatorManager;
 
         validatorManager.initialize(_defaultSettings(address(app)));

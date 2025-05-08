@@ -558,9 +558,6 @@ abstract contract ValidatorManagerTest is Test {
         bool force
     ) internal {
         _mockSendWarpMessage(setWeightMessage, bytes32(0));
-        if (includeUptime) {
-            _mockGetUptimeWarpMessage(uptimeMessage, true);
-        }
 
         vm.warp(completionTimestamp);
         if (force) {
@@ -580,9 +577,6 @@ abstract contract ValidatorManagerTest is Test {
         address recipientAddress
     ) internal {
         _mockSendWarpMessage(setWeightMessage, bytes32(0));
-        if (includeUptime) {
-            _mockGetUptimeWarpMessage(uptimeMessage, true);
-        }
 
         vm.warp(completionTimestamp);
         if (force) {
