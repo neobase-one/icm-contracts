@@ -385,6 +385,55 @@ contract Native721TokenStakingManagerTest is StakingManagerTest, IERC721Receiver
         _claimReward(true, DEFAULT_DELEGATOR_ADDRESS, delegatorReward);
     }
 
+    function testDelegationRewardsClaimTwice() public {
+        bytes32 validationID = _registerDefaultValidator();
+        bytes32 delegationID = _registerDefaultDelegator(validationID);
+
+        _endValidationWithChecks({
+            validationID: validationID,
+            validatorOwner: address(this),
+            completeRegistrationTimestamp: DEFAULT_REGISTRATION_TIMESTAMP,
+            completionTimestamp: DEFAULT_COMPLETION_TIMESTAMP,
+            validatorWeight: DEFAULT_WEIGHT,
+            expectedNonce: 2,
+            rewardRecipient: address(this)
+        });
+
+        // Validator is Completed, so this will also complete the delegation.
+        _initiateDelegatorRemoval({
+            sender: DEFAULT_DELEGATOR_ADDRESS,
+            delegationID: delegationID,
+            endDelegationTimestamp: DEFAULT_DELEGATOR_END_DELEGATION_TIMESTAMP,
+            includeUptime: false,
+            force: false,
+            rewardRecipient: DEFAULT_DELEGATOR_ADDRESS
+        });
+
+        vm.warp(DEFAULT_REGISTRATION_TIMESTAMP + DEFAULT_EPOCH_DURATION);
+        _submitUptime(validationID, DEFAULT_COMPLETION_TIMESTAMP - DEFAULT_REGISTRATION_TIMESTAMP);
+
+        bytes32[] memory delegationIDs = new bytes32[](1);
+        delegationIDs[0] = delegationID;
+        _resolveRewards(delegationIDs);
+
+        (uint256 validatorReward, uint256 delegatorReward) = _calculateExpectedRewards(
+            DEFAULT_WEIGHT, DEFAULT_DELEGATOR_WEIGHT, DEFAULT_DELEGATION_FEE_BIPS);
+
+
+        uint256 balanceBefore = rewardToken.balanceOf(DEFAULT_DELEGATOR_ADDRESS);
+        
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(rewardToken);
+        tokens[1] = address(rewardToken);
+        
+        vm.prank(DEFAULT_DELEGATOR_ADDRESS);
+        vm.warp(block.timestamp + REWARD_CLAIM_DELAY);
+
+        app.claimRewards(true, 0, tokens, DEFAULT_DELEGATOR_ADDRESS);
+
+        assertApproxEqRel(delegatorReward, rewardToken.balanceOf(DEFAULT_DELEGATOR_ADDRESS) - balanceBefore, 0.1e18);
+    }
+
      function testRewardsTooEarly() public {
         bytes32 validationID = _registerDefaultValidator();
 
