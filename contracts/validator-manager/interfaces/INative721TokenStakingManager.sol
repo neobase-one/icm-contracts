@@ -138,6 +138,18 @@ interface INative721TokenStakingManager is IStakingManager {
     ) external;
 
     /**
+     * @notice Wraps the native tokens held by the contract, and registers them as primary staking rewards for the next epoch.
+     * @dev This function can be called by anyone. Native currency can be sent to the contract within the same call.
+     *
+     * Requirements:
+     * - The contract must hold any native tokens to wrap and register.
+     *
+     * Emits:
+     * - `RewardRegistered` event upon successfully registering the reward.
+     */
+    function registerPrimaryRewards() external payable;
+
+    /**
      * @notice Cancels previously registered rewards before the claim period starts.
      * @dev The function allows the contract owner to withdraw unclaimed rewards if the claim period has not begun.
      * @param primary A boolean indicating whether to cancel from the primary reward pool (true) or the NFT pool (false).
@@ -230,4 +242,9 @@ interface INative721TokenStakingManager is IStakingManager {
      * @notice Returns the ERC721 token contract used for staking
      */
     function erc721() external view returns (IERC721);
+
+    /**
+     * @notice Returns the current reward epoch
+     */
+    function getEpoch() external view returns (uint64);
 }

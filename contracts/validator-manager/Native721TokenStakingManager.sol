@@ -5,12 +5,7 @@
 
 pragma solidity 0.8.25;
 
-import {
-    StakingManagerSettings
-} from "./interfaces/IStakingManager.sol";
-import {
-    StakingManager
-} from "./StakingManager.sol";
+import {StakingManager} from "./StakingManager.sol";
 import {
     Delegator,
     DelegatorStatus,
@@ -18,6 +13,7 @@ import {
     PoSValidatorInfo,
     StakingManagerSettings
 } from "./interfaces/IStakingManager.sol";
+import {IWETH} from "./interfaces/IWETH.sol";
 import { Math } from "@openzeppelin/contracts@5.0.2/utils/math/Math.sol";
 import {INative721TokenStakingManager} from "./interfaces/INative721TokenStakingManager.sol";
 import {IERC721} from "@openzeppelin/contracts@5.0.2/token/ERC721/IERC721.sol";
@@ -51,6 +47,7 @@ contract Native721TokenStakingManager is
     /// @custom:storage-location erc7201:avalanche-icm.storage.Native721TokenStakingManager
     struct Native721TokenStakingManagerStorage {
         IERC721 _token;
+        IWETH _weth;
     }
     // solhint-enable private-vars-leading-underscore
 
@@ -66,6 +63,7 @@ contract Native721TokenStakingManager is
     error InvalidInputLengths(uint256 inputLength1, uint256 inputLength2);
     error TooEarly(uint256 actualTime, uint256 expectedTime);
     error TooLate(uint256 actualTime, uint256 expectedTime);
+    error NoNativeBalance();
 
 
     // solhint-disable ordering
@@ -93,7 +91,8 @@ contract Native721TokenStakingManager is
      */
     function initialize(
         StakingManagerSettings calldata settings,
-        IERC721 stakingToken
+        IERC721 stakingToken,
+        IWETH weth
     ) external reinitializer(3) {
         __Ownable_init(settings.admin);
         __StakingManager_init(settings);
@@ -104,7 +103,12 @@ contract Native721TokenStakingManager is
             revert InvalidTokenAddress(address(stakingToken));
         }
 
+        if (address(weth) == address(0)) {
+            revert InvalidTokenAddress(address(weth));
+        }
+
         $._token = stakingToken;
+        $._weth = weth;
     }
 
     function onERC721Received(
@@ -327,6 +331,29 @@ contract Native721TokenStakingManager is
     }
 
     /**
+     * @notice See {INative721TokenStakingManager-registerPrimaryRewards}.
+     */
+    function registerPrimaryRewards() external payable virtual nonReentrant {
+        uint256 amount = address(this).balance;
+
+        // revert if contract has no native balance
+        if (amount == 0) {
+            revert NoNativeBalance();
+        }
+
+        // wrap native tokens locked in contract
+        IWETH weth = _getERC721StakingManagerStorage()._weth;
+        weth.deposit{value: amount}();
+
+        // register primary rewards for next epoch
+        StakingManagerStorage storage $ = _getStakingManagerStorage();
+        uint64 epoch = getEpoch() + 1;
+        $._rewardPools[epoch][address(weth)] += amount;
+
+        emit RewardRegistered(true, epoch, address(weth), amount);
+    }
+
+    /**
      * @notice See {INative721TokenStakingManager-cancelRewards}.
      */
     function cancelRewards(
@@ -407,7 +434,10 @@ contract Native721TokenStakingManager is
     function _reward(address account, uint256 amount) internal virtual override {
     }
 
-    function _getEpoch() internal view virtual returns (uint64) {
+    /**
+     * @notice See {INative721TokenStakingManager-getEpoch}.
+     */
+    function getEpoch() public view virtual returns (uint64) {
         StakingManagerStorage storage $ = _getStakingManagerStorage();
         return uint64((block.timestamp + $._epochOffset) / $._epochDuration);
     }
@@ -656,7 +686,7 @@ contract Native721TokenStakingManager is
         }
         
         uint64 uptime = _validateUptime(validationID, messageIndex);
-        uint64 epoch = _getEpoch() - 1;
+        uint64 epoch = getEpoch() - 1;
         uint64 dur = $._epochDuration;
 
         PoSValidatorInfo storage validatorInfo = $._posValidatorInfo[validationID];
@@ -700,7 +730,7 @@ contract Native721TokenStakingManager is
             revert OwnableUnauthorizedAccount(_msgSender());
         }
         
-        uint64 epoch = _getEpoch() - 1;
+        uint64 epoch = getEpoch() - 1;
         uint64 dur = $._epochDuration;
 
         for (uint256 i = 0; i < delegationIDs.length; i++) {
